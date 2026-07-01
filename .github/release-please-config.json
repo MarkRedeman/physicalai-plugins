@@ -20,6 +20,16 @@
       "release-type": "python",
       "package-name": "physicalai-rebot-b601-plugin",
       "changelog-path": "CHANGELOG.md"
+    },
+    "packages/physicalai-websocket-robot-plugin": {
+      "release-type": "python",
+      "package-name": "physicalai-websocket-robot-plugin",
+      "changelog-path": "CHANGELOG.md"
+    },
+    "packages/physicalai-zmq-robot-plugin": {
+      "release-type": "python",
+      "package-name": "physicalai-zmq-robot-plugin",
+      "changelog-path": "CHANGELOG.md"
     }
   }
 }

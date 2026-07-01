@@ -3,6 +3,8 @@
 This repository uses [release-please](https://github.com/googleapis/release-please) for automated releases of Python packages defined in `.github/release-please-config.json`. Currently:
 
 - `physicalai-rebot-b601-plugin`
+- `physicalai-websocket-robot-plugin`
+- `physicalai-zmq-robot-plugin`
 
 ## Pull request title convention
 
@@ -38,6 +40,8 @@ Package versions are **not hardcoded** — they are derived from git tags at bui
 | Package                        | Tag pattern                              |
 | ------------------------------ | ---------------------------------------- |
 | `physicalai-rebot-b601-plugin` | `physicalai-rebot-b601-plugin-v<semver>` |
+| `physicalai-websocket-robot-plugin` | `physicalai-websocket-robot-plugin-v<semver>` |
+| `physicalai-zmq-robot-plugin` | `physicalai-zmq-robot-plugin-v<semver>` |
 
 ## Testing a Release (TestPyPI)
 

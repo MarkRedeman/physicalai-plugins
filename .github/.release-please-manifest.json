@@ -1,3 +1,5 @@
 {
-  "packages/physicalai-rebot-b601-plugin": "0.3.0"
+  "packages/physicalai-rebot-b601-plugin": "0.3.0",
+  "packages/physicalai-websocket-robot-plugin": "0.1.0",
+  "packages/physicalai-zmq-robot-plugin": "0.1.0"
 }
