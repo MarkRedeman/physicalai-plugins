@@ -155,17 +155,17 @@ class WebSocketRobot:
                     self._cached_state = msg.get("state")
                 continue
 
-            if event_type in (
+            if event_type in {
                 "state_read",
                 "joints_state_was_set",
                 "torque_was_enabled",
                 "torque_was_disabled",
                 "pong",
                 "features_read",
-            ):
+            }:
                 return msg
 
-            if event in ("read_state", "features") and msg.get("state"):
+            if event in {"read_state", "features"} and msg.get("state"):
                 return msg
 
             if event == "set_joints_state" and msg.get("event", "").endswith("_was_set"):

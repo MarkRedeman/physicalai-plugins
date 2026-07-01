@@ -37,11 +37,11 @@ For **breaking** changes — add `!` after the type to trigger a MAJOR version b
 
 Package versions are **not hardcoded** — they are derived from git tags at build time via [`hatch-vcs`](https://github.com/ofek/hatch-vcs). Each package has its own tag pattern:
 
-| Package                        | Tag pattern                              |
-| ------------------------------ | ---------------------------------------- |
-| `physicalai-rebot-b601-plugin` | `physicalai-rebot-b601-plugin-v<semver>` |
+| Package                             | Tag pattern                                   |
+| ----------------------------------- | --------------------------------------------- |
+| `physicalai-rebot-b601-plugin`      | `physicalai-rebot-b601-plugin-v<semver>`      |
 | `physicalai-websocket-robot-plugin` | `physicalai-websocket-robot-plugin-v<semver>` |
-| `physicalai-zmq-robot-plugin` | `physicalai-zmq-robot-plugin-v<semver>` |
+| `physicalai-zmq-robot-plugin`       | `physicalai-zmq-robot-plugin-v<semver>`       |
 
 ## Testing a Release (TestPyPI)
 
