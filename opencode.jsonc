@@ -1,0 +1,13 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "references": {
+    "physicalai": {
+      "path": "../physicalai",
+      "description": "Use for PhysicalAI framework integrations",
+    },
+    "studio": {
+      "path": "../physical-ai-studio",
+      "description": "Use for PhysicalAI studio integrations",
+    },
+  },
+}
