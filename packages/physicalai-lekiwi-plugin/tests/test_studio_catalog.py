@@ -32,12 +32,13 @@ def test_register_plugin() -> None:
     register_physicalai_studio_plugin(registry)
 
     assert registry.definitions is not None
-    assert len(registry.definitions) == 1
+    assert len(registry.definitions) == 2
+
+    types = [(d.entry.type, d.entry.role) for d in registry.definitions]
+    assert ("LeKiwi_Follower", "follower") in types
+    assert ("LeKiwi_Leader", "leader") in types
 
     defn = registry.definitions[0]
-    assert defn.entry.type == "LeKiwi_Follower"
-    assert defn.entry.display_name == "LeKiwi Follower"
-    assert defn.entry.role == "follower"
     assert defn.urdf_relative_path == Path("lekiwi/urdf/LeKiwi.urdf")
     assert defn.asset_source == "plugin"
     assert defn.payload_model is not None

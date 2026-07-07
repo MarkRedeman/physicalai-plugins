@@ -152,6 +152,31 @@ async def _build_lekiwi_driver(
     )
 
 
+async def _build_lekiwi_leader(
+    robot: _PayloadContainer[LeKiwiPayload],
+    factory: _PortFinder,
+) -> PhysicalAIRobot:
+    raw = robot.payload
+    if isinstance(raw, LeKiwiPayload):
+        validated = raw
+    elif isinstance(raw, dict):
+        validated = LeKiwiPayload.model_validate(raw)
+    else:
+        validated = LeKiwiPayload.model_validate(raw.model_dump(mode="json"))
+
+    serial_number = validated.serial_number
+    port = await factory.find_port_by_serial(serial_number)
+    if port is None:
+        msg = f"Robot not found: {serial_number}"
+        raise RuntimeError(msg)
+
+    return LeKiwi.uncalibrated(
+        port=port,
+        baudrate=validated.baudrate,
+        role="leader",
+    )
+
+
 def _definitions() -> list[_CatalogDefinition]:
     return [
         _CatalogDefinition(
@@ -171,6 +196,26 @@ def _definitions() -> list[_CatalogDefinition]:
             asset_root_resolver=_get_lekiwi_urdf_root,
             discover_devices=_discover_lekiwi_devices,
             robot_builder=_build_lekiwi_driver,
+            payload_model=LeKiwiPayload,
+            adapter_options=_RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
+        ),
+        _CatalogDefinition(
+            entry=_CatalogEntry(
+                type="LeKiwi_Leader",
+                display_name="LeKiwi Leader",
+                role="leader",
+                urdf_path="/api/robots/catalog/LeKiwi_Leader/urdf",
+                package_map={
+                    "lekiwi": "/api/robots/catalog/LeKiwi_Leader",
+                },
+                joint_map=_LEKIWI_TO_URDF,
+            ),
+            urdf_relative_path=Path("lekiwi/urdf/LeKiwi.urdf"),
+            package_root=Path("lekiwi"),
+            asset_source="plugin",
+            asset_root_resolver=_get_lekiwi_urdf_root,
+            discover_devices=_discover_lekiwi_devices,
+            robot_builder=_build_lekiwi_leader,
             payload_model=LeKiwiPayload,
             adapter_options=_RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
         ),
