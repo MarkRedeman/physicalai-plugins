@@ -1,0 +1,246 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot name="LeKiwi">
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/base_plate_layer1-v5.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0.007" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/base_plate_layer2-v3.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+    <visual>
+      <origin xyz="-0.04 -0.02 0" rpy="3.14159 0 0"/>
+      <geometry><mesh filename="meshes/lipo_battery_mount-v3.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0.06 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/servo_controller_mount-v3.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+    <visual>
+      <origin xyz="0.02 0.1 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/Camera-Mount-v8.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/94868A713_NO-THREADS_Female-Threaded-Hex-Standoff.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+  </link>
+
+  <link name="arm_base">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/Base_08q-v1.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/WaveShare_Mounting_Plate_01d-v1.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+  </link>
+
+  <joint name="arm_base_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="arm_base"/>
+    <origin xyz="0.04 0.08 0.057" rpy="0 0 0"/>
+  </joint>
+
+  <link name="shoulder_pan_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/STS3215_03a-v1.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/Rotation_Pitch_08i-v1.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/SO_ARM100_08k_Asym_Mirror_Clip-v1.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/Passive_Horn_01-v1.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+  </link>
+
+  <joint name="shoulder_pan" type="revolute">
+    <parent link="arm_base"/>
+    <child link="shoulder_pan_link"/>
+    <origin xyz="-0.04 -0.012852 0.0624" rpy="3.14159 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="100" velocity="270" lower="-3.14159" upper="3.14159"/>
+  </joint>
+
+  <link name="shoulder_lift_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/STS3215_03a-v1-1.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/SO_ARM100_08k_116_Square-v1.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+  </link>
+
+  <joint name="shoulder_lift" type="revolute">
+    <parent link="shoulder_pan_link"/>
+    <child link="shoulder_lift_link"/>
+    <origin xyz="0.0183 -0.0306 -0.0522" rpy="-3.14159 0 0"/>
+    <axis xyz="1 0 0"/>
+    <limit effort="100" velocity="270" lower="-3.14159" upper="3.14159"/>
+  </joint>
+
+  <link name="elbow_flex_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/STS3215_03a-v1-2.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/SO_ARM100_08k_Mirror-v1.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+  </link>
+
+  <joint name="elbow_flex" type="revolute">
+    <parent link="shoulder_lift_link"/>
+    <child link="elbow_flex_link"/>
+    <origin xyz="-0.0015 -0.114582 0.018082" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+    <limit effort="100" velocity="270" lower="-3.14159" upper="3.14159"/>
+  </joint>
+
+  <link name="wrist_flex_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/STS3215_03a-v1-3.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/Wrist_Roll_Pitch_08i-v1.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+  </link>
+
+  <joint name="wrist_flex" type="revolute">
+    <parent link="elbow_flex_link"/>
+    <child link="wrist_flex_link"/>
+    <origin xyz="-0.0015 0.132932 0.02872" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+    <limit effort="100" velocity="270" lower="-3.14159" upper="3.14159"/>
+  </joint>
+
+  <link name="wrist_roll_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/STS3215_03a_Wrist_Roll-v1.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/Wrist_Roll_08c-v1.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+  </link>
+
+  <joint name="wrist_roll" type="revolute">
+    <parent link="wrist_flex_link"/>
+    <child link="wrist_roll_link"/>
+    <origin xyz="-0.0201 0.025822 -0.055375" rpy="0 0 0"/>
+    <axis xyz="0 0.422618 -0.906308"/>
+    <limit effort="100" velocity="270" lower="-3.14159" upper="3.14159"/>
+  </joint>
+
+  <link name="gripper_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/STS3215_03a-v1-4.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/Moving_Jaw_08d-v1.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+  </link>
+
+  <joint name="gripper" type="revolute">
+    <parent link="wrist_roll_link"/>
+    <child link="gripper_link"/>
+    <origin xyz="-0.0198 -0.007084 -0.028819" rpy="0 0 0"/>
+    <axis xyz="0 -0.906308 -0.422618"/>
+    <limit effort="100" velocity="270" lower="-3.14159" upper="3.14159"/>
+  </joint>
+
+  <link name="left_wheel_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/ST3215_Servo_Motor-v1.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/omni_wheel_mount-v5.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/4-Omni-Directional-Wheel_Single_Body-v1.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/drive_motor_mount-v11.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+  </link>
+
+  <joint name="left_wheel" type="continuous">
+    <parent link="base_link"/>
+    <child link="left_wheel_link"/>
+    <origin xyz="-0.059282 0.057321 0" rpy="3.14159 0 0"/>
+    <axis xyz="-0.866025 0 0.5"/>
+  </joint>
+
+  <link name="back_wheel_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/ST3215_Servo_Motor-v1-2.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/omni_wheel_mount-v5-2.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/4-Omni-Directional-Wheel_Single_Body-v1-2.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/drive_motor_mount-v11-2.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+  </link>
+
+  <joint name="back_wheel" type="continuous">
+    <parent link="base_link"/>
+    <child link="back_wheel_link"/>
+    <origin xyz="-0.02 -0.1 0" rpy="3.14159 0 0"/>
+    <axis xyz="0 0 -1"/>
+  </joint>
+
+  <link name="right_wheel_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/ST3215_Servo_Motor-v1-1.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/omni_wheel_mount-v5-1.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/4-Omni-Directional-Wheel_Single_Body-v1-1.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/drive_motor_mount-v11-1.stl" scale="0.001 0.001 0.001"/></geometry>
+    </visual>
+  </link>
+
+  <joint name="right_wheel" type="continuous">
+    <parent link="base_link"/>
+    <child link="right_wheel_link"/>
+    <origin xyz="0.079282 0.022679 0" rpy="0 0 0"/>
+    <axis xyz="0.866025 0 0.5"/>
+  </joint>
+</robot>
