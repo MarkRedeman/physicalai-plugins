@@ -1,3 +1,9 @@
+"""LeKiwi mobile manipulator driver (6-DOF SO-ARM100 arm + 3-wheel holonomic base).
+
+Uses direct serial communication via ``scservo_sdk`` (Feetech STS3215 servos).
+Arm motors run in POSITION mode; base wheel motors run in VELOCITY mode.
+"""
+
 from __future__ import annotations
 
 import contextlib
@@ -18,21 +24,22 @@ from physicalai_lekiwi_plugin.constants import (
     BASE_RADIUS,
     LEKIWI_ARM_JOINTS,
     LEKIWI_BASE_JOINTS,
-    LEKIWI_JOINT_LIMITS_DEG,
     LEKIWI_JOINT_ORDER,
     LEKIWI_MOTOR_IDS,
+    MAX_RAW_SPEED_NEGATIVE,
+    MAX_RAW_SPEED_POSITIVE,
     MAX_RAW_WHEEL,
     POSITION_MODE,
     PROTOCOL_VERSION,
     STEPS_PER_DEG,
-    STS3215Addr,
-    STS3215Len,
     TICKS_PER_REVOLUTION,
     VALID_ROLES,
     VELOCITY_MODE,
     WHEEL_ANGLES_DEG,
     WHEEL_OFFSET_DEG,
     WHEEL_RADIUS,
+    STS3215Addr,
+    STS3215Len,
 )
 
 if TYPE_CHECKING:
@@ -54,6 +61,14 @@ class _LeKiwiConnection:
 
 @dataclass
 class LeKiwiObservation:
+    """Observation from the LeKiwi robot.
+
+    Attributes:
+        joint_positions: Array of shape ``(9,)`` with joint positions (6 arm + 3 base velocities).
+        timestamp: ``time.monotonic()`` at the moment of capture.
+        sensor_data: Optional dict of body-frame velocities and wheel feedback.
+    """
+
     joint_positions: np.ndarray
     timestamp: float
     sensor_data: dict[str, np.ndarray] | None = None
@@ -61,10 +76,22 @@ class LeKiwiObservation:
 
     @property
     def state(self) -> np.ndarray:
+        """State vector: joint positions (9,)."""
         return self.joint_positions
 
 
 class LeKiwi:
+    """Driver for the LeKiwi robot (6-DOF arm + 3-wheel holonomic base).
+
+    Args:
+        port: Serial port path, e.g. ``"/dev/ttyACM0"``.
+        baudrate: Serial baudrate. Defaults to 1 000 000 (STS3215 factory default).
+        role: ``"follower"`` (torque enabled, full control) or ``"leader"``
+            (torque disabled, read-only for teleoperation).
+        calibration: Calibration object or JSON path. Required for normal operation.
+        unit: Joint-space command/observation unit. Defaults to ``"normalized"``.
+    """
+
     JOINT_ORDER: ClassVar[list[str]] = list(LEKIWI_JOINT_ORDER)
     NUM_JOINTS: ClassVar[int] = 9
 
@@ -78,6 +105,19 @@ class LeKiwi:
         *,
         _allow_uncalibrated: bool = False,
     ) -> None:
+        """Initialize the LeKiwi driver (does not open the connection).
+
+        Args:
+            port: Serial port path.
+            baudrate: Serial baudrate.
+            role: ``"follower"`` or ``"leader"``.
+            calibration: Calibration object or path.
+            unit: ``"normalized"`` or ``"ticks"``.
+            _allow_uncalibrated: Skip calibration requirement (for testing).
+
+        Raises:
+            ValueError: If role is invalid.
+        """
         if role not in VALID_ROLES:
             msg = f"Invalid role {role!r}. Must be one of {sorted(VALID_ROLES)}."
             raise ValueError(msg)
@@ -119,6 +159,13 @@ class LeKiwi:
         role: Literal["leader", "follower"] = "follower",
         unit: LeKiwiUnit = "ticks",
     ) -> LeKiwi:
+        """Create an uncalibrated LeKiwi instance in raw-ticks mode.
+
+        Intended for bringup/debug only. Observations and actions use raw servo ticks (0-4095).
+
+        Returns:
+            LeKiwi: An uncalibrated driver instance.
+        """
         return cls(
             port=port,
             calibration=None,
@@ -130,10 +177,12 @@ class LeKiwi:
 
     @property
     def joint_names(self) -> list[str]:
+        """Ordered list of joint names (6 arm + 3 base)."""
         return self.JOINT_ORDER
 
     @property
     def port(self) -> str:
+        """Serial port path."""
         return self._port
 
     @port.setter
@@ -142,6 +191,7 @@ class LeKiwi:
 
     @property
     def baudrate(self) -> int:
+        """Serial baudrate."""
         return self._baudrate
 
     @baudrate.setter
@@ -153,6 +203,7 @@ class LeKiwi:
 
     @property
     def role(self) -> Literal["leader", "follower"]:
+        """Current role (``"leader"`` or ``"follower"``)."""
         return self._role
 
     @role.setter
@@ -164,10 +215,12 @@ class LeKiwi:
 
     @property
     def calibrated(self) -> bool:
+        """Whether a calibration object has been loaded."""
         return self._calibration is not None
 
     @property
     def unit(self) -> LeKiwiUnit:
+        """Current unit mode (``"normalized"`` or ``"ticks"``)."""
         return self._unit
 
     @unit.setter
@@ -177,6 +230,7 @@ class LeKiwi:
 
     @property
     def torque_on_disconnect(self) -> bool:
+        """Whether to disable torque on disconnect."""
         return self._torque_on_disconnect
 
     @torque_on_disconnect.setter
@@ -220,6 +274,14 @@ class LeKiwi:
         return resolved
 
     def _require_connection(self) -> _LeKiwiConnection:
+        """Return the active connection or raise.
+
+        Returns:
+            _LeKiwiConnection: The active serial connection.
+
+        Raises:
+            ConnectionError: If the robot is not connected.
+        """
         conn = self._connection
         if conn is None:
             msg = "Robot is not connected. Call connect() first."
@@ -236,6 +298,11 @@ class LeKiwi:
         return self._calibration
 
     def connect(self) -> None:
+        """Open the serial port, ping all servos, and configure torque.
+
+        Raises:
+            ConnectionError: If the serial port cannot be opened or any servo fails to respond.
+        """
         if self.is_connected():
             return
 
@@ -314,6 +381,7 @@ class LeKiwi:
         logger.info(f"LeKiwi connected on {self.port} (role={self.role})")
 
     def disconnect(self) -> None:
+        """Disconnect from the robot, leaving it in a safe state."""
         conn = self._connection
         if conn is None:
             return
@@ -338,6 +406,11 @@ class LeKiwi:
         logger.info(f"LeKiwi disconnected from {self.port}")
 
     def get_observation(self) -> RobotObservation:
+        """Read current joint positions and base velocities from all motors.
+
+        Returns:
+            LeKiwiObservation: Observation with joint positions (9,) and sensor data.
+        """
         raw_arm_positions = self._read_arm_positions()
 
         sensor_data: dict[str, np.ndarray] = {}
@@ -377,7 +450,17 @@ class LeKiwi:
             sensor_data=sensor_data,
         )
 
-    def send_action(self, action: np.ndarray, *, goal_time: float = 0.1) -> None:  # noqa: ARG002
+    def send_action(self, action: np.ndarray, *, goal_time: float = 0.1) -> None:
+        """Send joint position commands to arm and velocity commands to base.
+
+        Args:
+            action: Array of shape ``(9,)`` (6 arm positions + 3 base velocities).
+            goal_time: Time to reach the goal in seconds (unused in current implementation).
+
+        Raises:
+            RuntimeError: If called in leader role.
+            ValueError: If action has incorrect shape.
+        """
         if self.role == "leader":
             msg = "Cannot send actions to a leader arm. Leader arms are read-only for teleoperation."
             raise RuntimeError(msg)
@@ -390,7 +473,10 @@ class LeKiwi:
         arm_action = action[:6]
         body_action = action[6:]
 
-        arm_ticks = self._unit_to_ticks(arm_action) if self._calibration is not None else np.round(arm_action).astype(np.int32)
+        if self._calibration is not None:
+            arm_ticks = self._unit_to_ticks(arm_action)
+        else:
+            arm_ticks = np.round(arm_action).astype(np.int32)
         self._write_arm_positions(arm_ticks)
 
         wheel_raw = self._body_to_wheel_raw(
@@ -405,9 +491,15 @@ class LeKiwi:
         )
 
     def is_connected(self) -> bool:
+        """Check if the robot serial connection is active.
+
+        Returns:
+            True if connected, False otherwise.
+        """
         return self._connection is not None
 
     def set_torque(self, *, enabled: bool) -> None:
+        """Enable or disable torque on all servos."""
         self._set_torque(enabled=enabled)
 
     def _stop_base(self) -> None:
@@ -471,6 +563,14 @@ class LeKiwi:
             self._write_register(conn, servo_id, STS3215Addr.OPERATING_MODE, VELOCITY_MODE)
 
     def servo_ids_for_name(self, servo_id: int) -> str | None:
+        """Look up the joint name by servo ID.
+
+        Args:
+            servo_id: The servo/motor ID to look up.
+
+        Returns:
+            The joint name if found, or ``None``.
+        """
         for name, sid in self.servo_ids.items():
             if sid == servo_id:
                 return name
@@ -491,7 +591,7 @@ class LeKiwi:
                 address,
                 value,
             )
-        elif byte_width == 2:  # noqa: PLR2004
+        elif byte_width == 2:
             comm_result, error = conn.packet_handler.write2ByteTxRx(
                 conn.port_handler,
                 servo_id,
@@ -609,7 +709,10 @@ class LeKiwi:
                 norm = ((tick_value - cal.range_min) / rng) * 100.0
             else:
                 norm = ((tick_value - cal.range_min) / rng) * 200.0 - 100.0
-            result[i] = float(np.clip(norm, 0.0, 100.0)) if name == "arm_gripper" else float(np.clip(norm, -100.0, 100.0))
+            if name == "arm_gripper":
+                result[i] = float(np.clip(norm, 0.0, 100.0))
+            else:
+                result[i] = float(np.clip(norm, -100.0, 100.0))
         return result
 
     def _ticks_to_unit(self, ticks: np.ndarray, *, unit: LeKiwiUnit | None = None) -> np.ndarray:
@@ -646,11 +749,11 @@ class LeKiwi:
     @staticmethod
     def _degps_to_raw(degps: float) -> int:
         speed_in_steps = degps * STEPS_PER_DEG
-        speed_int = int(round(speed_in_steps))
-        if speed_int > 0x7FFF:
-            speed_int = 0x7FFF
-        elif speed_int < -0x8000:
-            speed_int = -0x8000
+        speed_int = round(speed_in_steps)
+        if speed_int > MAX_RAW_SPEED_POSITIVE:
+            speed_int = MAX_RAW_SPEED_POSITIVE
+        elif speed_int < MAX_RAW_SPEED_NEGATIVE:
+            speed_int = MAX_RAW_SPEED_NEGATIVE
         return speed_int
 
     @staticmethod
@@ -681,7 +784,7 @@ class LeKiwi:
         max_raw_computed = max(raw_floats) if raw_floats else 0.0
         if max_raw_computed > max_raw:
             scale = max_raw / max_raw_computed
-            wheel_degps = wheel_degps * scale
+            wheel_degps *= scale
 
         wheel_raw = [LeKiwi._degps_to_raw(deg) for deg in wheel_degps]
 

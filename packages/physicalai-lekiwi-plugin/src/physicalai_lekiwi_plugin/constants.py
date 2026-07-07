@@ -1,3 +1,5 @@
+"""LeKiwi hardware constants (Feetech STS3215 servos, wheel kinematics)."""
+
 from __future__ import annotations
 
 from enum import IntEnum
@@ -65,8 +67,13 @@ PROTOCOL_VERSION: Final = 0
 
 VALID_ROLES: Final = frozenset({"leader", "follower"})
 
+MAX_RAW_SPEED_POSITIVE: Final = 32767
+MAX_RAW_SPEED_NEGATIVE: Final = -32768
+
 
 class STS3215Addr(IntEnum):
+    """Feetech STS3215 control table register addresses."""
+
     RETURN_DELAY_TIME = 7
     MAX_TORQUE_LIMIT = 16
     P_COEFFICIENT = 21
@@ -85,6 +92,8 @@ class STS3215Addr(IntEnum):
 
 
 class STS3215Len(IntEnum):
+    """Byte widths for STS3215 sync read/write fields."""
+
     RETURN_DELAY_TIME = 1
     MAX_TORQUE_LIMIT = 2
     P_COEFFICIENT = 1

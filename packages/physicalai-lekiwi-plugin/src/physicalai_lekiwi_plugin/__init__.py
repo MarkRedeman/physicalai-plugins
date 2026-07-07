@@ -1,3 +1,8 @@
+"""LeKiwi mobile manipulator plugin for PhysicalAI.
+
+Provides a :class:`LeKiwi` driver compatible with the ``physicalai.robot.Robot`` protocol.
+"""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

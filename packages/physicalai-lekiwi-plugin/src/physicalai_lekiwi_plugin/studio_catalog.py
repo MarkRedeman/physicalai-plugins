@@ -1,3 +1,9 @@
+"""Studio catalog plugin for Physical AI Studio.
+
+Exposes :func:`register_physicalai_studio_plugin` as the entry-point callable
+for the ``physicalai.studio.catalog_plugins`` group.
+"""
+
 from __future__ import annotations
 
 import asyncio
@@ -112,6 +118,8 @@ async def _discover_lekiwi_devices(devices: list[_SerialPortInfo]) -> list[_Seri
 
 
 class LeKiwiPayload(BaseModel):
+    """Connection payload for a LeKiwi robot."""
+
     connection_string: str = ""
     serial_number: str = Field(...)
     baudrate: int = 1_000_000
@@ -170,4 +178,5 @@ def _definitions() -> list[_CatalogDefinition]:
 
 
 def register_physicalai_studio_plugin(registry: _RobotCatalogRegistry) -> None:
+    """Register LeKiwi robot catalog entries with the Physical AI Studio registry."""
     registry.register_many(_definitions())
