@@ -85,12 +85,12 @@ if TYPE_CHECKING:
 
 
 _LEKIWI_TO_URDF: dict[str, list[str]] = {
-    "arm_shoulder_pan.pos": ["shoulder_pan"],
-    "arm_shoulder_lift.pos": ["shoulder_lift"],
-    "arm_elbow_flex.pos": ["elbow_flex"],
-    "arm_wrist_flex.pos": ["wrist_flex"],
-    "arm_wrist_roll.pos": ["wrist_roll"],
-    "arm_gripper.pos": ["gripper"],
+    "arm_shoulder_pan.pos": ["STS3215_03a-v1_Revolute-45"],
+    "arm_shoulder_lift.pos": ["STS3215_03a-v1-1_Revolute-49"],
+    "arm_elbow_flex.pos": ["STS3215_03a-v1-2_Revolute-51"],
+    "arm_wrist_flex.pos": ["STS3215_03a-v1-3_Revolute-53"],
+    "arm_wrist_roll.pos": ["STS3215_03a_Wrist_Roll-v1_Revolute-55"],
+    "arm_gripper.pos": ["STS3215_03a-v1-4_Revolute-57"],
 }
 
 
