@@ -6,82 +6,43 @@ for the ``physicalai.studio.catalog_plugins`` group.
 
 from __future__ import annotations
 
-import asyncio
-from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, Protocol, TypeVar
+from typing import TYPE_CHECKING, Any, Literal
+from uuid import UUID
 
-from loguru import logger
 from physicalai.robot.interface import Robot as PhysicalAIRobot
 from pydantic import BaseModel, Field
 
 import physicalai_lekiwi_plugin
 from physicalai_lekiwi_plugin import LeKiwi, get_urdf_path
 
-_PayloadT_co = TypeVar("_PayloadT_co", covariant=True)
+from schemas import SerialPortInfo
+from schemas.robot_type import BaseRobot
 
-
-class _PayloadContainer(Protocol[_PayloadT_co]):
-    payload: _PayloadT_co
-
-
-class _PortFinder(Protocol):
-    async def find_port_by_serial(self, serial_number: str) -> str | None: ...
-
-
-class _SerialPortInfo(Protocol):
-    connection_string: str
-    serial_number: str
-    robot_type: str
-
-
-@dataclass(frozen=True)
-class _CatalogEntry:
-    type: str
-    display_name: str
-    role: str
-    urdf_path: str | None
-    package_map: dict[str, str]
-    joint_map: dict[str, list[str]]
-
-
-_AssetSource = Literal["builtin", "plugin"]
-_DiscoverDevicesCallable = Callable[[list[_SerialPortInfo]], Awaitable[list[_SerialPortInfo]]]
-_AssetRootResolver = Callable[[], Path]
-_BuildRobotCallable = Callable[..., Awaitable[PhysicalAIRobot]]
-_PayloadModelType = type[BaseModel]
-
-
-@dataclass(frozen=True)
-class _RobotAdapterOptions:
-    include_velocities: bool = False
-    goal_time_scale: float = 1.0
-    external_effort_gain: float | None = 0.1
-
-
-@dataclass(frozen=True)
-class _CatalogDefinition:
-    entry: _CatalogEntry
-    urdf_relative_path: Path | None
-    package_root: Path | None
-    asset_source: _AssetSource
-    asset_root_resolver: _AssetRootResolver | None
-    discover_devices: _DiscoverDevicesCallable
-    robot_builder: _BuildRobotCallable | None = None
-    payload_model: _PayloadModelType | None = None
-    adapter_options: _RobotAdapterOptions = _RobotAdapterOptions()
-
-    @property
-    def robot_type(self) -> str:
-        return self.entry.type
-
+from .types import RobotAdapterOptions, RobotCatalogDefinition
 
 if TYPE_CHECKING:
+    from .registry import RobotCatalogRegistry
+    from .types import CatalogRobot, CatalogRobotFactory, PortScanner
 
-    class _RobotCatalogRegistry(Protocol):
-        def register(self, definition: _CatalogDefinition) -> None: ...
-        def register_many(self, definitions: list[_CatalogDefinition]) -> None: ...
+LeKiwiTypes = Literal["LeKiwi_Follower", "LeKiwi_Leader"]
+
+
+class LeKiwiPayload(BaseModel):
+    """Connection payload for a LeKiwi robot."""
+
+    connection_string: str = ""
+    serial_number: str = Field(...)
+    baudrate: int = 1_000_000
+    disable_torque_on_disconnect: bool = True
+
+
+class LeKiwiRobot(BaseRobot):
+    """LeKiwi follower or leader robot using a serial connection."""
+
+    type: LeKiwiTypes = Field(..., description="Type of robot configuration")
+    payload: LeKiwiPayload = Field(..., description="LeKiwi connection configuration")
 
 
 _LEKIWI_TO_URDF: dict[str, list[str]] = {
@@ -102,33 +63,14 @@ def _get_lekiwi_urdf_root() -> Path:
     plugin_package_root = Path(physicalai_lekiwi_plugin.__file__).resolve().parent
     site_packages_urdf_root = plugin_package_root.parent / "urdf"
     if site_packages_urdf_root.exists():
-        logger.warning(
-            "LeKiwi plugin get_urdf_path() returned missing path={}; falling back to {}",
-            configured_root,
-            site_packages_urdf_root,
-        )
         return site_packages_urdf_root
 
     return configured_root
 
 
-async def _discover_lekiwi_devices(devices: list[_SerialPortInfo]) -> list[_SerialPortInfo]:
-    await asyncio.sleep(0)
-    return devices
-
-
-class LeKiwiPayload(BaseModel):
-    """Connection payload for a LeKiwi robot."""
-
-    connection_string: str = ""
-    serial_number: str = Field(...)
-    baudrate: int = 1_000_000
-    disable_torque_on_disconnect: bool = True
-
-
 async def _build_lekiwi_driver(
-    robot: _PayloadContainer[LeKiwiPayload],
-    factory: _PortFinder,
+    robot: CatalogRobot[LeKiwiPayload],
+    factory: CatalogRobotFactory,
 ) -> PhysicalAIRobot:
     raw = robot.payload
     if isinstance(raw, LeKiwiPayload):
@@ -153,8 +95,8 @@ async def _build_lekiwi_driver(
 
 
 async def _build_lekiwi_leader(
-    robot: _PayloadContainer[LeKiwiPayload],
-    factory: _PortFinder,
+    robot: CatalogRobot[LeKiwiPayload],
+    factory: CatalogRobotFactory,
 ) -> PhysicalAIRobot:
     raw = robot.payload
     if isinstance(raw, LeKiwiPayload):
@@ -177,51 +119,74 @@ async def _build_lekiwi_leader(
     )
 
 
-def _definitions() -> list[_CatalogDefinition]:
+class LeKiwiProbe:
+    """Probe for LeKiwi robots — serial port discovery + online check."""
+
+    async def discover(self, manager: PortScanner) -> list[SerialPortInfo]:
+        await manager.find_robots()
+        return manager.robots
+
+    async def identify(
+        self,
+        payload: dict[str, Any],
+        manager: PortScanner | None,
+        joint: str | None = None,
+    ) -> None:
+        pass
+
+    async def is_online(self, payload: dict[str, Any], manager: PortScanner | None = None) -> bool:
+        robot_payload = LeKiwiPayload(**payload)
+
+        if manager is not None:
+            ports_list = manager.robots
+            if robot_payload.serial_number:
+                return any(p.serial_number == robot_payload.serial_number for p in ports_list)
+            return robot_payload.connection_string in {p.connection_string for p in ports_list}
+
+        from serial.tools import list_ports
+
+        all_ports = list_ports.comports()
+        if robot_payload.serial_number:
+            return any(p.serial_number == robot_payload.serial_number for p in all_ports)
+        return robot_payload.connection_string in {p.device for p in all_ports}
+
+
+_LEKIWI_PROBE = LeKiwiProbe()
+
+
+def get_definitions() -> list[RobotCatalogDefinition]:
+    """Return LeKiwi robot catalog definitions."""
     return [
-        _CatalogDefinition(
-            entry=_CatalogEntry(
-                type="LeKiwi_Follower",
-                display_name="LeKiwi Follower",
-                role="follower",
-                urdf_path="/api/robots/catalog/LeKiwi_Follower/urdf",
-                package_map={
-                    "lekiwi": "/api/robots/catalog/LeKiwi_Follower",
-                },
-                joint_map=_LEKIWI_TO_URDF,
-            ),
-            urdf_relative_path=Path("lekiwi/urdf/LeKiwi.urdf"),
-            package_root=Path("lekiwi"),
-            asset_source="plugin",
-            asset_root_resolver=_get_lekiwi_urdf_root,
-            discover_devices=_discover_lekiwi_devices,
+        RobotCatalogDefinition(
+            type="LeKiwi_Follower",
+            display_name="LeKiwi Follower",
+            role="follower",
+            urdf_path="/api/robots/catalog/LeKiwi_Follower/urdf",
+            package_map={"lekiwi": "/api/robots/catalog/LeKiwi_Follower"},
+            joint_map=_LEKIWI_TO_URDF,
+            urdf_relative_path="lekiwi/urdf/LeKiwi.urdf",
             robot_builder=_build_lekiwi_driver,
-            payload_model=LeKiwiPayload,
-            adapter_options=_RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
+            adapter_options=RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
+            probe=_LEKIWI_PROBE,
+            robot_model=LeKiwiRobot,
         ),
-        _CatalogDefinition(
-            entry=_CatalogEntry(
-                type="LeKiwi_Leader",
-                display_name="LeKiwi Leader",
-                role="leader",
-                urdf_path="/api/robots/catalog/LeKiwi_Leader/urdf",
-                package_map={
-                    "lekiwi": "/api/robots/catalog/LeKiwi_Leader",
-                },
-                joint_map=_LEKIWI_TO_URDF,
-            ),
-            urdf_relative_path=Path("lekiwi/urdf/LeKiwi.urdf"),
-            package_root=Path("lekiwi"),
-            asset_source="plugin",
-            asset_root_resolver=_get_lekiwi_urdf_root,
-            discover_devices=_discover_lekiwi_devices,
+        RobotCatalogDefinition(
+            type="LeKiwi_Leader",
+            display_name="LeKiwi Leader",
+            role="leader",
+            urdf_path="/api/robots/catalog/LeKiwi_Leader/urdf",
+            package_map={"lekiwi": "/api/robots/catalog/LeKiwi_Leader"},
+            joint_map=_LEKIWI_TO_URDF,
+            urdf_relative_path="lekiwi/urdf/LeKiwi.urdf",
             robot_builder=_build_lekiwi_leader,
-            payload_model=LeKiwiPayload,
-            adapter_options=_RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
+            adapter_options=RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
+            probe=_LEKIWI_PROBE,
+            robot_model=LeKiwiRobot,
         ),
     ]
 
 
-def register_physicalai_studio_plugin(registry: _RobotCatalogRegistry) -> None:
+def register_physicalai_studio_plugin(registry: RobotCatalogRegistry) -> None:
     """Register LeKiwi robot catalog entries with the Physical AI Studio registry."""
-    registry.register_many(_definitions())
+    for definition in get_definitions():
+        registry.register(definition)
