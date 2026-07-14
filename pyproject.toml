@@ -47,6 +47,10 @@ unfixable = []
 "packages/physicalai-lekiwi-plugin/src/physicalai_lekiwi_plugin/__init__.py" = ["PLC0415"]
 "packages/physicalai-lekiwi-plugin/src/physicalai_lekiwi_plugin/lekiwi.py" = ["ARG002", "PLR0913", "PLR2004", "PLW0717", "TRY300", "TRY301"]
 "packages/physicalai-lekiwi-plugin/tests/**/*.py" = ["SLF001"]
+"packages/physicalai-lerobot-plugin/src/physicalai_lerobot_plugin/__init__.py" = ["PLC0415"]
+"packages/physicalai-lerobot-plugin/src/physicalai_lerobot_plugin/lerobot_adapter.py" = ["ARG002"]
+"packages/physicalai-lerobot-plugin/src/physicalai_lerobot_plugin/studio_catalog.py" = ["ARG001", "PLC0415", "ASYNC251", "RUF029", "PLR6301"]
+"packages/physicalai-lerobot-plugin/tests/**/*.py" = ["SLF001"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
