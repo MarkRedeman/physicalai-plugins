@@ -263,7 +263,7 @@ def _definitions() -> list[_CatalogDefinition]:
             robot_model=BimanualSO101Robot,
             asset=_BIMANUAL_SO101_ASSET,
             adapter_options=_RobotAdapterOptions(
-                include_velocities=True, external_effort_gain=None
+                include_velocities=False, external_effort_gain=None
             ),
             probe=_BIMANUAL_PROBE,
         ),
@@ -275,7 +275,7 @@ def _definitions() -> list[_CatalogDefinition]:
             robot_model=BimanualSO101Robot,
             asset=_BIMANUAL_SO101_ASSET,
             adapter_options=_RobotAdapterOptions(
-                include_velocities=True, external_effort_gain=None
+                include_velocities=False, external_effort_gain=None
             ),
             probe=_BIMANUAL_PROBE,
         ),
