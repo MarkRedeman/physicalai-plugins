@@ -34,14 +34,15 @@ def test_register_plugin() -> None:
     assert registry.definitions is not None
     assert len(registry.definitions) == 2
 
-    types = [(d.entry.type, d.entry.role) for d in registry.definitions]
+    types = [(d.type, d.role) for d in registry.definitions]
     assert ("LeKiwi_Follower", "follower") in types
     assert ("LeKiwi_Leader", "leader") in types
 
     defn = registry.definitions[0]
-    assert defn.urdf_relative_path == Path("lekiwi/urdf/LeKiwi.urdf")
-    assert defn.asset_source == "plugin"
-    assert defn.payload_model is not None
+    assert defn.asset is not None
+    assert defn.asset.urdf_relative_path == Path("lekiwi/urdf/LeKiwi.urdf")
+    assert defn.asset.packages == {"lekiwi": Path("lekiwi")}
+    assert defn.robot_model is not None
 
 
 def test_payload_model() -> None:

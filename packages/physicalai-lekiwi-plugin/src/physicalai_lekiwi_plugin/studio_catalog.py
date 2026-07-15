@@ -43,18 +43,22 @@ class _RobotAdapterOptions:
     external_effort_gain: float | None = 0.1
 
 
+@dataclass(frozen=True)
+class _RobotAsset:
+    urdf_relative_path: Path
+    packages: dict[str, Path]
+    joint_map: dict[str, list[str]]
+    root_resolver: Callable[[], Path] | None = None
+
+
 @dataclass
 class _CatalogDefinition:
     type: str
     display_name: str
     role: str
-    urdf_path: str
-    urdf_relative_path: str
-    asset_root_resolver: Callable[[], Path] | None
     robot_builder: Callable[..., Awaitable[PhysicalAIRobot]] | None = None
     robot_model: type | None = None
-    package_map: dict[str, str] = field(default_factory=dict)
-    joint_map: dict[str, list[str]] = field(default_factory=dict)
+    asset: _RobotAsset | None = None
     adapter_options: _RobotAdapterOptions = field(default_factory=_RobotAdapterOptions)
     probe: Any = None
 
@@ -88,6 +92,14 @@ def _get_lekiwi_urdf_root() -> Path:
     if site_packages_urdf_root.exists():
         return site_packages_urdf_root
     return configured_root
+
+
+_LEKIWI_ASSET = _RobotAsset(
+    urdf_relative_path=Path("lekiwi/urdf/LeKiwi.urdf"),
+    packages={"lekiwi": Path("lekiwi")},
+    joint_map=_LEKIWI_TO_URDF,
+    root_resolver=_get_lekiwi_urdf_root,
+)
 
 
 class LeKiwiPayload(BaseModel):
@@ -186,13 +198,9 @@ def _definitions() -> list[_CatalogDefinition]:
             type="LeKiwi_Follower",
             display_name="LeKiwi Follower",
             role="follower",
-            urdf_path="/api/robots/catalog/LeKiwi_Follower/urdf",
-            urdf_relative_path="lekiwi/urdf/LeKiwi.urdf",
-            asset_root_resolver=_get_lekiwi_urdf_root,
             robot_builder=_build_lekiwi_driver,
             robot_model=LeKiwiRobot,
-            package_map={"lekiwi": "/api/robots/catalog/LeKiwi_Follower"},
-            joint_map=_LEKIWI_TO_URDF,
+            asset=_LEKIWI_ASSET,
             adapter_options=_RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
             probe=_LEKIWI_PROBE,
         ),
@@ -200,13 +208,9 @@ def _definitions() -> list[_CatalogDefinition]:
             type="LeKiwi_Leader",
             display_name="LeKiwi Leader",
             role="leader",
-            urdf_path="/api/robots/catalog/LeKiwi_Leader/urdf",
-            urdf_relative_path="lekiwi/urdf/LeKiwi.urdf",
-            asset_root_resolver=_get_lekiwi_urdf_root,
             robot_builder=_build_lekiwi_leader,
             robot_model=LeKiwiRobot,
-            package_map={"lekiwi": "/api/robots/catalog/LeKiwi_Leader"},
-            joint_map=_LEKIWI_TO_URDF,
+            asset=_LEKIWI_ASSET,
             adapter_options=_RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
             probe=_LEKIWI_PROBE,
         ),
