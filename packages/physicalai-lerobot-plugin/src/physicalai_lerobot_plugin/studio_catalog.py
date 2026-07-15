@@ -54,6 +54,16 @@ class _RobotAdapterOptions:
     external_effort_gain: float | None = 0.1
 
 
+@dataclass(frozen=True)
+class _RobotAsset:
+    """Filesystem configuration for a robot's visual model."""
+
+    urdf_relative_path: Path
+    packages: dict[str, Path]
+    joint_map: dict[str, list[str]]
+    root_resolver: Callable[[], Path] | None = None
+
+
 @dataclass
 class _CatalogDefinition:
     """Flat catalog definition schema."""
@@ -61,13 +71,9 @@ class _CatalogDefinition:
     type: str
     display_name: str
     role: str
-    urdf_path: str
-    urdf_relative_path: str
-    asset_root_resolver: Callable[[], Path] | None
     robot_builder: Callable[..., Awaitable[PhysicalAIRobot]] | None = None
     robot_model: type | None = None
-    package_map: dict[str, str] = field(default_factory=dict)
-    joint_map: dict[str, list[str]] = field(default_factory=dict)
+    asset: _RobotAsset | None = None
     adapter_options: _RobotAdapterOptions = field(default_factory=_RobotAdapterOptions)
     probe: Any = None
 
@@ -98,6 +104,21 @@ def _get_lerobot_urdf_root() -> Path:
     if site_packages_urdf_root.exists():
         return site_packages_urdf_root
     return configured_root
+
+
+_LEROBOT_ASSET = _RobotAsset(
+    urdf_relative_path=Path("lerobot/urdf/lerobot.urdf"),
+    packages={"lerobot": Path("lerobot")},
+    joint_map={
+        "shoulder_pan.pos": ["joint1"],
+        "shoulder_lift.pos": ["joint2"],
+        "elbow_flex.pos": ["joint3"],
+        "wrist_flex.pos": ["joint4"],
+        "wrist_roll.pos": ["joint5"],
+        "gripper.pos": ["joint6"],
+    },
+    root_resolver=_get_lerobot_urdf_root,
+)
 
 
 class LeRobotPayload(BaseModel):
@@ -278,27 +299,14 @@ def _definitions() -> list[_CatalogDefinition]:
     Returns:
         A list of ``_CatalogDefinition`` entries.
     """
-    so100_joint_map: dict[str, list[str]] = {
-        "shoulder_pan.pos": ["joint1"],
-        "shoulder_lift.pos": ["joint2"],
-        "elbow_flex.pos": ["joint3"],
-        "wrist_flex.pos": ["joint4"],
-        "wrist_roll.pos": ["joint5"],
-        "gripper.pos": ["joint6"],
-    }
-
     return [
         _CatalogDefinition(
             type="LeRobot_Follower",
             display_name="LeRobot Follower",
             role="follower",
-            urdf_path="/api/robots/catalog/LeRobot_Follower/urdf",
-            urdf_relative_path="lerobot/urdf/lerobot.urdf",
-            asset_root_resolver=_get_lerobot_urdf_root,
             robot_builder=_build_lerobot_follower,
             robot_model=LeRobotRobotModel,
-            package_map={"lerobot": "/api/robots/catalog/LeRobot_Follower"},
-            joint_map=so100_joint_map,
+            asset=_LEROBOT_ASSET,
             adapter_options=_RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
             probe=_LEROBOT_PROBE,
         ),
@@ -306,13 +314,9 @@ def _definitions() -> list[_CatalogDefinition]:
             type="LeRobot_Leader",
             display_name="LeRobot Leader",
             role="leader",
-            urdf_path="/api/robots/catalog/LeRobot_Leader/urdf",
-            urdf_relative_path="lerobot/urdf/lerobot.urdf",
-            asset_root_resolver=_get_lerobot_urdf_root,
             robot_builder=_build_lerobot_leader,
             robot_model=LeRobotRobotModel,
-            package_map={"lerobot": "/api/robots/catalog/LeRobot_Leader"},
-            joint_map=so100_joint_map,
+            asset=_LEROBOT_ASSET,
             adapter_options=_RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
             probe=_LEROBOT_PROBE,
         ),
