@@ -42,18 +42,23 @@ class _RobotAdapterOptions:
     goal_time_scale: float = 1.0
     external_effort_gain: float | None = 0.1
 
+
+@dataclass(frozen=True)
+class _RobotAsset:
+    urdf_relative_path: Path
+    packages: dict[str, Path]
+    joint_map: dict[str, list[str]]
+    root_resolver: Callable[[], Path] | None = None
+
+
 @dataclass
 class _CatalogDefinition:
     type: str
     display_name: str
     role: str
-    urdf_path: str
-    urdf_relative_path: str
-    asset_root_resolver: Callable[[], Path] | None
     robot_builder: Callable[..., Awaitable[PhysicalAIRobot]] | None = None
     robot_model: type | None = None
-    package_map: dict[str, str] = field(default_factory=dict)
-    joint_map: dict[str, list[str]] = field(default_factory=dict)
+    asset: _RobotAsset | None = None
     adapter_options: _RobotAdapterOptions = field(default_factory=_RobotAdapterOptions)
     probe: Any = None
 
@@ -102,6 +107,21 @@ def _get_rebot_urdf_root() -> Path:
         )
         return site_packages_urdf_root
     return configured_root
+
+
+_REBOT_B601_DM_ASSET = _RobotAsset(
+    urdf_relative_path=Path("rebot-b601-dm/urdf/reBot-DevArm_fixend.urdf"),
+    packages={"rebot-b601-dm": Path("rebot-b601-dm")},
+    joint_map=_REBOT_B601_DM_TO_URDF,
+    root_resolver=_get_rebot_urdf_root,
+)
+
+_REBOT_ARM102_ASSET = _RobotAsset(
+    urdf_relative_path=Path("stararm102/urdf/stararm102_description.urdf"),
+    packages={"stararm102": Path("stararm102")},
+    joint_map=_REBOT_ARM102_TO_URDF,
+    root_resolver=_get_rebot_urdf_root,
+)
 
 
 class ReBotB601DMPayload(BaseModel):
@@ -190,13 +210,9 @@ def _definitions() -> list[_CatalogDefinition]:
             type="ReBot_B601_DM_Follower",
             display_name="ReBot B601 DM Follower",
             role="follower",
-            urdf_path="/api/robots/catalog/ReBot_B601_DM_Follower/urdf",
-            urdf_relative_path="rebot-b601-dm/urdf/reBot-DevArm_fixend.urdf",
-            asset_root_resolver=_get_rebot_urdf_root,
             robot_builder=_build_rebot_b601_dm_driver,
             robot_model=ReBotB601DMRobot,
-            package_map={"rebot-b601-dm": "/api/robots/catalog/ReBot_B601_DM_Follower"},
-            joint_map=_REBOT_B601_DM_TO_URDF,
+            asset=_REBOT_B601_DM_ASSET,
             adapter_options=_RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
             probe=_REBOT_PROBE,
         ),
@@ -204,13 +220,9 @@ def _definitions() -> list[_CatalogDefinition]:
             type="ReBot_Arm102_Leader",
             display_name="ReBot Arm102 Leader",
             role="leader",
-            urdf_path="/api/robots/catalog/ReBot_Arm102_Leader/urdf",
-            urdf_relative_path="stararm102/urdf/stararm102_description.urdf",
-            asset_root_resolver=_get_rebot_urdf_root,
             robot_builder=_build_rebot_arm102_driver,
             robot_model=ReBotArm102Robot,
-            package_map={"stararm102": "/api/robots/catalog/ReBot_Arm102_Leader"},
-            joint_map=_REBOT_ARM102_TO_URDF,
+            asset=_REBOT_ARM102_ASSET,
             adapter_options=_RobotAdapterOptions(include_velocities=False, external_effort_gain=None),
             probe=_REBOT_PROBE,
         ),
