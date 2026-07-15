@@ -43,18 +43,22 @@ class _RobotAdapterOptions:
     external_effort_gain: float | None = 0.1
 
 
+@dataclass(frozen=True)
+class _RobotAsset:
+    urdf_relative_path: Path
+    packages: dict[str, Path]
+    joint_map: dict[str, list[str]]
+    root_resolver: Callable[[], Path] | None = None
+
+
 @dataclass
 class _CatalogDefinition:
     type: str
     display_name: str
     role: str
-    urdf_path: str
-    urdf_relative_path: str
-    asset_root_resolver: Callable[[], Path] | None
     robot_builder: Callable[..., Awaitable[PhysicalAIRobot]] | None = None
     robot_model: type | None = None
-    package_map: dict[str, str] = field(default_factory=dict)
-    joint_map: dict[str, list[str]] = field(default_factory=dict)
+    asset: _RobotAsset | None = None
     adapter_options: _RobotAdapterOptions = field(default_factory=_RobotAdapterOptions)
     probe: Any = None
 
@@ -93,6 +97,14 @@ def _get_bimanual_urdf_root() -> Path:
     if site_packages_urdf_root.exists():
         return site_packages_urdf_root
     return configured_root
+
+
+_BIMANUAL_SO101_ASSET = _RobotAsset(
+    urdf_relative_path=Path("so101_dual/so101_dual.urdf"),
+    packages={"so101_dual": Path("so101_dual")},
+    joint_map=_BIMANUAL_SO101_TO_URDF,
+    root_resolver=_get_bimanual_urdf_root,
+)
 
 
 class BimanualSO101Payload(BaseModel):
@@ -242,22 +254,14 @@ async def _build_bimanual_driver(
 
 
 def _definitions() -> list[_CatalogDefinition]:
-    urdf_relative_path = "so101_dual/so101_dual.urdf"
-
     return [
         _CatalogDefinition(
             type="BimanualSO101_Follower",
             display_name="Bimanual SO-101 Follower",
             role="follower",
-            urdf_path="/api/robots/catalog/BimanualSO101_Follower/urdf",
-            urdf_relative_path=urdf_relative_path,
-            asset_root_resolver=_get_bimanual_urdf_root,
             robot_builder=_build_bimanual_driver,
             robot_model=BimanualSO101Robot,
-            package_map={
-                "so101_dual": "/api/robots/catalog/BimanualSO101_Follower"
-            },
-            joint_map=_BIMANUAL_SO101_TO_URDF,
+            asset=_BIMANUAL_SO101_ASSET,
             adapter_options=_RobotAdapterOptions(
                 include_velocities=True, external_effort_gain=None
             ),
@@ -267,15 +271,9 @@ def _definitions() -> list[_CatalogDefinition]:
             type="BimanualSO101_Leader",
             display_name="Bimanual SO-101 Leader",
             role="leader",
-            urdf_path="/api/robots/catalog/BimanualSO101_Leader/urdf",
-            urdf_relative_path=urdf_relative_path,
-            asset_root_resolver=_get_bimanual_urdf_root,
             robot_builder=_build_bimanual_driver,
             robot_model=BimanualSO101Robot,
-            package_map={
-                "so101_dual": "/api/robots/catalog/BimanualSO101_Leader"
-            },
-            joint_map=_BIMANUAL_SO101_TO_URDF,
+            asset=_BIMANUAL_SO101_ASSET,
             adapter_options=_RobotAdapterOptions(
                 include_velocities=True, external_effort_gain=None
             ),

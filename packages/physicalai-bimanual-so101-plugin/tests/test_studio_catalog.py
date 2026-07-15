@@ -55,13 +55,14 @@ class TestRegistration:
 
         assert follower.display_name == "Bimanual SO-101 Follower"
         assert follower.role == "follower"
-        assert follower.urdf_relative_path == "so101_dual/so101_dual.urdf"
-        assert follower.asset_root_resolver is not None
+        assert follower.asset is not None
+        assert follower.asset.urdf_relative_path == Path("so101_dual/so101_dual.urdf")
+        assert follower.asset.root_resolver is not None
         assert callable(follower.robot_builder)
         assert follower.robot_model is not None
         assert follower.probe is not None
-        assert "so101_dual" in follower.package_map
-        assert len(follower.joint_map) == 12
+        assert follower.asset.packages == {"so101_dual": Path("so101_dual")}
+        assert len(follower.asset.joint_map) == 12
 
     def test_leader_structure(self) -> None:
         from physicalai_bimanual_so101_plugin.studio_catalog import _definitions
@@ -70,8 +71,9 @@ class TestRegistration:
 
         assert leader.display_name == "Bimanual SO-101 Leader"
         assert leader.role == "leader"
-        assert leader.urdf_relative_path == "so101_dual/so101_dual.urdf"
-        assert leader.asset_root_resolver is not None
+        assert leader.asset is not None
+        assert leader.asset.urdf_relative_path == Path("so101_dual/so101_dual.urdf")
+        assert leader.asset.root_resolver is not None
         assert callable(leader.robot_builder)
         assert leader.robot_model is not None
 
