@@ -4,9 +4,9 @@ Third-party bimanual SO-101 robot arm plugin for [PhysicalAI](https://github.com
 
 Composes two SO-101 arms (left + right) behind the `Robot` protocol.
 
-| Class             | Robot                          | Motors               | Protocol   |
-| ----------------- | ------------------------------ | -------------------- | ---------- |
-| `BimanualSO101`   | Dual 6-DOF STS3215 arms        | Feetech STS3215      | POSITION   |
+| Class           | Robot                   | Motors          | Protocol |
+| --------------- | ----------------------- | --------------- | -------- |
+| `BimanualSO101` | Dual 6-DOF STS3215 arms | Feetech STS3215 | POSITION |
 
 ## Installation
 
@@ -77,8 +77,8 @@ from physicalai_bimanual_so101_plugin import get_urdf_path
 urdf_path = get_urdf_path()
 ```
 
-| URDF                 | Model                   | Use                   |
-| -------------------- | ----------------------- | --------------------- |
+| URDF                         | Model           | Use                        |
+| ---------------------------- | --------------- | -------------------------- |
 | `so101_dual/so101_dual.urdf` | Bimanual SO-101 | Kinematics & visualization |
 
 Two arms mounted 0.4 m apart: left at +0.2 m (Y), right at -0.2 m (Y).

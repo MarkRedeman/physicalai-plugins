@@ -4,9 +4,9 @@ Third-party LeKiwi mobile manipulator plugin for [PhysicalAI](https://github.com
 
 Provides a concrete implementation of the `Robot` protocol for:
 
-| Class     | Robot                                  | Motors                          | Protocol               |
-| --------- | -------------------------------------- | ------------------------------- | ---------------------- |
-| `LeKiwi`  | 6-DOF SO-ARM100 arm + 3-wheel holonomic base | Feetech STS3215 (via `scservo_sdk`) | POSITION / VELOCITY    |
+| Class    | Robot                                        | Motors                              | Protocol            |
+| -------- | -------------------------------------------- | ----------------------------------- | ------------------- |
+| `LeKiwi` | 6-DOF SO-ARM100 arm + 3-wheel holonomic base | Feetech STS3215 (via `scservo_sdk`) | POSITION / VELOCITY |
 
 ## Installation
 
@@ -125,8 +125,8 @@ from physicalai_lekiwi_plugin import get_urdf_path
 urdf_path = get_urdf_path()
 ```
 
-| URDF           | Model               | Use                   |
-| -------------- | ------------------- | --------------------- |
+| URDF                 | Model                     | Use                               |
+| -------------------- | ------------------------- | --------------------------------- |
 | `lekiwi/LeKiwi.urdf` | LeKiwi mobile manipulator | Kinematics & gravity compensation |
 
 The URDF references original STL mesh files from the [SIGRobotics-UIUC/LeKiwi](https://github.com/SIGRobotics-UIUC/LeKiwi) project.
@@ -143,12 +143,12 @@ wheel_raw = robot._body_to_wheel_raw(vx, vy, vtheta)
 body_vel = robot._wheel_raw_to_body(left_raw, back_raw, right_raw)
 ```
 
-| Parameter       | Value                |
-| --------------- | -------------------- |
-| Wheel angles    | 240°, 0°, 120°       |
-| Wheel radius    | 0.05 m               |
-| Base radius     | 0.125 m              |
-| Max raw wheel   | 3000                 |
+| Parameter     | Value          |
+| ------------- | -------------- |
+| Wheel angles  | 240°, 0°, 120° |
+| Wheel radius  | 0.05 m         |
+| Base radius   | 0.125 m        |
+| Max raw wheel | 3000           |
 
 ## Acknowledgments
 

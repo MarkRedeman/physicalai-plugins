@@ -69,7 +69,7 @@ class _CatalogDefinition:
     display_name: str
     role: str
     robot_builder: Callable[..., Awaitable[PhysicalAIRobot]] | None = None
-    robot_model: type | None = None
+    robot_payload: type[BaseModel] | None = None
     asset: _RobotAsset | None = None
     adapter_options: _RobotAdapterOptions = field(default_factory=_RobotAdapterOptions)
     probe: Any = None
@@ -88,6 +88,20 @@ Remove these fields from `_CatalogDefinition` and all definition instances:
 - `joint_map`
 
 `/api/...` URLs must not appear in plugin catalog definitions after this migration. Studio creates API URLs from the robot type.
+
+## Robot Payload Schema
+
+`robot_payload` must be a Pydantic `BaseModel` subclass. It is the only schema owned by a plugin: Studio constructs the enclosing robot model with its standard `id`, `name`, `type`, timestamps, and calibration fields.
+
+Studio exposes the payload JSON Schema at:
+
+```text
+GET /api/robots/catalog/{robot_type}/schema
+```
+
+Use the Pydantic payload model directly in each definition. Do not register a full robot model containing a `type` and `payload` field.
+
+Studio returns `robot_payload.model_json_schema()`. A later UI feature will use `Field(..., json_schema_extra=...)` metadata to decide how to render configuration fields, such as displaying `serial_number` as a robot picker. Do not add a Studio-specific metadata convention yet; standard Pydantic field descriptions, examples, and schema extras will be preserved when that convention is introduced.
 
 ## Package Mappings
 
@@ -151,7 +165,7 @@ _CatalogDefinition(
     display_name="ReBot B601 DM Follower",
     role="follower",
     robot_builder=_build_rebot_b601_dm_driver,
-    robot_model=ReBotB601DMRobot,
+    robot_payload=ReBotB601DMPayload,
     asset=_REBOT_B601_DM_ASSET,
     adapter_options=_RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
     probe=_REBOT_PROBE,
@@ -164,10 +178,10 @@ Use `_REBOT_ARM102_ASSET` for `ReBot_Arm102_Leader`.
 
 Apply the same conversion with these current locations:
 
-| Plugin | URDF path | Package mapping |
-|---|---|---|
-| LeKiwi | `lekiwi/urdf/LeKiwi.urdf` | `{"lekiwi": Path("lekiwi")}` |
-| LeRobot | `lerobot/urdf/lerobot.urdf` | `{"lerobot": Path("lerobot")}` |
+| Plugin         | URDF path                    | Package mapping                      |
+| -------------- | ---------------------------- | ------------------------------------ |
+| LeKiwi         | `lekiwi/urdf/LeKiwi.urdf`    | `{"lekiwi": Path("lekiwi")}`         |
+| LeRobot        | `lerobot/urdf/lerobot.urdf`  | `{"lerobot": Path("lerobot")}`       |
 | Bimanual SO101 | `so101_dual/so101_dual.urdf` | `{"so101_dual": Path("so101_dual")}` |
 
 Keep each plugin's existing `get_urdf_path()` fallback function as the `root_resolver`.

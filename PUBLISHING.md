@@ -36,15 +36,15 @@ uv run scripts/scaffold-plugin.py
 
 You will be prompted for:
 
-| Prompt | Example | Notes |
-|---|---|---|
-| Package name | `physicalai-my-robot` | Must be valid PyPI name |
-| Description | `My robot plugin for PhysicalAI` | One-liner |
-| Author name | `Jane Doe` | |
-| Author email | `jane@example.com` | |
-| Initial version | `0.0.1` | Default is fine for a draft |
-| Min Python | `3.12` | Keep default |
-| Output directory | `./physicalai-my-robot` | Default is current dir + pkg name |
+| Prompt           | Example                          | Notes                             |
+| ---------------- | -------------------------------- | --------------------------------- |
+| Package name     | `physicalai-my-robot`            | Must be valid PyPI name           |
+| Description      | `My robot plugin for PhysicalAI` | One-liner                         |
+| Author name      | `Jane Doe`                       |                                   |
+| Author email     | `jane@example.com`               |                                   |
+| Initial version  | `0.0.1`                          | Default is fine for a draft       |
+| Min Python       | `3.12`                           | Keep default                      |
+| Output directory | `./physicalai-my-robot`          | Default is current dir + pkg name |
 
 The script shows a summary and asks for confirmation before writing.
 
@@ -74,13 +74,13 @@ GitHub Actions can publish future releases without tokens.
 1. Go to `https://pypi.org/manage/project/<your-package>/settings/`
 2. Under **"Publishing"** → **"Add a new publisher"**:
 
-   | Field | Value |
-   |---|---|
-   | **PyPI Project Name** | `physicalai-<your-robot>` |
-   | **Owner** | `MarkRedeman` (or your GitHub org) |
-   | **Repository name** | `physicalai-rebot-b601-plugin` |
-   | **Workflow name** | `publish.yml` |
-   | **Environment** | `pypi` |
+   | Field                 | Value                              |
+   | --------------------- | ---------------------------------- |
+   | **PyPI Project Name** | `physicalai-<your-robot>`          |
+   | **Owner**             | `MarkRedeman` (or your GitHub org) |
+   | **Repository name**   | `physicalai-rebot-b601-plugin`     |
+   | **Workflow name**     | `publish.yml`                      |
+   | **Environment**       | `pypi`                             |
 
 3. Click **"Add"**.
 
@@ -163,6 +163,7 @@ Replace the generated scaffold files with a real implementation:
    my-robot = "physicalai_my_plugin.studio_catalog:register_physicalai_studio_plugin"
    ```
 4. Switch from static `version` to `hatch-vcs` dynamic versioning:
+
    ```toml
    [project]
    dynamic = ["version"]
@@ -170,6 +171,7 @@ Replace the generated scaffold files with a real implementation:
    [tool.hatch.version]
    source = "vcs"
    ```
+
 5. Add URDF assets and `force-include` in the build config.
 6. Write tests.
 
@@ -194,9 +196,9 @@ No manual tokens needed after step 3.
 
 ## 8. Troubleshooting
 
-| Problem | Solution |
-|---|---|
-| `uv publish` asks for a token | Pass `--token` with a PyPI API token scoped to the project |
-| OIDC "403 Forbidden" | Verify the publisher is configured for the **exact** workflow path (`.github/workflows/publish.yml`) and environment name (`pypi`) |
-| `hatch-vcs` version wrong | Ensure the matching git tag exists. Tags follow the pattern `physicalai-<name>-v<semver>` |
-| Package not found by `release-please` | Check `release-please-config.json` entry — the `package-name` must match the `name` in `pyproject.toml` |
+| Problem                               | Solution                                                                                                                           |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `uv publish` asks for a token         | Pass `--token` with a PyPI API token scoped to the project                                                                         |
+| OIDC "403 Forbidden"                  | Verify the publisher is configured for the **exact** workflow path (`.github/workflows/publish.yml`) and environment name (`pypi`) |
+| `hatch-vcs` version wrong             | Ensure the matching git tag exists. Tags follow the pattern `physicalai-<name>-v<semver>`                                          |
+| Package not found by `release-please` | Check `release-please-config.json` entry — the `package-name` must match the `name` in `pyproject.toml`                            |

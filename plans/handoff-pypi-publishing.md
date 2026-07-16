@@ -4,10 +4,10 @@
 
 The `physicalai-studio` Python package is built from `application/backend/` and published to two registries:
 
-| Registry | Purpose | Trigger | Version scheme |
-|----------|---------|---------|----------------|
-| **TestPyPI** | Continuous integration | Push to `main` or manual `workflow_dispatch` | `X.Y.Z.dev<TIMESTAMP>` (unique per commit) |
-| **PyPI** (production) | Stable releases | Tag `app/vX.Y.Z` | `X.Y.Z` (canonical from `pyproject.toml`) |
+| Registry              | Purpose                | Trigger                                      | Version scheme                             |
+| --------------------- | ---------------------- | -------------------------------------------- | ------------------------------------------ |
+| **TestPyPI**          | Continuous integration | Push to `main` or manual `workflow_dispatch` | `X.Y.Z.dev<TIMESTAMP>` (unique per commit) |
+| **PyPI** (production) | Stable releases        | Tag `app/vX.Y.Z`                             | `X.Y.Z` (canonical from `pyproject.toml`)  |
 
 ---
 
@@ -86,15 +86,15 @@ Hatch hooks are invoked by `python -m build`, not by `uv sync`, so they only fir
 
 ### Key files
 
-| File | Role |
-|------|------|
-| `application/backend/pyproject.toml` | Build config, dependencies, metadata |
-| `application/backend/scripts/build_package.sh` | Full build orchestration script |
-| `application/backend/scripts/hatch_build.py` | Hatchling build hook (UI guard, README transform) |
-| `application/backend/scripts/_readme_pypi.py` | Shared module for README URL transformation + backup/restore |
-| `application/VERSION` | Single-source version for CI validation |
-| `.github/workflows/publish-app-pypi.yml` | Production PyPI workflow |
-| `.github/workflows/publish-app-testpypi.yml` | TestPyPI workflow (continuous + manual) |
+| File                                           | Role                                                         |
+| ---------------------------------------------- | ------------------------------------------------------------ |
+| `application/backend/pyproject.toml`           | Build config, dependencies, metadata                         |
+| `application/backend/scripts/build_package.sh` | Full build orchestration script                              |
+| `application/backend/scripts/hatch_build.py`   | Hatchling build hook (UI guard, README transform)            |
+| `application/backend/scripts/_readme_pypi.py`  | Shared module for README URL transformation + backup/restore |
+| `application/VERSION`                          | Single-source version for CI validation                      |
+| `.github/workflows/publish-app-pypi.yml`       | Production PyPI workflow                                     |
+| `.github/workflows/publish-app-testpypi.yml`   | TestPyPI workflow (continuous + manual)                      |
 
 ---
 
@@ -118,7 +118,6 @@ Both workflows use [trusted publishing](https://docs.pypi.org/trusted-publishers
 
 ## Gotchas
 
-- **`uv sync --frozen` and version changes** — The version override in `build_package.sh` is applied *after* `uv sync --frozen`, so the lock file always matches the original `pyproject.toml` during sync. The hatch build hook reads the modified version at build time.
+- **`uv sync --frozen` and version changes** — The version override in `build_package.sh` is applied _after_ `uv sync --frozen`, so the lock file always matches the original `pyproject.toml` during sync. The hatch build hook reads the modified version at build time.
 - **Duplicate uploads** — If you manually run the TestPyPI workflow twice within the same second, the timestamp suffix could collide. Practically impossible, but safe to wait a second between runs.
 - **`application/README.md` is mutated during build** — The build script backs up and restores it, but if a build is killed with `SIGKILL` (not `SIGTERM`), the backup won't be restored. Run `git checkout application/README.md` to recover.
-

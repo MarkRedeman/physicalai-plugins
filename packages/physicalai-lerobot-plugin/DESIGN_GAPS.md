@@ -40,6 +40,7 @@ or a registry.
 
 **Problem:** LeRobot robots use `dict[str, Any]` for observations and actions. The
 key names vary by robot:
+
 - SO100/SO101: `"{motor}.pos"` keys
 - Koch: different naming convention
 - Aloha: different keys for the two arms
@@ -88,7 +89,7 @@ definition.
 
 ## 6. `send_action` Return Value
 
-**Problem:** LeRobot's `send_action` returns the action *actually sent* (potentially
+**Problem:** LeRobot's `send_action` returns the action _actually sent_ (potentially
 clipped by safety limits). PhysicalAI's `send_action` returns `None`.
 
 **Current workaround:** The adapter discards the return value of
@@ -114,9 +115,10 @@ or expose it through the payload configuration.
 
 ## 8. Robot Type vs Catalog Entry Cardinality
 
-**Problem:** Currently, PhysicalAI registers one catalog entry per robot *instance*
+**Problem:** Currently, PhysicalAI registers one catalog entry per robot _instance_
 (e.g., a specific `LeRobot_Follower`). With LeRobot, one adapter serves many robot
-*types*. It is unclear whether we should:
+_types_. It is unclear whether we should:
+
 1. Register one catalog entry per LeRobot type (proliferates entries).
 2. Register a single generic entry with a `robot_type` discriminator in the payload
    (current approach — requires per-type runtime branching).

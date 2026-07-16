@@ -228,14 +228,14 @@ VALID_ROLES: Final = frozenset({"leader", "follower"})
 
 ### 3.4 Key Patterns from Existing Drivers
 
-| Pattern | Example |
-|---|---|
-| **Connection management** | Store connection state in a private `_connection` field. Use a dataclass to hold port handler, packet handler, and sync read/write groups. |
-| **Idempotent connect/disconnect** | `connect()` returns early if already connected. `disconnect()` uses `contextlib.suppress` for cleanup. |
-| **Validation in `__init__`** | Validate all configurable parameters immediately (role, baudrate, adapter type). Raise `ValueError`. |
-| **Role-based behavior** | If `role == "leader"`, `send_action()` raises `RuntimeError`. Torque is disabled on connect. |
-| **Observation normalization** | Convert raw sensor readings (ticks, encoder counts) to degrees or normalized units in `get_observation()`. |
-| **Safe disconnect** | On disconnect, stop all motion first, then optionally hold position with torque, then close the port. |
+| Pattern                           | Example                                                                                                                                    |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Connection management**         | Store connection state in a private `_connection` field. Use a dataclass to hold port handler, packet handler, and sync read/write groups. |
+| **Idempotent connect/disconnect** | `connect()` returns early if already connected. `disconnect()` uses `contextlib.suppress` for cleanup.                                     |
+| **Validation in `__init__`**      | Validate all configurable parameters immediately (role, baudrate, adapter type). Raise `ValueError`.                                       |
+| **Role-based behavior**           | If `role == "leader"`, `send_action()` raises `RuntimeError`. Torque is disabled on connect.                                               |
+| **Observation normalization**     | Convert raw sensor readings (ticks, encoder counts) to degrees or normalized units in `get_observation()`.                                 |
+| **Safe disconnect**               | On disconnect, stop all motion first, then optionally hold position with torque, then close the port.                                      |
 
 ---
 
@@ -294,11 +294,11 @@ class _RobotAdapterOptions:
     external_effort_gain: float | None = 0.1
 ```
 
-| Field | Meaning |
-|---|---|
-| `include_velocities` | Whether the observation includes velocity data (for residual learning). |
-| `goal_time_scale` | Multiplier for the `goal_time` argument in `send_action()`. |
-| `external_effort_gain` | Gain for external effort integration (set to `None` to disable). |
+| Field                  | Meaning                                                                 |
+| ---------------------- | ----------------------------------------------------------------------- |
+| `include_velocities`   | Whether the observation includes velocity data (for residual learning). |
+| `goal_time_scale`      | Multiplier for the `goal_time` argument in `send_action()`.             |
+| `external_effort_gain` | Gain for external effort integration (set to `None` to disable).        |
 
 ### 4.3 `_CatalogDefinition`
 
@@ -326,20 +326,20 @@ class _CatalogDefinition:
         return self.type
 ```
 
-| Field | Description |
-|---|---|
-| `type` | Unique string identifier used in API routes and database records. Convention: `"Vendor_Model_Role"` (e.g., `"LeKiwi_Follower"`). |
-| `display_name` | Human-readable label shown in the Studio UI. |
-| `role` | `"follower"` (torque-enabled, full control) or `"leader"` (read-only teleoperation). |
-| `urdf_path` | The URL path where Studio serves the URDF file. Convention: `/api/robots/catalog/{type}/urdf`. |
-| `urdf_relative_path` | Path relative to the URDF root directory. Example: `"rebot-b601-dm/urdf/reBot-DevArm_fixend.urdf"`. |
-| `asset_root_resolver` | Callable that returns the absolute `Path` to the URDF root directory. |
-| `robot_builder` | Async callable `(robot, factory) -> PhysicalAIRobot`. Constructs the driver from a validated payload. |
-| `robot_model` | A Pydantic `BaseModel` subclass with `type` (Literal) and `payload` fields. Enables Studio's dynamic discriminated union. |
-| `package_map` | Maps URDF package names to URL roots for mesh resolution. Example: `{"rebot-b601-dm": "/api/robots/catalog/ReBot_B601_DM_Follower"}`. |
-| `joint_map` | Maps observation joint names to URDF joint names. Example: `{"shoulder_pan.pos": ["joint1"]}`. |
-| `adapter_options` | Controls adapter behavior (velocity inclusion, goal time scaling, external effort). |
-| `probe` | Object with `discover()`, `identify()`, and `is_online()` methods for device discovery. |
+| Field                 | Description                                                                                                                           |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `type`                | Unique string identifier used in API routes and database records. Convention: `"Vendor_Model_Role"` (e.g., `"LeKiwi_Follower"`).      |
+| `display_name`        | Human-readable label shown in the Studio UI.                                                                                          |
+| `role`                | `"follower"` (torque-enabled, full control) or `"leader"` (read-only teleoperation).                                                  |
+| `urdf_path`           | The URL path where Studio serves the URDF file. Convention: `/api/robots/catalog/{type}/urdf`.                                        |
+| `urdf_relative_path`  | Path relative to the URDF root directory. Example: `"rebot-b601-dm/urdf/reBot-DevArm_fixend.urdf"`.                                   |
+| `asset_root_resolver` | Callable that returns the absolute `Path` to the URDF root directory.                                                                 |
+| `robot_builder`       | Async callable `(robot, factory) -> PhysicalAIRobot`. Constructs the driver from a validated payload.                                 |
+| `robot_model`         | A Pydantic `BaseModel` subclass with `type` (Literal) and `payload` fields. Enables Studio's dynamic discriminated union.             |
+| `package_map`         | Maps URDF package names to URL roots for mesh resolution. Example: `{"rebot-b601-dm": "/api/robots/catalog/ReBot_B601_DM_Follower"}`. |
+| `joint_map`           | Maps observation joint names to URDF joint names. Example: `{"shoulder_pan.pos": ["joint1"]}`.                                        |
+| `adapter_options`     | Controls adapter behavior (velocity inclusion, goal time scaling, external effort).                                                   |
+| `probe`               | Object with `discover()`, `identify()`, and `is_online()` methods for device discovery.                                               |
 
 ### 4.4 Pydantic Payload Model
 
@@ -1233,25 +1233,25 @@ def test_urdf_path_exists() -> None:
 
 ## 9. Quick-Reference Checklist
 
-| Item | File | Done |
-|---|---|---|
-| Create package directory | `src/<plugin_package>/` | ☐ |
-| Define constants | `constants.py` | ☐ |
-| Implement robot driver | `widget.py` (or similar) | ☐ |
-| Create observation dataclass | Same file as driver | ☐ |
-| Lazy-load exports via `__getattr__` | `__init__.py` | ☐ |
-| Implement `get_urdf_path()` | `_urdf.py` | ☐ |
-| Create `_CatalogDefinition` | `studio_catalog.py` | ☐ |
-| Create Pydantic payload model | `studio_catalog.py` | ☐ |
-| Create Pydantic robot model | `studio_catalog.py` | ☐ |
-| Create Probe class | `studio_catalog.py` | ☐ |
-| Create async robot builder | `studio_catalog.py` | ☐ |
-| Create `register_physicalai_studio_plugin` | `studio_catalog.py` | ☐ |
-| Declare entry point in `pyproject.toml` | `pyproject.toml` | ☐ |
-| Configure hatchling build | `pyproject.toml` | ☐ |
-| `force-include` URDF assets | `pyproject.toml` | ☐ |
-| Write catalog registration tests | `tests/test_studio_catalog.py` | ☐ |
-| Write robot driver tests | `tests/test_widget.py` | ☐ |
+| Item                                       | File                           | Done |
+| ------------------------------------------ | ------------------------------ | ---- |
+| Create package directory                   | `src/<plugin_package>/`        | ☐    |
+| Define constants                           | `constants.py`                 | ☐    |
+| Implement robot driver                     | `widget.py` (or similar)       | ☐    |
+| Create observation dataclass               | Same file as driver            | ☐    |
+| Lazy-load exports via `__getattr__`        | `__init__.py`                  | ☐    |
+| Implement `get_urdf_path()`                | `_urdf.py`                     | ☐    |
+| Create `_CatalogDefinition`                | `studio_catalog.py`            | ☐    |
+| Create Pydantic payload model              | `studio_catalog.py`            | ☐    |
+| Create Pydantic robot model                | `studio_catalog.py`            | ☐    |
+| Create Probe class                         | `studio_catalog.py`            | ☐    |
+| Create async robot builder                 | `studio_catalog.py`            | ☐    |
+| Create `register_physicalai_studio_plugin` | `studio_catalog.py`            | ☐    |
+| Declare entry point in `pyproject.toml`    | `pyproject.toml`               | ☐    |
+| Configure hatchling build                  | `pyproject.toml`               | ☐    |
+| `force-include` URDF assets                | `pyproject.toml`               | ☐    |
+| Write catalog registration tests           | `tests/test_studio_catalog.py` | ☐    |
+| Write robot driver tests                   | `tests/test_widget.py`         | ☐    |
 
 ---
 
