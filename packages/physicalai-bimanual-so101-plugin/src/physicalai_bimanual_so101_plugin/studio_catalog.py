@@ -6,17 +6,20 @@ for the ``physicalai.studio.catalog_plugins`` group.
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, Protocol
 
-from physicalai.robot.interface import Robot as PhysicalAIRobot
 from physicalai.robot.so101 import SO101, SO101Calibration
 from pydantic import BaseModel, Field
 
 import physicalai_bimanual_so101_plugin
 from physicalai_bimanual_so101_plugin import BimanualSO101, get_urdf_path
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
+    from physicalai.robot.interface import Robot as PhysicalAIRobot
 
 
 class _PortFinder(Protocol):
@@ -68,6 +71,7 @@ class _CatalogDefinition:
 
 
 if TYPE_CHECKING:
+
     class _RobotCatalogRegistry(Protocol):
         def register(self, definition: _CatalogDefinition) -> None: ...
 
@@ -134,23 +138,15 @@ class BimanualSO101Probe:
         validated = BimanualSO101Payload(**payload)
         if manager is not None:
             ports_list = manager.robots
-            left_match = any(
-                p.serial_number == validated.left_serial_number for p in ports_list
-            )
-            right_match = any(
-                p.serial_number == validated.right_serial_number for p in ports_list
-            )
+            left_match = any(p.serial_number == validated.left_serial_number for p in ports_list)
+            right_match = any(p.serial_number == validated.right_serial_number for p in ports_list)
             return left_match and right_match
 
         from serial.tools import list_ports
 
         all_ports = list_ports.comports()
-        left_match = any(
-            p.serial_number == validated.left_serial_number for p in all_ports
-        )
-        right_match = any(
-            p.serial_number == validated.right_serial_number for p in all_ports
-        )
+        left_match = any(p.serial_number == validated.left_serial_number for p in all_ports)
+        right_match = any(p.serial_number == validated.right_serial_number for p in all_ports)
         return left_match and right_match
 
 
@@ -158,23 +154,19 @@ _BIMANUAL_PROBE = BimanualSO101Probe()
 
 
 def _calibration_to_so101(calibration: Any) -> SO101Calibration:
-    return SO101Calibration.from_dict(
-        {
-            name: {
-                "id": val.id,
-                "drive_mode": val.drive_mode,
-                "homing_offset": val.homing_offset,
-                "range_min": val.range_min,
-                "range_max": val.range_max,
-            }
-            for name, val in calibration.values.items()
+    return SO101Calibration.from_dict({
+        name: {
+            "id": val.id,
+            "drive_mode": val.drive_mode,
+            "homing_offset": val.homing_offset,
+            "range_min": val.range_min,
+            "range_max": val.range_max,
         }
-    )
+        for name, val in calibration.values.items()
+    })
 
 
-async def _build_bimanual_driver(
-    robot: Any, factory: _PortFinder
-) -> PhysicalAIRobot:
+async def _build_bimanual_driver(robot: Any, factory: _PortFinder) -> PhysicalAIRobot:
     raw = robot.payload
     if isinstance(raw, BimanualSO101Payload):
         validated = raw
@@ -208,19 +200,13 @@ async def _build_bimanual_driver(
         raise ValueError(msg)
 
     if has_left_cal and has_right_cal:
-        left_cal_data = await factory.get_calibration_by_id(
-            validated.left_calibration_id
-        )
+        left_cal_data = await factory.get_calibration_by_id(validated.left_calibration_id)
         if left_cal_data is None:
             msg = f"Calibration not found for left arm: {validated.left_calibration_id}"
             raise RuntimeError(msg)
-        right_cal_data = await factory.get_calibration_by_id(
-            validated.right_calibration_id
-        )
+        right_cal_data = await factory.get_calibration_by_id(validated.right_calibration_id)
         if right_cal_data is None:
-            msg = (
-                f"Calibration not found for right arm: {validated.right_calibration_id}"
-            )
+            msg = f"Calibration not found for right arm: {validated.right_calibration_id}"
             raise RuntimeError(msg)
 
         left_arm = SO101(
@@ -238,12 +224,8 @@ async def _build_bimanual_driver(
             unit="normalized",
         )
     else:
-        left_arm = SO101.uncalibrated(
-            port=left_port, baudrate=baudrate, role=role, unit="ticks"
-        )
-        right_arm = SO101.uncalibrated(
-            port=right_port, baudrate=baudrate, role=role, unit="ticks"
-        )
+        left_arm = SO101.uncalibrated(port=left_port, baudrate=baudrate, role=role, unit="ticks")
+        right_arm = SO101.uncalibrated(port=right_port, baudrate=baudrate, role=role, unit="ticks")
 
     return BimanualSO101(left=left_arm, right=right_arm)
 
@@ -257,9 +239,7 @@ def _definitions() -> list[_CatalogDefinition]:
             robot_builder=_build_bimanual_driver,
             robot_payload=BimanualSO101Payload,
             asset=_BIMANUAL_SO101_ASSET,
-            adapter_options=_RobotAdapterOptions(
-                include_velocities=False, external_effort_gain=None
-            ),
+            adapter_options=_RobotAdapterOptions(include_velocities=False, external_effort_gain=None),
             probe=_BIMANUAL_PROBE,
         ),
         _CatalogDefinition(
@@ -269,9 +249,7 @@ def _definitions() -> list[_CatalogDefinition]:
             robot_builder=_build_bimanual_driver,
             robot_payload=BimanualSO101Payload,
             asset=_BIMANUAL_SO101_ASSET,
-            adapter_options=_RobotAdapterOptions(
-                include_velocities=False, external_effort_gain=None
-            ),
+            adapter_options=_RobotAdapterOptions(include_velocities=False, external_effort_gain=None),
             probe=_BIMANUAL_PROBE,
         ),
     ]

@@ -6,16 +6,19 @@ for the ``physicalai.studio.catalog_plugins`` group.
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
-from physicalai.robot.interface import Robot as PhysicalAIRobot
 from pydantic import BaseModel, Field
 
 import physicalai_lekiwi_plugin
 from physicalai_lekiwi_plugin import LeKiwi, get_urdf_path
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
+    from physicalai.robot.interface import Robot as PhysicalAIRobot
 
 
 class _PortFinder(Protocol):

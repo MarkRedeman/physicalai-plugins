@@ -49,8 +49,7 @@ class TestRegistration:
         assert types == {"BimanualSO101_Follower", "BimanualSO101_Leader"}
 
     def test_follower_structure(self) -> None:
-        from physicalai_bimanual_so101_plugin.studio_catalog import BimanualSO101Payload
-        from physicalai_bimanual_so101_plugin.studio_catalog import _definitions
+        from physicalai_bimanual_so101_plugin.studio_catalog import BimanualSO101Payload, _definitions
 
         follower = next(d for d in _definitions() if d.type == "BimanualSO101_Follower")
 
@@ -66,8 +65,7 @@ class TestRegistration:
         assert len(follower.asset.joint_map) == 12
 
     def test_leader_structure(self) -> None:
-        from physicalai_bimanual_so101_plugin.studio_catalog import _definitions
-        from physicalai_bimanual_so101_plugin.studio_catalog import BimanualSO101Payload
+        from physicalai_bimanual_so101_plugin.studio_catalog import BimanualSO101Payload, _definitions
 
         leader = next(d for d in _definitions() if d.type == "BimanualSO101_Leader")
 
@@ -262,12 +260,10 @@ class TestProbe:
         )
 
         probe = BimanualSO101Probe()
-        result = await probe.is_online(
-            {
-                "left_serial_number": "SN-L",
-                "right_serial_number": "SN-R",
-            }
-        )
+        result = await probe.is_online({
+            "left_serial_number": "SN-L",
+            "right_serial_number": "SN-R",
+        })
         assert result is False
 
     def test_joint_map(self) -> None:

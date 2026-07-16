@@ -166,9 +166,7 @@ class LeRobotProbe:
     ) -> None:
         """Identify a device (no-op for LeRobot)."""
 
-    async def is_online(
-        self, payload: dict[str, Any], manager: object = None
-    ) -> bool:
+    async def is_online(self, payload: dict[str, Any], manager: object = None) -> bool:
         """Check if the device is currently reachable.
 
         Args:

@@ -11,21 +11,18 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import numpy as np
-
 from physicalai.robot import Robot
-from physicalai.robot.so101 import SO101
 
 from physicalai_bimanual_so101_plugin.constants import (
     BIMANUAL_SO101_JOINT_ORDER,
-    LEFT_ARM_JOINTS,
     NUM_BIMANUAL_JOINTS,
     NUM_SINGLE_ARM_JOINTS,
-    VALID_ROLES,
 )
 
 if TYPE_CHECKING:
     from physicalai.capture.frame import Frame
     from physicalai.robot.interface import RobotObservation
+    from physicalai.robot.so101 import SO101
 
 
 @dataclass
@@ -66,15 +63,11 @@ class BimanualSO101(Robot):
 
     def __init__(self, left: SO101, right: SO101) -> None:
         if left.role != right.role:
-            msg = (
-                f"Both arms must have the same role; "
-                f"got left={left.role!r}, right={right.role!r}."
-            )
+            msg = f"Both arms must have the same role; got left={left.role!r}, right={right.role!r}."
             raise ValueError(msg)
         if type(left) is not type(right):
             msg = (
-                f"Both arms must be the same driver type; "
-                f"got left={type(left).__name__}, right={type(right).__name__}."
+                f"Both arms must be the same driver type; got left={type(left).__name__}, right={type(right).__name__}."
             )
             raise ValueError(msg)
 
@@ -110,9 +103,7 @@ class BimanualSO101(Robot):
         left_obs = self._left.get_observation()
         right_obs = self._right.get_observation()
 
-        positions = np.concatenate(
-            [left_obs.joint_positions, right_obs.joint_positions]
-        )
+        positions = np.concatenate([left_obs.joint_positions, right_obs.joint_positions])
 
         sensor_data: dict[str, np.ndarray] | None = None
         if left_obs.sensor_data is not None and right_obs.sensor_data is not None:

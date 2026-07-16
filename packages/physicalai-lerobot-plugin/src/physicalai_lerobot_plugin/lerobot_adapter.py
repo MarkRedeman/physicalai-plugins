@@ -89,9 +89,7 @@ class LeRobotAdapter:
         self._obs_position_keys = (
             obs_position_keys if obs_position_keys is not None else [f"{j}.pos" for j in joint_order]
         )
-        self._act_position_keys = (
-            act_position_keys if act_position_keys is not None else self._obs_position_keys
-        )
+        self._act_position_keys = act_position_keys if act_position_keys is not None else self._obs_position_keys
 
         if len(self._obs_position_keys) != self.NUM_JOINTS:
             msg = (

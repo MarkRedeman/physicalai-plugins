@@ -6,17 +6,20 @@ for the ``physicalai.studio.catalog_plugins`` group.
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, Protocol
 
 from loguru import logger
-from physicalai.robot.interface import Robot as PhysicalAIRobot
 from pydantic import BaseModel, Field
 
 import physicalai_rebot_b601_plugin
 from physicalai_rebot_b601_plugin import ReBotArm102Leader, ReBotB601DM, get_urdf_path
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
+    from physicalai.robot.interface import Robot as PhysicalAIRobot
 
 
 class _PortFinder(Protocol):
@@ -68,6 +71,7 @@ class _CatalogDefinition:
 
 
 if TYPE_CHECKING:
+
     class _RobotCatalogRegistry(Protocol):
         def register(self, definition: _CatalogDefinition) -> None: ...
 
@@ -170,9 +174,14 @@ async def _build_rebot_b601_dm_driver(robot: Any, factory: _PortFinder) -> Physi
     if port is None:
         msg = f"Robot not found: {serial_number}"
         raise RuntimeError(msg)
-    return ReBotB601DM(port=port, can_adapter=validated.can_adapter, dm_serial_baud=validated.dm_serial_baud,
-                       role="follower", disable_torque_on_disconnect=validated.disable_torque_on_disconnect,
-                       force_pos_torque_ratio=validated.force_pos_torque_ratio)
+    return ReBotB601DM(
+        port=port,
+        can_adapter=validated.can_adapter,
+        dm_serial_baud=validated.dm_serial_baud,
+        role="follower",
+        disable_torque_on_disconnect=validated.disable_torque_on_disconnect,
+        force_pos_torque_ratio=validated.force_pos_torque_ratio,
+    )
 
 
 async def _build_rebot_arm102_driver(robot: Any, factory: _PortFinder) -> PhysicalAIRobot:
@@ -188,10 +197,13 @@ async def _build_rebot_arm102_driver(robot: Any, factory: _PortFinder) -> Physic
     if port is None:
         msg = f"Robot not found: {serial_number}"
         raise RuntimeError(msg)
-    return ReBotArm102Leader(port=port, baudrate=validated.baudrate,
-                             unlock_on_connect=validated.unlock_on_connect,
-                             reset_multi_turn_on_connect=validated.reset_multi_turn_on_connect,
-                             zero_on_connect=validated.zero_on_connect)
+    return ReBotArm102Leader(
+        port=port,
+        baudrate=validated.baudrate,
+        unlock_on_connect=validated.unlock_on_connect,
+        reset_multi_turn_on_connect=validated.reset_multi_turn_on_connect,
+        zero_on_connect=validated.zero_on_connect,
+    )
 
 
 def _definitions() -> list[_CatalogDefinition]:

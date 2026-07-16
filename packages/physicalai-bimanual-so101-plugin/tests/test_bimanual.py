@@ -1,16 +1,13 @@
 from __future__ import annotations
 
-from typing import Any
+from dataclasses import dataclass
 
 import numpy as np
 import pytest
-from dataclasses import dataclass
 
 from physicalai_bimanual_so101_plugin.constants import (
     BIMANUAL_SO101_JOINT_ORDER,
     LEFT_ARM_JOINTS,
-    NUM_BIMANUAL_JOINTS,
-    NUM_SINGLE_ARM_JOINTS,
     RIGHT_ARM_JOINTS,
 )
 
@@ -30,8 +27,7 @@ class _StubObservation:
 class _StubSO101:
     """Minimal stub for physicalai.robot.so101.SO101."""
 
-    JOINT_ORDER = ["shoulder_pan", "shoulder_lift", "elbow_flex",
-                   "wrist_flex", "wrist_roll", "gripper"]
+    JOINT_ORDER = ["shoulder_pan", "shoulder_lift", "elbow_flex", "wrist_flex", "wrist_roll", "gripper"]
     NUM_JOINTS = 6
 
     def __init__(
@@ -111,7 +107,7 @@ class TestBimanualSO101Construction:
         left = _StubSO101()
         right = _StubSO101()
         robot = BimanualSO101(left=left, right=right)
-        assert robot.JOINT_ORDER == list(BIMANUAL_SO101_JOINT_ORDER)
+        assert list(BIMANUAL_SO101_JOINT_ORDER) == robot.JOINT_ORDER
         assert robot.NUM_JOINTS == 12
 
 

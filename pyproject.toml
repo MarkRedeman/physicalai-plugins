@@ -2,7 +2,7 @@
 members = ["packages/*"]
 
 [dependency-groups]
-dev = ["pytest", "mypy", "ruff>=0.15.12", "prek", "pyrefly>=0.58.0"]
+dev = ["pytest", "mypy", "ruff>=0.15.14", "prek", "pyrefly>=0.58.0"]
 
 [tool.ruff]
 target-version = "py313"

@@ -2,13 +2,15 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
 from physicalai.robot.interface import Robot as PhysicalAIRobot
 from pydantic import BaseModel, Field
 
 from physicalai_websocket_robot_plugin.websocket_robot import WebSocketRobot
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class _PortFinder(Protocol):

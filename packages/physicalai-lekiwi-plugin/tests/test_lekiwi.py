@@ -139,10 +139,7 @@ class TestLeKiwiLifecycle:
 
         assert sdk.mock_packet_handler.ping.call_count == 9
 
-        torque_call_count = sum(
-            1 for c in sdk.mock_packet_handler.write1ByteTxRx.call_args_list
-            if c[0][2] == 40
-        )
+        torque_call_count = sum(1 for c in sdk.mock_packet_handler.write1ByteTxRx.call_args_list if c[0][2] == 40)
         assert torque_call_count >= 9
 
     def test_connect_is_idempotent(self, mock_scservo_sdk: MagicMock) -> None:
@@ -199,8 +196,9 @@ class TestLeKiwiObservation:
         assert "y_vel" in obs.sensor_data
         assert "theta_vel" in obs.sensor_data
 
-        np.testing.assert_allclose(obs.joint_positions[:6],
-                                   np.array([100.0, 200.0, 300.0, 400.0, 500.0, 600.0], dtype=np.float32), atol=0.5)
+        np.testing.assert_allclose(
+            obs.joint_positions[:6], np.array([100.0, 200.0, 300.0, 400.0, 500.0, 600.0], dtype=np.float32), atol=0.5
+        )
 
     def test_missing_arm_feedback_raises(self, mock_scservo_sdk: MagicMock) -> None:
         sdk = mock_scservo_sdk
@@ -320,14 +318,12 @@ class TestLeKiwiTorque:
 
         robot.set_torque(enabled=False)
         torque_off_calls = [
-            c for c in sdk.mock_packet_handler.write1ByteTxRx.call_args_list
-            if c[0][2] == 40 and c[0][3] == 0
+            c for c in sdk.mock_packet_handler.write1ByteTxRx.call_args_list if c[0][2] == 40 and c[0][3] == 0
         ]
         assert len(torque_off_calls) >= 9
 
         robot.set_torque(enabled=True)
         torque_on_calls = [
-            c for c in sdk.mock_packet_handler.write1ByteTxRx.call_args_list
-            if c[0][2] == 40 and c[0][3] == 1
+            c for c in sdk.mock_packet_handler.write1ByteTxRx.call_args_list if c[0][2] == 40 and c[0][3] == 1
         ]
         assert len(torque_on_calls) >= 9
