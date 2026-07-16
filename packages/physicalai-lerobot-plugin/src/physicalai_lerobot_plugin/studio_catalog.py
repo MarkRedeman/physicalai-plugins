@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from pydantic import BaseModel, Field
 
@@ -72,7 +72,7 @@ class _CatalogDefinition:
     display_name: str
     role: str
     robot_builder: Callable[..., Awaitable[PhysicalAIRobot]] | None = None
-    robot_model: type | None = None
+    robot_payload: type[BaseModel] | None = None
     asset: _RobotAsset | None = None
     adapter_options: _RobotAdapterOptions = field(default_factory=_RobotAdapterOptions)
     probe: Any = None
@@ -141,13 +141,6 @@ class LeRobotPayload(BaseModel):
     act_position_keys: list[str] | None = None
     disable_torque_on_disconnect: bool = True
     serial_number: str = ""
-
-
-class LeRobotRobotModel(BaseModel):
-    """Pydantic model for Studio's dynamic discriminated union."""
-
-    type: Literal["LeRobot_Follower", "LeRobot_Leader"] = Field(...)
-    payload: LeRobotPayload
 
 
 class LeRobotProbe:
@@ -305,7 +298,7 @@ def _definitions() -> list[_CatalogDefinition]:
             display_name="LeRobot Follower",
             role="follower",
             robot_builder=_build_lerobot_follower,
-            robot_model=LeRobotRobotModel,
+            robot_payload=LeRobotPayload,
             asset=_LEROBOT_ASSET,
             adapter_options=_RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
             probe=_LEROBOT_PROBE,
@@ -315,7 +308,7 @@ def _definitions() -> list[_CatalogDefinition]:
             display_name="LeRobot Leader",
             role="leader",
             robot_builder=_build_lerobot_leader,
-            robot_model=LeRobotRobotModel,
+            robot_payload=LeRobotPayload,
             asset=_LEROBOT_ASSET,
             adapter_options=_RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
             probe=_LEROBOT_PROBE,

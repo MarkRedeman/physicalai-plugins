@@ -49,6 +49,7 @@ class TestRegistration:
         assert types == {"BimanualSO101_Follower", "BimanualSO101_Leader"}
 
     def test_follower_structure(self) -> None:
+        from physicalai_bimanual_so101_plugin.studio_catalog import BimanualSO101Payload
         from physicalai_bimanual_so101_plugin.studio_catalog import _definitions
 
         follower = next(d for d in _definitions() if d.type == "BimanualSO101_Follower")
@@ -59,13 +60,14 @@ class TestRegistration:
         assert follower.asset.urdf_relative_path == Path("so101_dual/so101_dual.urdf")
         assert follower.asset.root_resolver is not None
         assert callable(follower.robot_builder)
-        assert follower.robot_model is not None
+        assert follower.robot_payload is BimanualSO101Payload
         assert follower.probe is not None
         assert follower.asset.packages == {"so101_dual": Path("so101_dual")}
         assert len(follower.asset.joint_map) == 12
 
     def test_leader_structure(self) -> None:
         from physicalai_bimanual_so101_plugin.studio_catalog import _definitions
+        from physicalai_bimanual_so101_plugin.studio_catalog import BimanualSO101Payload
 
         leader = next(d for d in _definitions() if d.type == "BimanualSO101_Leader")
 
@@ -75,7 +77,7 @@ class TestRegistration:
         assert leader.asset.urdf_relative_path == Path("so101_dual/so101_dual.urdf")
         assert leader.asset.root_resolver is not None
         assert callable(leader.robot_builder)
-        assert leader.robot_model is not None
+        assert leader.robot_payload is BimanualSO101Payload
 
 
 class TestPayload:

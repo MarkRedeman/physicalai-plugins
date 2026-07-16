@@ -57,7 +57,7 @@ class _CatalogDefinition:
     display_name: str
     role: str
     robot_builder: Callable[..., Awaitable[PhysicalAIRobot]] | None = None
-    robot_model: type | None = None
+    robot_payload: type[BaseModel] | None = None
     asset: _RobotAsset | None = None
     adapter_options: _RobotAdapterOptions = field(default_factory=_RobotAdapterOptions)
     probe: Any = None
@@ -142,16 +142,6 @@ class ReBotArm102Payload(BaseModel):
     zero_on_connect: bool = False
 
 
-class ReBotB601DMRobot(BaseModel):
-    type: Literal["ReBot_B601_DM_Follower"] = "ReBot_B601_DM_Follower"
-    payload: ReBotB601DMPayload
-
-
-class ReBotArm102Robot(BaseModel):
-    type: Literal["ReBot_Arm102_Leader"] = "ReBot_Arm102_Leader"
-    payload: ReBotArm102Payload
-
-
 class ReBotProbe:
     async def discover(self, manager: _PortScanner) -> list[_SerialPortInfo]:
         await manager.find_robots()
@@ -211,7 +201,7 @@ def _definitions() -> list[_CatalogDefinition]:
             display_name="ReBot B601 DM Follower",
             role="follower",
             robot_builder=_build_rebot_b601_dm_driver,
-            robot_model=ReBotB601DMRobot,
+            robot_payload=ReBotB601DMPayload,
             asset=_REBOT_B601_DM_ASSET,
             adapter_options=_RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
             probe=_REBOT_PROBE,
@@ -221,7 +211,7 @@ def _definitions() -> list[_CatalogDefinition]:
             display_name="ReBot Arm102 Leader",
             role="leader",
             robot_builder=_build_rebot_arm102_driver,
-            robot_model=ReBotArm102Robot,
+            robot_payload=ReBotArm102Payload,
             asset=_REBOT_ARM102_ASSET,
             adapter_options=_RobotAdapterOptions(include_velocities=False, external_effort_gain=None),
             probe=_REBOT_PROBE,

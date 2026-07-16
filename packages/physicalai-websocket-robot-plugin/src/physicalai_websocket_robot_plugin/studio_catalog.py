@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from physicalai.robot.interface import Robot as PhysicalAIRobot
 from pydantic import BaseModel, Field
@@ -39,7 +39,7 @@ class _CatalogDefinition:
     display_name: str
     role: str
     robot_builder: _BuildRobotCallable | None = None
-    robot_model: type | None = None
+    robot_payload: type[BaseModel] | None = None
     asset: _RobotAsset | None = None
     adapter_options: _RobotAdapterOptions = field(default_factory=_RobotAdapterOptions)
     probe: Any = None
@@ -59,11 +59,6 @@ class WebSocketRobotPayload(BaseModel):
     websocket_url: str = Field(..., description="WebSocket URL of the remote robot")
     connect_timeout: float = 10.0
     command_timeout: float = 5.0
-
-
-class WebSocketRobotModel(BaseModel):
-    type: Literal["WebSocket_Robot"] = "WebSocket_Robot"
-    payload: WebSocketRobotPayload
 
 
 async def _build_websocket_robot(
@@ -92,7 +87,7 @@ def _definitions() -> list[_CatalogDefinition]:
             display_name="WebSocket Robot",
             role="follower",
             robot_builder=_build_websocket_robot,
-            robot_model=WebSocketRobotModel,
+            robot_payload=WebSocketRobotPayload,
             adapter_options=_RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
         ),
     ]

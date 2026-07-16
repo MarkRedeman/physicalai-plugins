@@ -57,7 +57,7 @@ class _CatalogDefinition:
     display_name: str
     role: str
     robot_builder: Callable[..., Awaitable[PhysicalAIRobot]] | None = None
-    robot_model: type | None = None
+    robot_payload: type[BaseModel] | None = None
     asset: _RobotAsset | None = None
     adapter_options: _RobotAdapterOptions = field(default_factory=_RobotAdapterOptions)
     probe: Any = None
@@ -115,11 +115,6 @@ class BimanualSO101Payload(BaseModel):
     baudrate: int = 1_000_000
     role: Literal["follower", "leader"] = "follower"
     disable_torque_on_disconnect: bool = True
-
-
-class BimanualSO101Robot(BaseModel):
-    type: Literal["BimanualSO101_Follower", "BimanualSO101_Leader"] = Field(...)
-    payload: BimanualSO101Payload
 
 
 class BimanualSO101Probe:
@@ -260,7 +255,7 @@ def _definitions() -> list[_CatalogDefinition]:
             display_name="Bimanual SO-101 Follower",
             role="follower",
             robot_builder=_build_bimanual_driver,
-            robot_model=BimanualSO101Robot,
+            robot_payload=BimanualSO101Payload,
             asset=_BIMANUAL_SO101_ASSET,
             adapter_options=_RobotAdapterOptions(
                 include_velocities=False, external_effort_gain=None
@@ -272,7 +267,7 @@ def _definitions() -> list[_CatalogDefinition]:
             display_name="Bimanual SO-101 Leader",
             role="leader",
             robot_builder=_build_bimanual_driver,
-            robot_model=BimanualSO101Robot,
+            robot_payload=BimanualSO101Payload,
             asset=_BIMANUAL_SO101_ASSET,
             adapter_options=_RobotAdapterOptions(
                 include_velocities=False, external_effort_gain=None

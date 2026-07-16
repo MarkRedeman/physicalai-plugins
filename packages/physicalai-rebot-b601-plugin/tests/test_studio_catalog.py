@@ -88,7 +88,9 @@ def test_dm_follower_has_robot_builder() -> None:
 
     dm = next(d for d in _definitions() if d.type == "ReBot_B601_DM_Follower")
     assert callable(dm.robot_builder)
-    assert dm.robot_model is not None
+    from physicalai_rebot_b601_plugin.studio_catalog import ReBotB601DMPayload
+
+    assert dm.robot_payload is ReBotB601DMPayload
     assert dm.adapter_options.include_velocities is True
     assert dm.adapter_options.external_effort_gain is None
     assert dm.adapter_options.goal_time_scale == 1.0
@@ -99,7 +101,9 @@ def test_arm102_leader_has_robot_builder() -> None:
 
     arm102 = next(d for d in _definitions() if d.type == "ReBot_Arm102_Leader")
     assert callable(arm102.robot_builder)
-    assert arm102.robot_model is not None
+    from physicalai_rebot_b601_plugin.studio_catalog import ReBotArm102Payload
+
+    assert arm102.robot_payload is ReBotArm102Payload
     assert arm102.adapter_options.include_velocities is False
     assert arm102.adapter_options.external_effort_gain is None
     assert arm102.adapter_options.goal_time_scale == 1.0

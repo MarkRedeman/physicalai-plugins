@@ -7,7 +7,6 @@ from pydantic import ValidationError
 
 from physicalai_zmq_robot_plugin.studio_catalog import (
     ZMQRobotPayload,
-    ZMQRobotModel,
     _definitions,
     register_physicalai_studio_plugin,
 )
@@ -34,7 +33,7 @@ class TestDefinitions:
         definition = defs[0]
         assert definition.type == "ZMQ_Robot"
         assert definition.asset is None
-        assert definition.robot_model is ZMQRobotModel
+        assert definition.robot_payload is ZMQRobotPayload
 
 
 class TestRegistration:

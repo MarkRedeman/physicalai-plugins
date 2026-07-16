@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from physicalai.robot.interface import Robot as PhysicalAIRobot
 from pydantic import BaseModel, Field
@@ -57,7 +57,7 @@ class _CatalogDefinition:
     display_name: str
     role: str
     robot_builder: Callable[..., Awaitable[PhysicalAIRobot]] | None = None
-    robot_model: type | None = None
+    robot_payload: type[BaseModel] | None = None
     asset: _RobotAsset | None = None
     adapter_options: _RobotAdapterOptions = field(default_factory=_RobotAdapterOptions)
     probe: Any = None
@@ -107,11 +107,6 @@ class LeKiwiPayload(BaseModel):
     serial_number: str = Field(...)
     baudrate: int = 1_000_000
     disable_torque_on_disconnect: bool = True
-
-
-class LeKiwiRobot(BaseModel):
-    type: Literal["LeKiwi_Follower", "LeKiwi_Leader"] = Field(...)
-    payload: LeKiwiPayload
 
 
 class LeKiwiProbe:
@@ -199,7 +194,7 @@ def _definitions() -> list[_CatalogDefinition]:
             display_name="LeKiwi Follower",
             role="follower",
             robot_builder=_build_lekiwi_driver,
-            robot_model=LeKiwiRobot,
+            robot_payload=LeKiwiPayload,
             asset=_LEKIWI_ASSET,
             adapter_options=_RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
             probe=_LEKIWI_PROBE,
@@ -209,7 +204,7 @@ def _definitions() -> list[_CatalogDefinition]:
             display_name="LeKiwi Leader",
             role="leader",
             robot_builder=_build_lekiwi_leader,
-            robot_model=LeKiwiRobot,
+            robot_payload=LeKiwiPayload,
             asset=_LEKIWI_ASSET,
             adapter_options=_RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
             probe=_LEKIWI_PROBE,

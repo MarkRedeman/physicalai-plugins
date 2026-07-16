@@ -42,7 +42,9 @@ def test_register_plugin() -> None:
     assert defn.asset is not None
     assert defn.asset.urdf_relative_path == Path("lekiwi/urdf/LeKiwi.urdf")
     assert defn.asset.packages == {"lekiwi": Path("lekiwi")}
-    assert defn.robot_model is not None
+    from physicalai_lekiwi_plugin.studio_catalog import LeKiwiPayload
+
+    assert defn.robot_payload is LeKiwiPayload
 
 
 def test_payload_model() -> None:
