@@ -11,6 +11,7 @@ requires-python = ">=3.12"
 license = "Apache-2.0"
 dependencies = [
     "physicalai>=0.1.1",
+    "physicalai-studio-plugin",
     "numpy>=1.24",
     "loguru>=0.7",
     "pyzmq>=25",
