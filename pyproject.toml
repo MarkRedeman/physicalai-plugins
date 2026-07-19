@@ -1,6 +1,9 @@
 [tool.uv.workspace]
 members = ["packages/*"]
 
+[tool.uv.sources]
+physicalai-studio-plugin = { path = "../physical-ai-studio/application/physicalai-studio-plugin", editable = true }
+
 [dependency-groups]
 dev = ["pytest", "mypy", "ruff>=0.15.14", "prek", "pyrefly>=0.58.0"]
 
