@@ -1,79 +1,29 @@
-"""Studio catalog plugin for Physical AI Studio.
-
-Exposes :func:`register_physicalai_studio_plugin` as the entry-point callable
-for the ``physicalai.studio.catalog_plugins`` group.
-"""
-
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, Protocol
+from typing import TYPE_CHECKING, Any, Literal
 
 from physicalai.robot.so101 import SO101, SO101Calibration
+from physicalai_studio_plugin import (
+    CatalogRobotFactory,
+    PortScanner,
+    RobotAdapterOptions,
+    RobotAsset,
+    RobotCatalogDefinition,
+    SerialPortInfo,
+)
 from pydantic import BaseModel, Field
 
 import physicalai_bimanual_so101_plugin
 from physicalai_bimanual_so101_plugin import BimanualSO101, get_urdf_path
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable
+    from typing import Protocol
 
     from physicalai.robot.interface import Robot as PhysicalAIRobot
 
-
-class _PortFinder(Protocol):
-    async def find_so101_port(self, robot: Any) -> str: ...
-    async def find_port_by_serial(self, serial_number: str) -> str | None: ...
-    async def get_calibration_by_id(self, calibration_id: Any) -> Any: ...
-
-
-class _SerialPortInfo(Protocol):
-    connection_string: str | None
-    serial_number: str | None
-
-
-class _PortScanner(Protocol):
-    async def find_robots(self) -> None: ...
-    @property
-    def robots(self) -> list[_SerialPortInfo]: ...
-
-
-@dataclass(frozen=True)
-class _RobotAdapterOptions:
-    include_velocities: bool = False
-    goal_time_scale: float = 1.0
-    external_effort_gain: float | None = 0.1
-
-
-@dataclass(frozen=True)
-class _RobotAsset:
-    urdf_relative_path: Path
-    packages: dict[str, Path]
-    joint_map: dict[str, list[str]]
-    root_resolver: Callable[[], Path] | None = None
-
-
-@dataclass
-class _CatalogDefinition:
-    type: str
-    display_name: str
-    role: str
-    robot_builder: Callable[..., Awaitable[PhysicalAIRobot]] | None = None
-    robot_payload: type[BaseModel] | None = None
-    asset: _RobotAsset | None = None
-    adapter_options: _RobotAdapterOptions = field(default_factory=_RobotAdapterOptions)
-    probe: Any = None
-
-    @property
-    def robot_type(self) -> str:
-        return self.type
-
-
-if TYPE_CHECKING:
-
     class _RobotCatalogRegistry(Protocol):
-        def register(self, definition: _CatalogDefinition) -> None: ...
+        def register(self, definition: RobotCatalogDefinition) -> None: ...
 
 
 _BIMANUAL_SO101_TO_URDF: dict[str, list[str]] = {
@@ -103,7 +53,7 @@ def _get_bimanual_urdf_root() -> Path:
     return configured_root
 
 
-_BIMANUAL_SO101_ASSET = _RobotAsset(
+_BIMANUAL_SO101_ASSET = RobotAsset(
     urdf_relative_path=Path("so101_dual/so101_dual.urdf"),
     packages={"so101_dual": Path("so101_dual")},
     joint_map=_BIMANUAL_SO101_TO_URDF,
@@ -122,19 +72,19 @@ class BimanualSO101Payload(BaseModel):
 
 
 class BimanualSO101Probe:
-    async def discover(self, manager: _PortScanner) -> list[_SerialPortInfo]:
+    async def discover(self, manager: PortScanner) -> list[SerialPortInfo]:
         await manager.find_robots()
         return manager.robots
 
     async def identify(
         self,
         payload: dict[str, Any],
-        manager: Any = None,
+        manager: PortScanner | None = None,
         joint: str | None = None,
     ) -> None:
         pass
 
-    async def is_online(self, payload: dict[str, Any], manager: Any = None) -> bool:
+    async def is_online(self, payload: dict[str, Any], manager: PortScanner | None = None) -> bool:
         validated = BimanualSO101Payload(**payload)
         if manager is not None:
             ports_list = manager.robots
@@ -166,7 +116,7 @@ def _calibration_to_so101(calibration: Any) -> SO101Calibration:
     })
 
 
-async def _build_bimanual_driver(robot: Any, factory: _PortFinder) -> PhysicalAIRobot:
+async def _build_bimanual_driver(robot: Any, factory: CatalogRobotFactory) -> PhysicalAIRobot:
     raw = robot.payload
     if isinstance(raw, BimanualSO101Payload):
         validated = raw
@@ -230,26 +180,26 @@ async def _build_bimanual_driver(robot: Any, factory: _PortFinder) -> PhysicalAI
     return BimanualSO101(left=left_arm, right=right_arm)
 
 
-def _definitions() -> list[_CatalogDefinition]:
+def _definitions() -> list[RobotCatalogDefinition]:
     return [
-        _CatalogDefinition(
+        RobotCatalogDefinition(
             type="BimanualSO101_Follower",
             display_name="Bimanual SO-101 Follower",
             role="follower",
             robot_builder=_build_bimanual_driver,
             robot_payload=BimanualSO101Payload,
             asset=_BIMANUAL_SO101_ASSET,
-            adapter_options=_RobotAdapterOptions(include_velocities=False, external_effort_gain=None),
+            adapter_options=RobotAdapterOptions(include_velocities=False, external_effort_gain=None),
             probe=_BIMANUAL_PROBE,
         ),
-        _CatalogDefinition(
+        RobotCatalogDefinition(
             type="BimanualSO101_Leader",
             display_name="Bimanual SO-101 Leader",
             role="leader",
             robot_builder=_build_bimanual_driver,
             robot_payload=BimanualSO101Payload,
             asset=_BIMANUAL_SO101_ASSET,
-            adapter_options=_RobotAdapterOptions(include_velocities=False, external_effort_gain=None),
+            adapter_options=RobotAdapterOptions(include_velocities=False, external_effort_gain=None),
             probe=_BIMANUAL_PROBE,
         ),
     ]

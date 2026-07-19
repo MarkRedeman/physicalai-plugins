@@ -1,79 +1,30 @@
-"""Studio catalog plugin for Physical AI Studio.
-
-Exposes :func:`register_physicalai_studio_plugin` as the entry-point callable
-for the ``physicalai.studio.catalog_plugins`` group.
-"""
-
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, Protocol
+from typing import TYPE_CHECKING, Any, Literal
 
 from loguru import logger
+from physicalai_studio_plugin import (
+    CatalogRobotFactory,
+    PortScanner,
+    RobotAdapterOptions,
+    RobotAsset,
+    RobotCatalogDefinition,
+    RobotProbe,
+    SerialPortInfo,
+)
 from pydantic import BaseModel, Field
 
 import physicalai_rebot_b601_plugin
 from physicalai_rebot_b601_plugin import ReBotArm102Leader, ReBotB601DM, get_urdf_path
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable
+    from typing import Protocol
 
     from physicalai.robot.interface import Robot as PhysicalAIRobot
 
-
-class _PortFinder(Protocol):
-    async def find_so101_port(self, robot: Any) -> str: ...
-    async def find_port_by_serial(self, serial_number: str) -> str | None: ...
-    async def get_calibration_by_id(self, calibration_id: Any) -> Any: ...
-
-
-class _SerialPortInfo(Protocol):
-    connection_string: str | None
-    serial_number: str | None
-
-
-class _PortScanner(Protocol):
-    async def find_robots(self) -> None: ...
-    @property
-    def robots(self) -> list[_SerialPortInfo]: ...
-
-
-@dataclass(frozen=True)
-class _RobotAdapterOptions:
-    include_velocities: bool = False
-    goal_time_scale: float = 1.0
-    external_effort_gain: float | None = 0.1
-
-
-@dataclass(frozen=True)
-class _RobotAsset:
-    urdf_relative_path: Path
-    packages: dict[str, Path]
-    joint_map: dict[str, list[str]]
-    root_resolver: Callable[[], Path] | None = None
-
-
-@dataclass
-class _CatalogDefinition:
-    type: str
-    display_name: str
-    role: str
-    robot_builder: Callable[..., Awaitable[PhysicalAIRobot]] | None = None
-    robot_payload: type[BaseModel] | None = None
-    asset: _RobotAsset | None = None
-    adapter_options: _RobotAdapterOptions = field(default_factory=_RobotAdapterOptions)
-    probe: Any = None
-
-    @property
-    def robot_type(self) -> str:
-        return self.type
-
-
-if TYPE_CHECKING:
-
     class _RobotCatalogRegistry(Protocol):
-        def register(self, definition: _CatalogDefinition) -> None: ...
+        def register(self, definition: RobotCatalogDefinition) -> None: ...
 
 
 _REBOT_B601_DM_TO_URDF: dict[str, list[str]] = {
@@ -113,14 +64,14 @@ def _get_rebot_urdf_root() -> Path:
     return configured_root
 
 
-_REBOT_B601_DM_ASSET = _RobotAsset(
+_REBOT_B601_DM_ASSET = RobotAsset(
     urdf_relative_path=Path("rebot-b601-dm/urdf/reBot-DevArm_fixend.urdf"),
     packages={"rebot-b601-dm": Path("rebot-b601-dm")},
     joint_map=_REBOT_B601_DM_TO_URDF,
     root_resolver=_get_rebot_urdf_root,
 )
 
-_REBOT_ARM102_ASSET = _RobotAsset(
+_REBOT_ARM102_ASSET = RobotAsset(
     urdf_relative_path=Path("stararm102/urdf/stararm102_description.urdf"),
     packages={"stararm102": Path("stararm102")},
     joint_map=_REBOT_ARM102_TO_URDF,
@@ -147,21 +98,21 @@ class ReBotArm102Payload(BaseModel):
 
 
 class ReBotProbe:
-    async def discover(self, manager: _PortScanner) -> list[_SerialPortInfo]:
+    async def discover(self, manager: PortScanner) -> list[SerialPortInfo]:
         await manager.find_robots()
         return manager.robots
 
-    async def identify(self, payload: dict[str, Any], manager: Any = None, joint: str | None = None) -> None:
+    async def identify(self, payload: dict[str, Any], manager: PortScanner | None = None, joint: str | None = None) -> None:
         pass
 
-    async def is_online(self, payload: dict[str, Any], manager: Any = None) -> bool:
+    async def is_online(self, payload: dict[str, Any], manager: PortScanner | None = None) -> bool:
         return True
 
 
 _REBOT_PROBE = ReBotProbe()
 
 
-async def _build_rebot_b601_dm_driver(robot: Any, factory: _PortFinder) -> PhysicalAIRobot:
+async def _build_rebot_b601_dm_driver(robot: Any, factory: CatalogRobotFactory) -> PhysicalAIRobot:
     raw = robot.payload
     if isinstance(raw, ReBotB601DMPayload):
         validated = raw
@@ -184,7 +135,7 @@ async def _build_rebot_b601_dm_driver(robot: Any, factory: _PortFinder) -> Physi
     )
 
 
-async def _build_rebot_arm102_driver(robot: Any, factory: _PortFinder) -> PhysicalAIRobot:
+async def _build_rebot_arm102_driver(robot: Any, factory: CatalogRobotFactory) -> PhysicalAIRobot:
     raw = robot.payload
     if isinstance(raw, ReBotArm102Payload):
         validated = raw
@@ -206,26 +157,26 @@ async def _build_rebot_arm102_driver(robot: Any, factory: _PortFinder) -> Physic
     )
 
 
-def _definitions() -> list[_CatalogDefinition]:
+def _definitions() -> list[RobotCatalogDefinition]:
     return [
-        _CatalogDefinition(
+        RobotCatalogDefinition(
             type="ReBot_B601_DM_Follower",
             display_name="ReBot B601 DM Follower",
             role="follower",
             robot_builder=_build_rebot_b601_dm_driver,
             robot_payload=ReBotB601DMPayload,
             asset=_REBOT_B601_DM_ASSET,
-            adapter_options=_RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
+            adapter_options=RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
             probe=_REBOT_PROBE,
         ),
-        _CatalogDefinition(
+        RobotCatalogDefinition(
             type="ReBot_Arm102_Leader",
             display_name="ReBot Arm102 Leader",
             role="leader",
             robot_builder=_build_rebot_arm102_driver,
             robot_payload=ReBotArm102Payload,
             asset=_REBOT_ARM102_ASSET,
-            adapter_options=_RobotAdapterOptions(include_velocities=False, external_effort_gain=None),
+            adapter_options=RobotAdapterOptions(include_velocities=False, external_effort_gain=None),
             probe=_REBOT_PROBE,
         ),
     ]

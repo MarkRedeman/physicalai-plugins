@@ -1,101 +1,31 @@
-"""Studio catalog plugin for Physical AI Studio.
-
-Exposes :func:`register_physicalai_studio_plugin` as the entry-point callable
-for the ``physicalai.studio.catalog_plugins`` group.
-"""
-
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any
 
+from physicalai_studio_plugin import (
+    CatalogRobotFactory,
+    PortScanner,
+    RobotAdapterOptions,
+    RobotAsset,
+    RobotCatalogDefinition,
+    SerialPortInfo,
+)
 from pydantic import BaseModel, Field
 
 import physicalai_lerobot_plugin
 from physicalai_lerobot_plugin import get_urdf_path
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable
+    from typing import Protocol
 
     from physicalai.robot.interface import Robot as PhysicalAIRobot
 
-
-class _PortFinder(Protocol):
-    """Factory provided by Studio to resolve serial ports."""
-
-    async def find_so101_port(self, robot: object) -> str: ...
-    async def find_port_by_serial(self, serial_number: str) -> str | None: ...
-    async def get_calibration_by_id(self, calibration_id: object) -> object: ...
-
-
-class _SerialPortInfo(Protocol):
-    """Serial port info protocol."""
-
-    connection_string: str | None
-    serial_number: str | None
-
-
-class _PortScanner(Protocol):
-    """Port scanner protocol."""
-
-    async def find_robots(self) -> None: ...
-
-    @property
-    def robots(self) -> list[_SerialPortInfo]: ...
-
-
-@dataclass(frozen=True)
-class _RobotAdapterOptions:
-    """Controls how Studio wraps the driver."""
-
-    include_velocities: bool = False
-    goal_time_scale: float = 1.0
-    external_effort_gain: float | None = 0.1
-
-
-@dataclass(frozen=True)
-class _RobotAsset:
-    """Filesystem configuration for a robot's visual model."""
-
-    urdf_relative_path: Path
-    packages: dict[str, Path]
-    joint_map: dict[str, list[str]]
-    root_resolver: Callable[[], Path] | None = None
-
-
-@dataclass
-class _CatalogDefinition:
-    """Flat catalog definition schema."""
-
-    type: str
-    display_name: str
-    role: str
-    robot_builder: Callable[..., Awaitable[PhysicalAIRobot]] | None = None
-    robot_payload: type[BaseModel] | None = None
-    asset: _RobotAsset | None = None
-    adapter_options: _RobotAdapterOptions = field(default_factory=_RobotAdapterOptions)
-    probe: Any = None
-
-    @property
-    def robot_type(self) -> str:
-        return self.type
-
-
-if TYPE_CHECKING:
-
     class _RobotCatalogRegistry(Protocol):
-        """Registry protocol for catalog definitions."""
-
-        def register(self, definition: _CatalogDefinition) -> None: ...
+        def register(self, definition: RobotCatalogDefinition) -> None: ...
 
 
 def _get_lerobot_urdf_root() -> Path:
-    """Resolve the URDF root directory for the lerobot plugin.
-
-    Returns:
-        The absolute path to the URDF root directory.
-    """
     configured_root = get_urdf_path()
     if configured_root.exists():
         return configured_root
@@ -106,7 +36,7 @@ def _get_lerobot_urdf_root() -> Path:
     return configured_root
 
 
-_LEROBOT_ASSET = _RobotAsset(
+_LEROBOT_ASSET = RobotAsset(
     urdf_relative_path=Path("lerobot/urdf/lerobot.urdf"),
     packages={"lerobot": Path("lerobot")},
     joint_map={
@@ -122,18 +52,6 @@ _LEROBOT_ASSET = _RobotAsset(
 
 
 class LeRobotPayload(BaseModel):
-    """Payload model for LeRobot robot configuration.
-
-    Attributes:
-        robot_type: LeRobot robot type name (e.g. ``"so100_follower"``).
-        port: Serial port path (e.g. ``"/dev/ttyACM0"``).
-        joint_order: Joint names in PhysicalAI order.
-        obs_position_keys: Keys in the lerobot observation dict.
-        act_position_keys: Keys in the lerobot action dict.
-        disable_torque_on_disconnect: Whether to disable torque on disconnect.
-        serial_number: Serial number for port discovery.
-    """
-
     robot_type: str = Field(...)
     port: str = Field(...)
     joint_order: list[str] = Field(...)
@@ -144,38 +62,19 @@ class LeRobotPayload(BaseModel):
 
 
 class LeRobotProbe:
-    """Probe for discovering LeRobot devices."""
-
-    async def discover(self, manager: _PortScanner) -> list[_SerialPortInfo]:
-        """Discover available LeRobot devices.
-
-        Args:
-            manager: Port scanner provided by Studio.
-
-        Returns:
-            List of discovered serial port info.
-        """
+    async def discover(self, manager: PortScanner) -> list[SerialPortInfo]:
         await manager.find_robots()
         return manager.robots
 
     async def identify(
         self,
         payload: dict[str, Any],
-        manager: object = None,
+        manager: PortScanner | None = None,
         joint: str | None = None,
     ) -> None:
-        """Identify a device (no-op for LeRobot)."""
+        pass
 
-    async def is_online(self, payload: dict[str, Any], manager: object = None) -> bool:
-        """Check if the device is currently reachable.
-
-        Args:
-            payload: Device configuration.
-            manager: Optional port scanner.
-
-        Returns:
-            True if the device appears online.
-        """
+    async def is_online(self, payload: dict[str, Any], manager: PortScanner | None = None) -> bool:
         validated = LeRobotPayload(**payload)
         if manager is not None:
             ports_list = manager.robots
@@ -194,17 +93,6 @@ _LEROBOT_PROBE = LeRobotProbe()
 
 
 def _make_lerobot_config(validated: LeRobotPayload) -> object:
-    """Create a LeRobot RobotConfig from the validated payload.
-
-    Args:
-        validated: The validated payload.
-
-    Returns:
-        A LeRobot RobotConfig instance for the requested robot type.
-
-    Raises:
-        ValueError: If the robot type is not supported.
-    """
     if validated.robot_type == "so100_follower":
         from lerobot.robots.so_follower.config_so_follower import SO100FollowerConfig
 
@@ -225,15 +113,6 @@ def _make_lerobot_config(validated: LeRobotPayload) -> object:
 
 
 def _build_lerobot_driver(robot: object, role: str) -> PhysicalAIRobot:
-    """Construct a LeRobotAdapter wrapping the appropriate LeRobot robot.
-
-    Args:
-        robot: The stored robot config (Pydantic model, dict, or unknown).
-        role: ``"follower"`` or ``"leader"``.
-
-    Returns:
-        A PhysicalAI-compatible LeRobotAdapter instance.
-    """
     from lerobot.robots import make_robot_from_config
 
     from physicalai_lerobot_plugin.lerobot_adapter import LeRobotAdapter
@@ -258,67 +137,39 @@ def _build_lerobot_driver(robot: object, role: str) -> PhysicalAIRobot:
     )
 
 
-async def _build_lerobot_follower(robot: object, factory: _PortFinder) -> PhysicalAIRobot:
-    """Build a follower LeRobot driver.
-
-    Args:
-        robot: The stored robot config.
-        factory: Port finder provided by Studio.
-
-    Returns:
-        A PhysicalAI-compatible robot instance.
-    """
+async def _build_lerobot_follower(robot: object, factory: CatalogRobotFactory) -> PhysicalAIRobot:
     return _build_lerobot_driver(robot, "follower")
 
 
-async def _build_lerobot_leader(robot: object, factory: _PortFinder) -> PhysicalAIRobot:
-    """Build a leader LeRobot driver.
-
-    Args:
-        robot: The stored robot config.
-        factory: Port finder provided by Studio.
-
-    Returns:
-        A PhysicalAI-compatible robot instance.
-    """
+async def _build_lerobot_leader(robot: object, factory: CatalogRobotFactory) -> PhysicalAIRobot:
     return _build_lerobot_driver(robot, "leader")
 
 
-def _definitions() -> list[_CatalogDefinition]:
-    """Build the list of catalog definitions for this plugin.
-
-    Returns:
-        A list of ``_CatalogDefinition`` entries.
-    """
+def _definitions() -> list[RobotCatalogDefinition]:
     return [
-        _CatalogDefinition(
+        RobotCatalogDefinition(
             type="LeRobot_Follower",
             display_name="LeRobot Follower",
             role="follower",
             robot_builder=_build_lerobot_follower,
             robot_payload=LeRobotPayload,
             asset=_LEROBOT_ASSET,
-            adapter_options=_RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
+            adapter_options=RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
             probe=_LEROBOT_PROBE,
         ),
-        _CatalogDefinition(
+        RobotCatalogDefinition(
             type="LeRobot_Leader",
             display_name="LeRobot Leader",
             role="leader",
             robot_builder=_build_lerobot_leader,
             robot_payload=LeRobotPayload,
             asset=_LEROBOT_ASSET,
-            adapter_options=_RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
+            adapter_options=RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
             probe=_LEROBOT_PROBE,
         ),
     ]
 
 
 def register_physicalai_studio_plugin(registry: _RobotCatalogRegistry) -> None:
-    """Register all catalog definitions with the given registry.
-
-    Args:
-        registry: The Studio catalog registry.
-    """
     for definition in _definitions():
         registry.register(definition)

@@ -1,79 +1,28 @@
-"""Studio catalog plugin for Physical AI Studio.
-
-Exposes :func:`register_physicalai_studio_plugin` as the entry-point callable
-for the ``physicalai.studio.catalog_plugins`` group.
-"""
-
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any
 
+from physicalai_studio_plugin import (
+    CatalogRobotFactory,
+    PortScanner,
+    RobotAdapterOptions,
+    RobotAsset,
+    RobotCatalogDefinition,
+    SerialPortInfo,
+)
 from pydantic import BaseModel, Field
 
 import physicalai_lekiwi_plugin
 from physicalai_lekiwi_plugin import LeKiwi, get_urdf_path
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable
+    from typing import Protocol
 
     from physicalai.robot.interface import Robot as PhysicalAIRobot
 
-
-class _PortFinder(Protocol):
-    async def find_so101_port(self, robot: Any) -> str: ...
-    async def find_port_by_serial(self, serial_number: str) -> str | None: ...
-    async def get_calibration_by_id(self, calibration_id: Any) -> Any: ...
-
-
-class _SerialPortInfo(Protocol):
-    connection_string: str | None
-    serial_number: str | None
-
-
-class _PortScanner(Protocol):
-    async def find_robots(self) -> None: ...
-
-    @property
-    def robots(self) -> list[_SerialPortInfo]: ...
-
-
-@dataclass(frozen=True)
-class _RobotAdapterOptions:
-    include_velocities: bool = False
-    goal_time_scale: float = 1.0
-    external_effort_gain: float | None = 0.1
-
-
-@dataclass(frozen=True)
-class _RobotAsset:
-    urdf_relative_path: Path
-    packages: dict[str, Path]
-    joint_map: dict[str, list[str]]
-    root_resolver: Callable[[], Path] | None = None
-
-
-@dataclass
-class _CatalogDefinition:
-    type: str
-    display_name: str
-    role: str
-    robot_builder: Callable[..., Awaitable[PhysicalAIRobot]] | None = None
-    robot_payload: type[BaseModel] | None = None
-    asset: _RobotAsset | None = None
-    adapter_options: _RobotAdapterOptions = field(default_factory=_RobotAdapterOptions)
-    probe: Any = None
-
-    @property
-    def robot_type(self) -> str:
-        return self.type
-
-
-if TYPE_CHECKING:
-
     class _RobotCatalogRegistry(Protocol):
-        def register(self, definition: _CatalogDefinition) -> None: ...
+        def register(self, definition: RobotCatalogDefinition) -> None: ...
 
 
 _LEKIWI_TO_URDF: dict[str, list[str]] = {
@@ -97,7 +46,7 @@ def _get_lekiwi_urdf_root() -> Path:
     return configured_root
 
 
-_LEKIWI_ASSET = _RobotAsset(
+_LEKIWI_ASSET = RobotAsset(
     urdf_relative_path=Path("lekiwi/urdf/LeKiwi.urdf"),
     packages={"lekiwi": Path("lekiwi")},
     joint_map=_LEKIWI_TO_URDF,
@@ -113,19 +62,19 @@ class LeKiwiPayload(BaseModel):
 
 
 class LeKiwiProbe:
-    async def discover(self, manager: _PortScanner) -> list[_SerialPortInfo]:
+    async def discover(self, manager: PortScanner) -> list[SerialPortInfo]:
         await manager.find_robots()
         return manager.robots
 
     async def identify(
         self,
         payload: dict[str, Any],
-        manager: Any = None,
+        manager: PortScanner | None = None,
         joint: str | None = None,
     ) -> None:
         pass
 
-    async def is_online(self, payload: dict[str, Any], manager: Any = None) -> bool:
+    async def is_online(self, payload: dict[str, Any], manager: PortScanner | None = None) -> bool:
         validated = LeKiwiPayload(**payload)
 
         if manager is not None:
@@ -145,7 +94,7 @@ class LeKiwiProbe:
 _LEKIWI_PROBE = LeKiwiProbe()
 
 
-async def _build_lekiwi_driver(robot: Any, factory: _PortFinder) -> PhysicalAIRobot:
+async def _build_lekiwi_driver(robot: Any, factory: CatalogRobotFactory) -> PhysicalAIRobot:
     raw = robot.payload
     if isinstance(raw, LeKiwiPayload):
         validated = raw
@@ -168,7 +117,7 @@ async def _build_lekiwi_driver(robot: Any, factory: _PortFinder) -> PhysicalAIRo
     )
 
 
-async def _build_lekiwi_leader(robot: Any, factory: _PortFinder) -> PhysicalAIRobot:
+async def _build_lekiwi_leader(robot: Any, factory: CatalogRobotFactory) -> PhysicalAIRobot:
     raw = robot.payload
     if isinstance(raw, LeKiwiPayload):
         validated = raw
@@ -190,26 +139,26 @@ async def _build_lekiwi_leader(robot: Any, factory: _PortFinder) -> PhysicalAIRo
     )
 
 
-def _definitions() -> list[_CatalogDefinition]:
+def _definitions() -> list[RobotCatalogDefinition]:
     return [
-        _CatalogDefinition(
+        RobotCatalogDefinition(
             type="LeKiwi_Follower",
             display_name="LeKiwi Follower",
             role="follower",
             robot_builder=_build_lekiwi_driver,
             robot_payload=LeKiwiPayload,
             asset=_LEKIWI_ASSET,
-            adapter_options=_RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
+            adapter_options=RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
             probe=_LEKIWI_PROBE,
         ),
-        _CatalogDefinition(
+        RobotCatalogDefinition(
             type="LeKiwi_Leader",
             display_name="LeKiwi Leader",
             role="leader",
             robot_builder=_build_lekiwi_leader,
             robot_payload=LeKiwiPayload,
             asset=_LEKIWI_ASSET,
-            adapter_options=_RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
+            adapter_options=RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
             probe=_LEKIWI_PROBE,
         ),
     ]
