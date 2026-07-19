@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from physicalai.robot.interface import Robot as PhysicalAIRobot
 from physicalai_studio_plugin import (
     CatalogRobotFactory,
     RobotAdapterOptions,
@@ -11,6 +10,15 @@ from physicalai_studio_plugin import (
 from pydantic import BaseModel, Field
 
 from physicalai_zmq_robot_plugin.zmq_robot import ZMQRobot
+
+if TYPE_CHECKING:
+    from typing import Protocol
+
+    from physicalai.robot.interface import Robot as PhysicalAIRobot
+
+    class _RobotCatalogRegistry(Protocol):
+        def register(self, definition: RobotCatalogDefinition) -> None: ...
+
 
 class ZMQRobotPayload(BaseModel):
     zmq_endpoint: str = Field(..., description="ZMQ endpoint of the remote robot (e.g., tcp://host:port)")
@@ -33,13 +41,6 @@ async def _build_zmq_robot(
         zmq_endpoint=validated.zmq_endpoint,
         command_timeout=validated.command_timeout,
     )
-
-
-if TYPE_CHECKING:
-    from typing import Protocol
-
-    class _RobotCatalogRegistry(Protocol):
-        def register(self, definition: RobotCatalogDefinition) -> None: ...
 
 
 def _definitions() -> list[RobotCatalogDefinition]:

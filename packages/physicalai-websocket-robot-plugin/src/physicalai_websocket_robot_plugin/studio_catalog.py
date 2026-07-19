@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from physicalai.robot.interface import Robot as PhysicalAIRobot
 from physicalai_studio_plugin import (
     CatalogRobotFactory,
     RobotAdapterOptions,
@@ -14,6 +13,8 @@ from physicalai_websocket_robot_plugin.websocket_robot import WebSocketRobot
 
 if TYPE_CHECKING:
     from typing import Protocol
+
+    from physicalai.robot.interface import Robot as PhysicalAIRobot
 
     class _RobotCatalogRegistry(Protocol):
         def register(self, definition: RobotCatalogDefinition) -> None: ...

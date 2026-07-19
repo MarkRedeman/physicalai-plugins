@@ -10,7 +10,6 @@ from physicalai_studio_plugin import (
     RobotAdapterOptions,
     RobotAsset,
     RobotCatalogDefinition,
-    RobotProbe,
     SerialPortInfo,
 )
 from pydantic import BaseModel, Field
