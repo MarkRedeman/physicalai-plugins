@@ -2,7 +2,7 @@
 members = ["packages/*"]
 
 [tool.uv.sources]
-physicalai-studio-plugin = { path = "../physical-ai-studio/application/physicalai-studio-plugin", editable = true }
+physicalai-studio-plugin = { git = "https://github.com/MarkRedeman/physical-ai-studio.git", subdirectory = "application/physicalai-studio-plugin", rev = "mark/feat/physicalai-studio-plugin" }
 
 [dependency-groups]
 dev = ["pytest", "mypy", "ruff>=0.15.14", "prek", "pyrefly>=0.58.0"]
