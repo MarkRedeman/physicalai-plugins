@@ -1,77 +1,49 @@
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[project]
-name = "physicalai-rebot-b601-plugin"
-version = "0.3.0"
-description = "Third-party Seeed reBot B601 robot arm plugin for PhysicalAI"
-readme = "README.md"
-requires-python = ">=3.12"
-license = "Apache-2.0"
-dependencies = [
-    "physicalai>=0.1.1",
-    "numpy>=1.24",
-    "loguru>=0.7",
-    "motorbridge>=0.4.4",
-    "motorbridge-smart-servo>=0.0.4",
-    "pydantic>=2.0",
-]
-
-[project.optional-dependencies]
-tests = ["pytest"]
+[tool.uv.workspace]
+members = ["packages/*"]
 
 [dependency-groups]
 dev = ["pytest", "mypy", "ruff>=0.15.12", "prek", "pyrefly>=0.58.0"]
-
-[project.urls]
-Homepage = "https://github.com/MarkRedeman/physicalai-rebot-b601-plugin"
-Repository = "https://github.com/MarkRedeman/physicalai-rebot-b601-plugin"
-Issues = "https://github.com/MarkRedeman/physicalai-rebot-b601-plugin/issues"
-
-[project.entry-points."physicalai.studio.catalog_plugins"]
-rebot-b601 = "physicalai_rebot_b601_plugin.studio_catalog:register_physicalai_studio_plugin"
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/physicalai_rebot_b601_plugin"]
-
-[tool.hatch.build.targets.wheel.force-include]
-"urdf" = "urdf"
-
-[tool.hatch.build.targets.sdist]
-include = [
-    "src/physicalai_rebot_b601_plugin/**",
-    "urdf/**",
-    "README.md",
-    "pyproject.toml",
-    "LICENSE",
-]
-
-[tool.pytest.ini_options]
-testpaths = "tests"
-pythonpath = "src"
 
 [tool.ruff]
 target-version = "py313"
 line-length = 120
 preview = true
-src = ["src", "tests"]
-extend-exclude = ["tests", "urdf", "examples"]
+src = ["packages/*/src"]
+extend-exclude = ["urdf", "examples"]
 
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
-    "COM812",  # Conflicts with Ruff formatter
-    "CPY001",  # No copyright headers
+    "COM812",
+    "CPY001",
 ]
 fixable = ["ALL"]
 unfixable = []
 
 [tool.ruff.lint.per-file-ignores]
-"src/physicalai_rebot_b601_plugin/__init__.py" = ["PLC0415"]
-"src/physicalai_rebot_b601_plugin/dm.py" = ["ARG002", "PLR0913"]
-"src/physicalai_rebot_b601_plugin/rs.py" = ["ARG002", "PLR0913"]
-"src/physicalai_rebot_b601_plugin/leader.py" = ["ARG002", "PLR6301"]
+"scripts/*.py" = [
+    "D",
+    "INP001",
+    "T201",
+]
+"packages/*/tests/**/*.py" = [
+    "ARG001",
+    "ARG002",
+    "B903",
+    "D",
+    "INP001",
+    "PLC0415",
+    "PLC1901",
+    "PLC2701",
+    "PLR2004",
+    "PLR6301",
+    "RUF069",
+    "S101",
+]
+"packages/physicalai-rebot-b601-plugin/src/physicalai_rebot_b601_plugin/__init__.py" = ["PLC0415"]
+"packages/physicalai-rebot-b601-plugin/src/physicalai_rebot_b601_plugin/dm.py" = ["ARG002", "PLR0913"]
+"packages/physicalai-rebot-b601-plugin/src/physicalai_rebot_b601_plugin/rs.py" = ["ARG002", "PLR0913"]
+"packages/physicalai-rebot-b601-plugin/src/physicalai_rebot_b601_plugin/leader.py" = ["ARG002", "PLR6301"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -81,6 +53,10 @@ max-complexity = 15
 
 [tool.ruff.lint.pylint]
 max-args = 15
+
+[tool.pytest.ini_options]
+testpaths = "packages/"
+addopts = "--import-mode=importlib"
 
 [tool.markdownlint]
 default = true
@@ -124,10 +100,9 @@ exclude_lines = [
 ]
 
 [tool.coverage.paths]
-source = ["src"]
+source = ["packages/*/src"]
 
 [tool.pyrefly]
 python-version = "3.12"
-search-path = ["src"]
-project-includes = ["src"]
-
+search-path = ["packages/physicalai-rebot-b601-plugin/src"]
+project-includes = ["packages/physicalai-rebot-b601-plugin/src"]

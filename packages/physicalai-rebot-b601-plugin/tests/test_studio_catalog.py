@@ -1,14 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import pytest
-
-if TYPE_CHECKING:
-    from collections.abc import Awaitable
-
-    from physicalai_rebot_b601_plugin.studio_catalog import _CatalogDefinition
 
 
 class _StubFactory:
@@ -60,7 +54,7 @@ def test_register_physicalai_studio_plugin() -> None:
 def test_dm_follower_structure() -> None:
     from physicalai_rebot_b601_plugin.studio_catalog import _definitions
 
-    dm = [d for d in _definitions() if d.entry.type == "ReBot_B601_DM_Follower"][0]
+    dm = next(d for d in _definitions() if d.entry.type == "ReBot_B601_DM_Follower")
 
     assert dm.entry.display_name == "ReBot B601 DM Follower"
     assert dm.entry.role == "follower"
@@ -74,7 +68,7 @@ def test_dm_follower_structure() -> None:
 def test_arm102_leader_structure() -> None:
     from physicalai_rebot_b601_plugin.studio_catalog import _definitions
 
-    arm102 = [d for d in _definitions() if d.entry.type == "ReBot_Arm102_Leader"][0]
+    arm102 = next(d for d in _definitions() if d.entry.type == "ReBot_Arm102_Leader")
 
     assert arm102.entry.display_name == "ReBot Arm102 Leader"
     assert arm102.entry.role == "leader"
@@ -93,7 +87,7 @@ def test_definition_robot_type_property() -> None:
 def test_dm_follower_has_robot_builder() -> None:
     from physicalai_rebot_b601_plugin.studio_catalog import _definitions
 
-    dm = [d for d in _definitions() if d.entry.type == "ReBot_B601_DM_Follower"][0]
+    dm = next(d for d in _definitions() if d.entry.type == "ReBot_B601_DM_Follower")
     assert callable(dm.robot_builder)
     assert dm.payload_model is not None
     assert dm.adapter_options.include_velocities is True
@@ -104,7 +98,7 @@ def test_dm_follower_has_robot_builder() -> None:
 def test_arm102_leader_has_robot_builder() -> None:
     from physicalai_rebot_b601_plugin.studio_catalog import _definitions
 
-    arm102 = [d for d in _definitions() if d.entry.type == "ReBot_Arm102_Leader"][0]
+    arm102 = next(d for d in _definitions() if d.entry.type == "ReBot_Arm102_Leader")
     assert callable(arm102.robot_builder)
     assert arm102.payload_model is not None
     assert arm102.adapter_options.include_velocities is False
