@@ -1,17 +1,22 @@
+"""Studio catalog plugin for LeRobot adapters."""
+
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from physicalai_studio_plugin import (
     CatalogRobotFactory,
+    PayloadContainer,
     PortScanner,
     RobotAdapterOptions,
     RobotAsset,
     RobotCatalogDefinition,
+    RobotProbe,
     SerialPortInfo,
 )
 from pydantic import BaseModel, Field
+from serial.tools import list_ports
 
 import physicalai_lerobot_plugin
 from physicalai_lerobot_plugin import get_urdf_path
@@ -52,6 +57,8 @@ _LEROBOT_ASSET = RobotAsset(
 
 
 class LeRobotPayload(BaseModel):
+    """Connection payload for LeRobot-adapted robots."""
+
     robot_type: str = Field(...)
     port: str = Field(...)
     joint_order: list[str] = Field(...)
@@ -61,32 +68,45 @@ class LeRobotPayload(BaseModel):
     serial_number: str = ""
 
 
-class LeRobotProbe:
+class LeRobotProbe(RobotProbe[LeRobotPayload]):
+    """Probe implementation for LeRobot-adapted robots."""
+
     async def discover(self, manager: PortScanner) -> list[SerialPortInfo]:
+        """Discover available serial devices.
+
+        Returns:
+            list[SerialPortInfo]: Detected serial devices.
+        """
+        _ = self
         await manager.find_robots()
         return manager.robots
 
     async def identify(
         self,
-        payload: dict[str, Any],
+        payload: LeRobotPayload,
         manager: PortScanner | None = None,
         joint: str | None = None,
     ) -> None:
-        pass
+        """Request a visual identify action, if supported."""
+        _ = self, payload, manager, joint
 
-    async def is_online(self, payload: dict[str, Any], manager: PortScanner | None = None) -> bool:
-        validated = LeRobotPayload(**payload)
+    async def is_online(self, payload: LeRobotPayload, manager: PortScanner | None = None) -> bool:
+        """Check whether the configured LeRobot endpoint is online.
+
+        Returns:
+            bool: ``True`` when the configured serial or port is present.
+        """
+        _ = self
         if manager is not None:
             ports_list = manager.robots
-            if validated.serial_number:
-                return any(p.serial_number == validated.serial_number for p in ports_list)
-            return validated.port in {p.connection_string for p in ports_list}
-        from serial.tools import list_ports
+            if payload.serial_number:
+                return any(p.serial_number == payload.serial_number for p in ports_list)
+            return payload.port in {p.connection_string for p in ports_list}
 
         all_ports = list_ports.comports()
-        if validated.serial_number:
-            return any(p.serial_number == validated.serial_number for p in all_ports)
-        return validated.port in {p.device for p in all_ports}
+        if payload.serial_number:
+            return any(p.serial_number == payload.serial_number for p in all_ports)
+        return payload.port in {p.device for p in all_ports}
 
 
 _LEROBOT_PROBE = LeRobotProbe()
@@ -112,18 +132,13 @@ def _make_lerobot_config(validated: LeRobotPayload) -> object:
     raise ValueError(msg)
 
 
-def _build_lerobot_driver(robot: object, role: str) -> PhysicalAIRobot:
+def _build_lerobot_driver(robot: PayloadContainer[object], role: str) -> PhysicalAIRobot:
     from lerobot.robots import make_robot_from_config
 
     from physicalai_lerobot_plugin.lerobot_adapter import LeRobotAdapter
 
     raw = robot.payload
-    if isinstance(raw, LeRobotPayload):
-        validated = raw
-    elif isinstance(raw, dict):
-        validated = LeRobotPayload.model_validate(raw)
-    else:
-        validated = LeRobotPayload.model_validate(raw.model_dump(mode="json"))
+    validated = raw if isinstance(raw, LeRobotPayload) else LeRobotPayload.model_validate(raw)
 
     lerobot_config = _make_lerobot_config(validated)
     lerobot_robot = make_robot_from_config(lerobot_config)
@@ -137,11 +152,13 @@ def _build_lerobot_driver(robot: object, role: str) -> PhysicalAIRobot:
     )
 
 
-async def _build_lerobot_follower(robot: object, factory: CatalogRobotFactory) -> PhysicalAIRobot:
+async def _build_lerobot_follower(robot: PayloadContainer[object], factory: CatalogRobotFactory) -> PhysicalAIRobot:
+    _ = factory
     return _build_lerobot_driver(robot, "follower")
 
 
-async def _build_lerobot_leader(robot: object, factory: CatalogRobotFactory) -> PhysicalAIRobot:
+async def _build_lerobot_leader(robot: PayloadContainer[object], factory: CatalogRobotFactory) -> PhysicalAIRobot:
+    _ = factory
     return _build_lerobot_driver(robot, "leader")
 
 
@@ -171,5 +188,6 @@ def _definitions() -> list[RobotCatalogDefinition]:
 
 
 def register_physicalai_studio_plugin(registry: _RobotCatalogRegistry) -> None:
+    """Register LeRobot catalog entries with the Physical AI Studio registry."""
     for definition in _definitions():
         registry.register(definition)
