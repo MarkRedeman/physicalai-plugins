@@ -35,6 +35,11 @@
       "release-type": "python",
       "package-name": "physicalai-lerobot-plugin",
       "changelog-path": "CHANGELOG.md"
+    },
+    "packages/physicalai-websocket-robot-plugin": {
+      "release-type": "python",
+      "package-name": "physicalai-websocket-robot-plugin",
+      "changelog-path": "CHANGELOG.md"
     }
   }
 }
