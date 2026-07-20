@@ -1,3 +1,5 @@
+# ruff: noqa: PLC0415
+
 """Third-party Seeed reBot B601 robot arm plugin for PhysicalAI.
 
 Provides three robot drivers compatible with the ``physicalai.robot.Robot`` protocol:

@@ -311,6 +311,7 @@ class ReBotB601DM:
             ConnectionError: If the robot is not connected.
             ValueError: If the action shape does not match ``NUM_JOINTS``.
         """
+        _ = goal_time
         if not self.is_connected():
             msg = "Robot is not connected. Call connect() first."
             raise ConnectionError(msg)

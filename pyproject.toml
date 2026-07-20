@@ -17,7 +17,6 @@ extend-exclude = ["urdf", "examples"]
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
-    "COM812",
     "CPY001",
 ]
 fixable = ["ALL"]
@@ -43,10 +42,6 @@ unfixable = []
     "RUF069",
     "S101",
 ]
-"packages/physicalai-rebot-b601-plugin/src/physicalai_rebot_b601_plugin/__init__.py" = ["PLC0415"]
-"packages/physicalai-rebot-b601-plugin/src/physicalai_rebot_b601_plugin/dm.py" = ["ARG002", "PLR0913"]
-"packages/physicalai-rebot-b601-plugin/src/physicalai_rebot_b601_plugin/rs.py" = ["ARG002", "PLR0913"]
-"packages/physicalai-rebot-b601-plugin/src/physicalai_rebot_b601_plugin/leader.py" = ["ARG002", "PLR6301"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
