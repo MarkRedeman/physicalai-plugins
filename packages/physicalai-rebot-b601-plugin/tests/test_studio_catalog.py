@@ -39,7 +39,7 @@ def test_definitions_count() -> None:
 def test_definitions_have_expected_types() -> None:
     from physicalai_rebot_b601_plugin.studio_catalog import _definitions
 
-    types = {d.entry.type for d in _definitions()}
+    types = {d.type for d in _definitions()}
     assert types == {"ReBot_B601_DM_Follower", "ReBot_Arm102_Leader"}
 
 
@@ -54,42 +54,43 @@ def test_register_physicalai_studio_plugin() -> None:
 def test_dm_follower_structure() -> None:
     from physicalai_rebot_b601_plugin.studio_catalog import _definitions
 
-    dm = next(d for d in _definitions() if d.entry.type == "ReBot_B601_DM_Follower")
+    dm = next(d for d in _definitions() if d.type == "ReBot_B601_DM_Follower")
 
-    assert dm.entry.display_name == "ReBot B601 DM Follower"
-    assert dm.entry.role == "follower"
-    assert dm.urdf_relative_path == Path("rebot-b601-dm/urdf/reBot-DevArm_fixend.urdf")
-    assert dm.package_root == Path("rebot-b601-dm")
-    assert dm.asset_source == "plugin"
-    assert dm.asset_root_resolver is not None
-    assert dm.discover_devices is not None
+    assert dm.display_name == "ReBot B601 DM Follower"
+    assert dm.role == "follower"
+    assert dm.asset is not None
+    assert dm.asset.urdf_relative_path == Path("rebot-b601-dm/urdf/reBot-DevArm_fixend.urdf")
+    assert dm.asset.packages == {"rebot-b601-dm": Path("rebot-b601-dm")}
+    assert dm.asset.root_resolver is not None
 
 
 def test_arm102_leader_structure() -> None:
     from physicalai_rebot_b601_plugin.studio_catalog import _definitions
 
-    arm102 = next(d for d in _definitions() if d.entry.type == "ReBot_Arm102_Leader")
+    arm102 = next(d for d in _definitions() if d.type == "ReBot_Arm102_Leader")
 
-    assert arm102.entry.display_name == "ReBot Arm102 Leader"
-    assert arm102.entry.role == "leader"
-    assert arm102.urdf_relative_path == Path("stararm102/urdf/stararm102_description.urdf")
-    assert arm102.package_root == Path("stararm102")
-    assert arm102.asset_source == "plugin"
+    assert arm102.display_name == "ReBot Arm102 Leader"
+    assert arm102.role == "leader"
+    assert arm102.asset is not None
+    assert arm102.asset.urdf_relative_path == Path("stararm102/urdf/stararm102_description.urdf")
+    assert arm102.asset.packages == {"stararm102": Path("stararm102")}
 
 
 def test_definition_robot_type_property() -> None:
     from physicalai_rebot_b601_plugin.studio_catalog import _definitions
 
     for d in _definitions():
-        assert d.robot_type == d.entry.type
+        assert d.robot_type == d.type
 
 
 def test_dm_follower_has_robot_builder() -> None:
     from physicalai_rebot_b601_plugin.studio_catalog import _definitions
 
-    dm = next(d for d in _definitions() if d.entry.type == "ReBot_B601_DM_Follower")
+    dm = next(d for d in _definitions() if d.type == "ReBot_B601_DM_Follower")
     assert callable(dm.robot_builder)
-    assert dm.payload_model is not None
+    from physicalai_rebot_b601_plugin.studio_catalog import ReBotB601DMPayload
+
+    assert dm.robot_payload is ReBotB601DMPayload
     assert dm.adapter_options.include_velocities is True
     assert dm.adapter_options.external_effort_gain is None
     assert dm.adapter_options.goal_time_scale == 1.0
@@ -98,9 +99,11 @@ def test_dm_follower_has_robot_builder() -> None:
 def test_arm102_leader_has_robot_builder() -> None:
     from physicalai_rebot_b601_plugin.studio_catalog import _definitions
 
-    arm102 = next(d for d in _definitions() if d.entry.type == "ReBot_Arm102_Leader")
+    arm102 = next(d for d in _definitions() if d.type == "ReBot_Arm102_Leader")
     assert callable(arm102.robot_builder)
-    assert arm102.payload_model is not None
+    from physicalai_rebot_b601_plugin.studio_catalog import ReBotArm102Payload
+
+    assert arm102.robot_payload is ReBotArm102Payload
     assert arm102.adapter_options.include_velocities is False
     assert arm102.adapter_options.external_effort_gain is None
     assert arm102.adapter_options.goal_time_scale == 1.0

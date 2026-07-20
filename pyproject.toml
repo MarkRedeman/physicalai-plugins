@@ -1,8 +1,11 @@
 [tool.uv.workspace]
 members = ["packages/*"]
 
+[tool.uv.sources]
+physicalai-studio-plugin = { git = "https://github.com/MarkRedeman/physical-ai-studio.git", subdirectory = "application/physicalai-studio-plugin", rev = "mark/feat/physicalai-studio-plugin" }
+
 [dependency-groups]
-dev = ["pytest", "mypy", "ruff>=0.15.12", "prek", "pyrefly>=0.58.0"]
+dev = ["pytest", "mypy", "ruff>=0.15.14", "prek", "pyrefly>=0.58.0"]
 
 [tool.ruff]
 target-version = "py313"
