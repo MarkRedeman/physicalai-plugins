@@ -1,11 +1,19 @@
+"""Studio catalog plugin for WebSocket-backed robots."""
+
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+import asyncio
+from typing import TYPE_CHECKING
+from urllib.parse import urlparse
 
 from physicalai_studio_plugin import (
     CatalogRobotFactory,
+    PayloadContainer,
+    PortScanner,
     RobotAdapterOptions,
     RobotCatalogDefinition,
+    RobotProbe,
+    SerialPortInfo,
 )
 from pydantic import BaseModel, Field
 
@@ -21,22 +29,57 @@ if TYPE_CHECKING:
 
 
 class WebSocketRobotPayload(BaseModel):
+    """Connection payload for a WebSocket-backed robot."""
+
     websocket_url: str = Field(..., description="WebSocket URL of the remote robot")
     connect_timeout: float = 10.0
     command_timeout: float = 5.0
 
 
+class WebSocketRobotProbe(RobotProbe[WebSocketRobotPayload]):
+    """Lightweight probe implementation for WebSocket robots."""
+
+    async def discover(self, manager: PortScanner) -> list[SerialPortInfo]:
+        """Discover available serial devices.
+
+        Returns:
+            list[SerialPortInfo]: Detected serial devices.
+        """
+        _ = self
+        await manager.find_robots()
+        return manager.robots
+
+    async def identify(
+        self,
+        payload: WebSocketRobotPayload,
+        manager: PortScanner | None = None,
+        joint: str | None = None,
+    ) -> None:
+        """Request a visual identify action, if supported."""
+        _ = self, payload, manager, joint
+
+    async def is_online(self, payload: WebSocketRobotPayload, manager: PortScanner | None = None) -> bool:
+        """Check whether the WebSocket endpoint appears reachable.
+
+        Returns:
+            bool: ``True`` when payload URL parses as ``ws`` or ``wss``.
+        """
+        _ = self, manager
+        parsed = urlparse(payload.websocket_url)
+        return parsed.scheme in {"ws", "wss"} and bool(parsed.netloc)
+
+
+_WEBSOCKET_PROBE = WebSocketRobotProbe()
+
+
 async def _build_websocket_robot(
-    robot: Any,
+    robot: PayloadContainer[object],
     factory: CatalogRobotFactory,
 ) -> PhysicalAIRobot:
+    _ = factory
+    await asyncio.sleep(0)
     raw = robot.payload
-    if isinstance(raw, WebSocketRobotPayload):
-        validated = raw
-    elif isinstance(raw, dict):
-        validated = WebSocketRobotPayload.model_validate(raw)
-    else:
-        validated = WebSocketRobotPayload.model_validate(raw.model_dump(mode="json"))
+    validated = raw if isinstance(raw, WebSocketRobotPayload) else WebSocketRobotPayload.model_validate(raw)
 
     return WebSocketRobot(
         websocket_url=validated.websocket_url,
@@ -54,10 +97,12 @@ def _definitions() -> list[RobotCatalogDefinition]:
             robot_builder=_build_websocket_robot,
             robot_payload=WebSocketRobotPayload,
             adapter_options=RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
+            probe=_WEBSOCKET_PROBE,
         ),
     ]
 
 
 def register_physicalai_studio_plugin(registry: _RobotCatalogRegistry) -> None:
+    """Register WebSocket robot catalog entries with the Studio registry."""
     for definition in _definitions():
         registry.register(definition)

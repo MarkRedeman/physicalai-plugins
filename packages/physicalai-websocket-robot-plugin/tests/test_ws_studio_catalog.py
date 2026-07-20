@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from physicalai_websocket_robot_plugin.studio_catalog import (
     WebSocketRobotPayload,
+    WebSocketRobotProbe,
     _definitions,
     register_physicalai_studio_plugin,
 )
@@ -34,6 +35,21 @@ class TestDefinitions:
         assert definition.type == "WebSocket_Robot"
         assert definition.asset is None
         assert definition.robot_payload is WebSocketRobotPayload
+        assert definition.probe is not None
+
+
+class TestProbe:
+    @pytest.mark.anyio
+    async def test_is_online_for_valid_websocket_url(self) -> None:
+        probe = WebSocketRobotProbe()
+        payload = WebSocketRobotPayload(websocket_url="ws://localhost:8765")
+        assert await probe.is_online(payload) is True
+
+    @pytest.mark.anyio
+    async def test_is_online_for_invalid_url(self) -> None:
+        probe = WebSocketRobotProbe()
+        payload = WebSocketRobotPayload(websocket_url="http://localhost:8765")
+        assert await probe.is_online(payload) is False
 
 
 class TestRegistration:
