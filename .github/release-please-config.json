@@ -30,6 +30,11 @@
       "release-type": "python",
       "package-name": "physicalai-lekiwi-plugin",
       "changelog-path": "CHANGELOG.md"
+    },
+    "packages/physicalai-lerobot-plugin": {
+      "release-type": "python",
+      "package-name": "physicalai-lerobot-plugin",
+      "changelog-path": "CHANGELOG.md"
     }
   }
 }
