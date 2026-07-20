@@ -1,17 +1,22 @@
+"""Studio catalog plugin for LeKiwi robots."""
+
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from physicalai_studio_plugin import (
     CatalogRobotFactory,
+    PayloadContainer,
     PortScanner,
     RobotAdapterOptions,
     RobotAsset,
     RobotCatalogDefinition,
+    RobotProbe,
     SerialPortInfo,
 )
 from pydantic import BaseModel, Field
+from serial.tools import list_ports
 
 import physicalai_lekiwi_plugin
 from physicalai_lekiwi_plugin import LeKiwi, get_urdf_path
@@ -55,53 +60,62 @@ _LEKIWI_ASSET = RobotAsset(
 
 
 class LeKiwiPayload(BaseModel):
+    """Connection payload for a LeKiwi robot."""
+
     connection_string: str = ""
     serial_number: str = Field(...)
     baudrate: int = 1_000_000
     disable_torque_on_disconnect: bool = True
 
 
-class LeKiwiProbe:
+class LeKiwiProbe(RobotProbe[LeKiwiPayload]):
+    """Probe implementation for LeKiwi devices."""
+
     async def discover(self, manager: PortScanner) -> list[SerialPortInfo]:
+        """Discover available serial devices.
+
+        Returns:
+            list[SerialPortInfo]: Detected serial devices.
+        """
+        _ = self
         await manager.find_robots()
         return manager.robots
 
     async def identify(
         self,
-        payload: dict[str, Any],
+        payload: LeKiwiPayload,
         manager: PortScanner | None = None,
         joint: str | None = None,
     ) -> None:
-        pass
+        """Request a visual identify action, if supported."""
+        _ = self, payload, manager, joint
 
-    async def is_online(self, payload: dict[str, Any], manager: PortScanner | None = None) -> bool:
-        validated = LeKiwiPayload(**payload)
+    async def is_online(self, payload: LeKiwiPayload, manager: PortScanner | None = None) -> bool:
+        """Check whether the configured LeKiwi is online.
+
+        Returns:
+            bool: ``True`` when a matching serial port is present.
+        """
+        _ = self
 
         if manager is not None:
             ports_list = manager.robots
-            if validated.serial_number:
-                return any(p.serial_number == validated.serial_number for p in ports_list)
-            return validated.connection_string in {p.connection_string for p in ports_list}
-
-        from serial.tools import list_ports
+            if payload.serial_number:
+                return any(p.serial_number == payload.serial_number for p in ports_list)
+            return payload.connection_string in {p.connection_string for p in ports_list}
 
         all_ports = list_ports.comports()
-        if validated.serial_number:
-            return any(p.serial_number == validated.serial_number for p in all_ports)
-        return validated.connection_string in {p.device for p in all_ports}
+        if payload.serial_number:
+            return any(p.serial_number == payload.serial_number for p in all_ports)
+        return payload.connection_string in {p.device for p in all_ports}
 
 
 _LEKIWI_PROBE = LeKiwiProbe()
 
 
-async def _build_lekiwi_driver(robot: Any, factory: CatalogRobotFactory) -> PhysicalAIRobot:
+async def _build_lekiwi_driver(robot: PayloadContainer[object], factory: CatalogRobotFactory) -> PhysicalAIRobot:
     raw = robot.payload
-    if isinstance(raw, LeKiwiPayload):
-        validated = raw
-    elif isinstance(raw, dict):
-        validated = LeKiwiPayload.model_validate(raw)
-    else:
-        validated = LeKiwiPayload.model_validate(raw.model_dump(mode="json"))
+    validated = raw if isinstance(raw, LeKiwiPayload) else LeKiwiPayload.model_validate(raw)
 
     serial_number = validated.serial_number
     port = await factory.find_port_by_serial(serial_number)
@@ -117,14 +131,9 @@ async def _build_lekiwi_driver(robot: Any, factory: CatalogRobotFactory) -> Phys
     )
 
 
-async def _build_lekiwi_leader(robot: Any, factory: CatalogRobotFactory) -> PhysicalAIRobot:
+async def _build_lekiwi_leader(robot: PayloadContainer[object], factory: CatalogRobotFactory) -> PhysicalAIRobot:
     raw = robot.payload
-    if isinstance(raw, LeKiwiPayload):
-        validated = raw
-    elif isinstance(raw, dict):
-        validated = LeKiwiPayload.model_validate(raw)
-    else:
-        validated = LeKiwiPayload.model_validate(raw.model_dump(mode="json"))
+    validated = raw if isinstance(raw, LeKiwiPayload) else LeKiwiPayload.model_validate(raw)
 
     serial_number = validated.serial_number
     port = await factory.find_port_by_serial(serial_number)
@@ -165,5 +174,6 @@ def _definitions() -> list[RobotCatalogDefinition]:
 
 
 def register_physicalai_studio_plugin(registry: _RobotCatalogRegistry) -> None:
+    """Register LeKiwi catalog entries with the Physical AI Studio registry."""
     for definition in _definitions():
         registry.register(definition)
