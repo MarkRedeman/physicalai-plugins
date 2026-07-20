@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 
 class _FakeRegistry:
@@ -101,7 +102,7 @@ class TestPayload:
             BimanualSO101Payload,
         )
 
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             BimanualSO101Payload()
 
     def test_payload_with_calibration_ids(self) -> None:
@@ -256,14 +257,13 @@ class TestProbe:
     @pytest.mark.anyio
     async def test_is_online_no_manager(self) -> None:
         from physicalai_bimanual_so101_plugin.studio_catalog import (
+            BimanualSO101Payload,
             BimanualSO101Probe,
         )
 
         probe = BimanualSO101Probe()
-        result = await probe.is_online({
-            "left_serial_number": "SN-L",
-            "right_serial_number": "SN-R",
-        })
+        payload = BimanualSO101Payload(left_serial_number="SN-L", right_serial_number="SN-R")
+        result = await probe.is_online(payload)
         assert result is False
 
     def test_joint_map(self) -> None:

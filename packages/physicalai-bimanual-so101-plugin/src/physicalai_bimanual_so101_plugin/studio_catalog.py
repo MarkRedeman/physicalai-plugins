@@ -1,18 +1,23 @@
+"""Studio catalog plugin for bimanual SO-101 robots."""
+
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Literal, cast
 
 from physicalai.robot.so101 import SO101, SO101Calibration
 from physicalai_studio_plugin import (
     CatalogRobotFactory,
+    PayloadContainer,
     PortScanner,
     RobotAdapterOptions,
     RobotAsset,
     RobotCatalogDefinition,
+    RobotProbe,
     SerialPortInfo,
 )
 from pydantic import BaseModel, Field
+from serial.tools import list_ports
 
 import physicalai_bimanual_so101_plugin
 from physicalai_bimanual_so101_plugin import BimanualSO101, get_urdf_path
@@ -24,6 +29,16 @@ if TYPE_CHECKING:
 
     class _RobotCatalogRegistry(Protocol):
         def register(self, definition: RobotCatalogDefinition) -> None: ...
+
+    class _CalibrationValue(Protocol):
+        id: int
+        drive_mode: int
+        homing_offset: int
+        range_min: int
+        range_max: int
+
+    class _CalibrationData(Protocol):
+        values: dict[str, _CalibrationValue]
 
 
 _BIMANUAL_SO101_TO_URDF: dict[str, list[str]] = {
@@ -62,6 +77,8 @@ _BIMANUAL_SO101_ASSET = RobotAsset(
 
 
 class BimanualSO101Payload(BaseModel):
+    """Connection payload for a bimanual SO-101 configuration."""
+
     left_serial_number: str = Field(...)
     right_serial_number: str = Field(...)
     left_calibration_id: str | None = None
@@ -71,39 +88,52 @@ class BimanualSO101Payload(BaseModel):
     disable_torque_on_disconnect: bool = True
 
 
-class BimanualSO101Probe:
+class BimanualSO101Probe(RobotProbe[BimanualSO101Payload]):
+    """Probe implementation for bimanual SO-101 robots."""
+
     async def discover(self, manager: PortScanner) -> list[SerialPortInfo]:
+        """Discover available serial devices.
+
+        Returns:
+            list[SerialPortInfo]: Detected serial devices.
+        """
+        _ = self
         await manager.find_robots()
         return manager.robots
 
     async def identify(
         self,
-        payload: dict[str, Any],
+        payload: BimanualSO101Payload,
         manager: PortScanner | None = None,
         joint: str | None = None,
     ) -> None:
-        pass
+        """Request a visual identify action, if supported."""
+        _ = self, payload, manager, joint
 
-    async def is_online(self, payload: dict[str, Any], manager: PortScanner | None = None) -> bool:
-        validated = BimanualSO101Payload(**payload)
+    async def is_online(self, payload: BimanualSO101Payload, manager: PortScanner | None = None) -> bool:
+        """Check whether both arms are online.
+
+        Returns:
+            bool: ``True`` when both configured serial numbers are present.
+        """
+        _ = self
         if manager is not None:
             ports_list = manager.robots
-            left_match = any(p.serial_number == validated.left_serial_number for p in ports_list)
-            right_match = any(p.serial_number == validated.right_serial_number for p in ports_list)
+            left_match = any(p.serial_number == payload.left_serial_number for p in ports_list)
+            right_match = any(p.serial_number == payload.right_serial_number for p in ports_list)
             return left_match and right_match
 
-        from serial.tools import list_ports
-
         all_ports = list_ports.comports()
-        left_match = any(p.serial_number == validated.left_serial_number for p in all_ports)
-        right_match = any(p.serial_number == validated.right_serial_number for p in all_ports)
+        left_match = any(p.serial_number == payload.left_serial_number for p in all_ports)
+        right_match = any(p.serial_number == payload.right_serial_number for p in all_ports)
         return left_match and right_match
 
 
 _BIMANUAL_PROBE = BimanualSO101Probe()
 
 
-def _calibration_to_so101(calibration: Any) -> SO101Calibration:
+def _calibration_to_so101(calibration: object) -> SO101Calibration:
+    validated = cast("_CalibrationData", calibration)
     return SO101Calibration.from_dict({
         name: {
             "id": val.id,
@@ -112,18 +142,13 @@ def _calibration_to_so101(calibration: Any) -> SO101Calibration:
             "range_min": val.range_min,
             "range_max": val.range_max,
         }
-        for name, val in calibration.values.items()
+        for name, val in validated.values.items()
     })
 
 
-async def _build_bimanual_driver(robot: Any, factory: CatalogRobotFactory) -> PhysicalAIRobot:
+async def _build_bimanual_driver(robot: PayloadContainer[object], factory: CatalogRobotFactory) -> PhysicalAIRobot:
     raw = robot.payload
-    if isinstance(raw, BimanualSO101Payload):
-        validated = raw
-    elif isinstance(raw, dict):
-        validated = BimanualSO101Payload.model_validate(raw)
-    else:
-        validated = BimanualSO101Payload.model_validate(raw.model_dump(mode="json"))
+    validated = raw if isinstance(raw, BimanualSO101Payload) else BimanualSO101Payload.model_validate(raw)
 
     role = validated.role
     baudrate = validated.baudrate
@@ -206,5 +231,6 @@ def _definitions() -> list[RobotCatalogDefinition]:
 
 
 def register_physicalai_studio_plugin(registry: _RobotCatalogRegistry) -> None:
+    """Register bimanual SO-101 catalog entries with the Studio registry."""
     for definition in _definitions():
         registry.register(definition)
