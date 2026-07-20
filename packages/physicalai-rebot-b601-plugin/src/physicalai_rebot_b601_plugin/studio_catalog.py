@@ -7,7 +7,7 @@ for the ``physicalai.studio.catalog_plugins`` group.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Literal
 
 from loguru import logger
 from physicalai_studio_plugin import (
@@ -108,7 +108,10 @@ class ReBotArm102Payload(BaseModel):
     zero_on_connect: bool = False
 
 
-class ReBotProbe(RobotProbe):
+type ReBotPayload = ReBotB601DMPayload | ReBotArm102Payload
+
+
+class ReBotProbe(RobotProbe[ReBotPayload]):
     """Probe implementation for ReBot serial devices."""
 
     async def discover(self, manager: PortScanner) -> list[SerialPortInfo]:
@@ -123,21 +126,28 @@ class ReBotProbe(RobotProbe):
 
     async def identify(
         self,
-        payload: dict[str, Any],
+        payload: ReBotPayload,
         manager: PortScanner | None = None,
         joint: str | None = None,
     ) -> None:
         """Request a visual identify action on a specific joint, if supported."""
         _ = self, payload, manager, joint
 
-    async def is_online(self, payload: dict[str, Any], manager: PortScanner | None = None) -> bool:
+    async def is_online(self, payload: ReBotPayload, manager: PortScanner | None = None) -> bool:
         """Report whether a ReBot device is currently online.
 
         Returns:
-            bool: Always ``True`` for this probe implementation.
+            bool: ``True`` if the device is present in discovered serial ports.
         """
-        _ = self, payload, manager
-        return True
+        _ = self
+        if manager is None:
+            return False
+
+        ports = manager.robots
+        if payload.connection_string and any(port.connection_string == payload.connection_string for port in ports):
+            return True
+
+        return bool(payload.serial_number) and any(port.serial_number == payload.serial_number for port in ports)
 
 
 _REBOT_PROBE = ReBotProbe()
