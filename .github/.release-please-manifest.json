@@ -3,5 +3,6 @@
   "packages/physicalai-lekiwi-plugin": "0.1.0",
   "packages/physicalai-bimanual-so101-plugin": "0.1.0",
   "packages/physicalai-lerobot-plugin": "0.1.0",
-  "packages/physicalai-websocket-plugin": "0.1.0"
+  "packages/physicalai-websocket-plugin": "0.1.0",
+  "packages/physicalai-zmq-plugin": "0.1.0"
 }
