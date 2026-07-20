@@ -20,6 +20,11 @@
       "release-type": "python",
       "package-name": "physicalai-rebot-b601-plugin",
       "changelog-path": "CHANGELOG.md"
+    },
+    "packages/physicalai-lekiwi-plugin": {
+      "release-type": "python",
+      "package-name": "physicalai-lekiwi-plugin",
+      "changelog-path": "CHANGELOG.md"
     }
   }
 }
