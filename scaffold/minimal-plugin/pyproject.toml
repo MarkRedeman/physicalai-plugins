@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "{{ package_name }}"
+version = "{{ version }}"
+description = "{{ description }}"
+readme = "README.md"
+authors = [
+    { name = "{{ author_name }}", email = "{{ author_email }}" },
+]
+requires-python = ">={{ python_min_version }}"
+license = "Apache-2.0"
+dependencies = [
+    "physicalai>=0.1.1",
+    "numpy>=1.24",
+    "pydantic>=2.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/{{ organization }}/{{ repository_name }}"
+Repository = "https://github.com/{{ organization }}/{{ repository_name }}"
+Issues = "https://github.com/{{ organization }}/{{ repository_name }}/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/{{ import_name }}"]
