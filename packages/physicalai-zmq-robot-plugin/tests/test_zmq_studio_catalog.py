@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from physicalai_zmq_robot_plugin.studio_catalog import (
     ZMQRobotPayload,
+    ZMQRobotProbe,
     _definitions,
     register_physicalai_studio_plugin,
 )
@@ -34,6 +35,21 @@ class TestDefinitions:
         assert definition.type == "ZMQ_Robot"
         assert definition.asset is None
         assert definition.robot_payload is ZMQRobotPayload
+        assert definition.probe is not None
+
+
+class TestProbe:
+    @pytest.mark.anyio
+    async def test_is_online_for_valid_endpoint(self) -> None:
+        probe = ZMQRobotProbe()
+        payload = ZMQRobotPayload(zmq_endpoint="tcp://localhost:5555")
+        assert await probe.is_online(payload) is True
+
+    @pytest.mark.anyio
+    async def test_is_online_for_invalid_endpoint(self) -> None:
+        probe = ZMQRobotProbe()
+        payload = ZMQRobotPayload(zmq_endpoint="http://localhost:5555")
+        assert await probe.is_online(payload) is False
 
 
 class TestRegistration:
