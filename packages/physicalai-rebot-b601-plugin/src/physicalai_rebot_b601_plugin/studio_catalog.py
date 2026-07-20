@@ -1,3 +1,9 @@
+"""Studio catalog plugin for Physical AI Studio.
+
+Exposes :func:`register_physicalai_studio_plugin` as the entry-point callable
+for the ``physicalai.studio.catalog_plugins`` group.
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -6,10 +12,12 @@ from typing import TYPE_CHECKING, Any, Literal
 from loguru import logger
 from physicalai_studio_plugin import (
     CatalogRobotFactory,
+    PayloadContainer,
     PortScanner,
     RobotAdapterOptions,
     RobotAsset,
     RobotCatalogDefinition,
+    RobotProbe,
     SerialPortInfo,
 )
 from pydantic import BaseModel, Field
@@ -79,6 +87,8 @@ _REBOT_ARM102_ASSET = RobotAsset(
 
 
 class ReBotB601DMPayload(BaseModel):
+    """Connection payload for a ReBot B601 DM follower arm."""
+
     connection_string: str = ""
     serial_number: str = Field(...)
     can_adapter: Literal["damiao", "socketcan"] = "damiao"
@@ -88,6 +98,8 @@ class ReBotB601DMPayload(BaseModel):
 
 
 class ReBotArm102Payload(BaseModel):
+    """Connection payload for a ReBot Arm102 leader arm."""
+
     connection_string: str = ""
     serial_number: str = Field(...)
     baudrate: int = 1_000_000
@@ -96,29 +108,44 @@ class ReBotArm102Payload(BaseModel):
     zero_on_connect: bool = False
 
 
-class ReBotProbe:
+class ReBotProbe(RobotProbe):
+    """Probe implementation for ReBot serial devices."""
+
     async def discover(self, manager: PortScanner) -> list[SerialPortInfo]:
+        """Discover available ReBot devices via the active port scanner.
+
+        Returns:
+            list[SerialPortInfo]: Detected serial devices.
+        """
+        _ = self
         await manager.find_robots()
         return manager.robots
 
-    async def identify(self, payload: dict[str, Any], manager: PortScanner | None = None, joint: str | None = None) -> None:
-        pass
+    async def identify(
+        self,
+        payload: dict[str, Any],
+        manager: PortScanner | None = None,
+        joint: str | None = None,
+    ) -> None:
+        """Request a visual identify action on a specific joint, if supported."""
+        _ = self, payload, manager, joint
 
     async def is_online(self, payload: dict[str, Any], manager: PortScanner | None = None) -> bool:
+        """Report whether a ReBot device is currently online.
+
+        Returns:
+            bool: Always ``True`` for this probe implementation.
+        """
+        _ = self, payload, manager
         return True
 
 
 _REBOT_PROBE = ReBotProbe()
 
 
-async def _build_rebot_b601_dm_driver(robot: Any, factory: CatalogRobotFactory) -> PhysicalAIRobot:
+async def _build_rebot_b601_dm_driver(robot: PayloadContainer[object], factory: CatalogRobotFactory) -> PhysicalAIRobot:
     raw = robot.payload
-    if isinstance(raw, ReBotB601DMPayload):
-        validated = raw
-    elif isinstance(raw, dict):
-        validated = ReBotB601DMPayload.model_validate(raw)
-    else:
-        validated = ReBotB601DMPayload.model_validate(raw.model_dump(mode="json"))
+    validated = raw if isinstance(raw, ReBotB601DMPayload) else ReBotB601DMPayload.model_validate(raw)
     serial_number = validated.serial_number
     port = await factory.find_port_by_serial(serial_number)
     if port is None:
@@ -134,14 +161,9 @@ async def _build_rebot_b601_dm_driver(robot: Any, factory: CatalogRobotFactory) 
     )
 
 
-async def _build_rebot_arm102_driver(robot: Any, factory: CatalogRobotFactory) -> PhysicalAIRobot:
+async def _build_rebot_arm102_driver(robot: PayloadContainer[object], factory: CatalogRobotFactory) -> PhysicalAIRobot:
     raw = robot.payload
-    if isinstance(raw, ReBotArm102Payload):
-        validated = raw
-    elif isinstance(raw, dict):
-        validated = ReBotArm102Payload.model_validate(raw)
-    else:
-        validated = ReBotArm102Payload.model_validate(raw.model_dump(mode="json"))
+    validated = raw if isinstance(raw, ReBotArm102Payload) else ReBotArm102Payload.model_validate(raw)
     serial_number = validated.serial_number
     port = await factory.find_port_by_serial(serial_number)
     if port is None:
@@ -182,5 +204,6 @@ def _definitions() -> list[RobotCatalogDefinition]:
 
 
 def register_physicalai_studio_plugin(registry: _RobotCatalogRegistry) -> None:
+    """Register ReBot catalog entries with the Physical AI Studio registry."""
     for definition in _definitions():
         registry.register(definition)
