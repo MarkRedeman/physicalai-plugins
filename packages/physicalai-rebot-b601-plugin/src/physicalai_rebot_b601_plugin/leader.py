@@ -243,7 +243,7 @@ class ReBotArm102Leader:
 
         return positions, raw_positions, reliable
 
-    def send_action(self, action: np.ndarray, *, goal_time: float = 0.1) -> None:
+    def send_action(self, action: np.ndarray, *, goal_time: float = 0.1) -> None:  # noqa: PLR6301
         """Raise an error — leader arms are read-only.
 
         Args:
@@ -253,6 +253,7 @@ class ReBotArm102Leader:
         Raises:
             RuntimeError: Always raised.
         """
+        _ = action, goal_time
         msg = "Cannot send actions to ReBotArm102Leader. Leader arms are read-only for teleoperation."
         raise RuntimeError(msg)
 

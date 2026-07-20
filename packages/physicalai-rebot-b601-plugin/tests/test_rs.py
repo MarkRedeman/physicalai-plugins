@@ -118,7 +118,7 @@ class TestReBotB601RSLifecycle:
         controller.disable_all.assert_called_once()
         controller.enable_all.assert_called_once()
         assert [motor.ensure_mode.call_args for motor in controller.mock_motors] == [
-            call(mock_motorbridge.Mode.MIT)
+            call(mock_motorbridge.Mode.MIT),
         ] * 7
 
     def test_robstride_adapter_raises_not_implemented(self, mock_motorbridge: MagicMock) -> None:
