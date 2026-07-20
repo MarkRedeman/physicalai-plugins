@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Placeholder URDF for LeRobot-compatible robots.
+  Replace with the actual URDF for your specific robot model.
+-->
+<robot name="lerobot">
+  <link name="base_link"/>
+  <link name="joint1"/>
+  <link name="joint2"/>
+  <link name="joint3"/>
+  <link name="joint4"/>
+  <link name="joint5"/>
+  <link name="joint6"/>
+</robot>
