@@ -62,6 +62,16 @@ _LEKIWI_ASSET = RobotAsset(
 )
 
 
+class LeKiwiJointCalibrationPayload(BaseModel):
+    """Typed calibration payload for one LeKiwi joint."""
+
+    id: int
+    drive_mode: int
+    homing_offset: int
+    range_min: int
+    range_max: int
+
+
 class LeKiwiPayload(BaseModel):
     """Connection payload for a LeKiwi robot."""
 
