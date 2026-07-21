@@ -109,7 +109,7 @@ class TestBimanualSO101Construction:
         for name in RIGHT_ARM_JOINTS:
             assert name in names
 
-    def test_jo(self) -> None:
+    def test_joint_order_and_count(self) -> None:
         from physicalai_bimanual_so101_plugin.bimanual import BimanualSO101
 
         left = _StubSO101()
@@ -213,6 +213,45 @@ class TestBimanualSO101Observation:
             timestamp=0.0,
         )
         np.testing.assert_array_equal(obs.state, obs.joint_positions)
+
+    def test_sensor_data_merges_only_shared_keys(self) -> None:
+        from physicalai_bimanual_so101_plugin.bimanual import BimanualSO101
+
+        class _SensorStubSO101(_StubSO101):
+            def __init__(self, sensor_data: dict[str, np.ndarray]) -> None:
+                super().__init__()
+                self._sensor_data = sensor_data
+
+            def get_observation(self) -> _StubObservation:
+                return _StubObservation(
+                    joint_positions=np.zeros(self.NUM_JOINTS, dtype=np.float32),
+                    timestamp=1.0,
+                    sensor_data=self._sensor_data,
+                )
+
+        left = _SensorStubSO101(
+            {
+                "effort": np.ones(6, dtype=np.float32),
+                "temperature": np.full(6, 35.0, dtype=np.float32),
+            },
+        )
+        right = _SensorStubSO101(
+            {
+                "effort": np.full(6, 2.0, dtype=np.float32),
+            },
+        )
+        robot = BimanualSO101(left=left, right=right)
+        obs = robot.get_observation()
+
+        assert obs.sensor_data is not None
+        assert set(obs.sensor_data) == {"effort"}
+        np.testing.assert_array_equal(
+            obs.sensor_data["effort"],
+            np.concatenate([
+                np.ones(6, dtype=np.float32),
+                np.full(6, 2.0, dtype=np.float32),
+            ]),
+        )
 
 
 class TestBimanualSO101Action:

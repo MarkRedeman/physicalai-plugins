@@ -31,7 +31,7 @@ class BimanualSO101Observation:
 
     Attributes:
         joint_positions: Array of shape ``(12,)`` — left (6) then right (6)
-            in normalized units.
+            in the underlying arm units (for example, normalized or ticks).
         timestamp: ``time.monotonic()`` at capture (from left arm).
         sensor_data: Merged sensor data of shape ``(12,)`` or ``None``.
         images: Always ``None`` — no built-in camera support.
@@ -123,9 +123,11 @@ class BimanualSO101(Robot):
 
         sensor_data: dict[str, np.ndarray] | None = None
         if left_obs.sensor_data is not None and right_obs.sensor_data is not None:
+            shared_keys = left_obs.sensor_data.keys() & right_obs.sensor_data.keys()
             sensor_data = {
                 key: np.concatenate([left_value, right_obs.sensor_data[key]])
                 for key, left_value in left_obs.sensor_data.items()
+                if key in shared_keys
             }
 
         return BimanualSO101Observation(
