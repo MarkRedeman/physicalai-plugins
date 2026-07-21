@@ -55,7 +55,7 @@ def main() -> None:
         "--vtheta",
         type=float,
         default=0.5,
-        help="Rotational velocity in rad/s (default 0.5).",
+        help="Rotational velocity in deg/s (default 0.5).",
     )
 
     args = parser.parse_args()

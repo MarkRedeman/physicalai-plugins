@@ -16,6 +16,7 @@ dependencies = [
     "loguru>=0.7",
     "pydantic>=2.0",
     "feetech-servo-sdk>=1.0",
+    "pyserial>=3.5",
 ]
 
 [project.optional-dependencies]

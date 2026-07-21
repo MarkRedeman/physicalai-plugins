@@ -54,7 +54,7 @@ def test_payload_model() -> None:
     payload = LeKiwiPayload(serial_number="12345")
     assert payload.serial_number == "12345"
     assert payload.baudrate == 1_000_000
-    assert payload.disable_torque_on_disconnect is True
+    assert payload.disable_torque_on_disconnect is False
     assert payload.connection_string == ""
 
 

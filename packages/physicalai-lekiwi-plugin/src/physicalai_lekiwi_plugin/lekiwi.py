@@ -232,7 +232,7 @@ class LeKiwi:
 
     @property
     def torque_on_disconnect(self) -> bool:
-        """Whether to disable torque on disconnect."""
+        """Whether to keep torque enabled and hold position on disconnect."""
         return self._torque_on_disconnect
 
     @torque_on_disconnect.setter
@@ -392,6 +392,8 @@ class LeKiwi:
             self._stop_base()
             if self._torque_on_disconnect:
                 self._hold_position()
+            else:
+                self._set_torque(enabled=False)
         except Exception:  # noqa: BLE001
             logger.exception(
                 "Failed to stop base/hold position while disconnecting LeKiwi; proceeding to close port.",
@@ -554,7 +556,7 @@ class LeKiwi:
             self._write_register(conn, servo_id, STS3215Addr.I_COEFFICIENT, ARM_I_COEFFICIENT)
             self._write_register(conn, servo_id, STS3215Addr.D_COEFFICIENT, ARM_D_COEFFICIENT)
 
-            if self.servo_ids_for_name(servo_id) == "arm_gripper":
+            if self.get_joint_name_for_servo_id(servo_id) == "arm_gripper":
                 self._write_register(conn, servo_id, STS3215Addr.MAX_TORQUE_LIMIT, 500)
                 self._write_register(conn, servo_id, STS3215Addr.PROTECTION_CURRENT, 250)
                 self._write_register(conn, servo_id, STS3215Addr.OVERLOAD_TORQUE, 25)
@@ -564,7 +566,7 @@ class LeKiwi:
             self._write_register(conn, servo_id, STS3215Addr.MAXIMUM_ACCELERATION, 254)
             self._write_register(conn, servo_id, STS3215Addr.OPERATING_MODE, VELOCITY_MODE)
 
-    def servo_ids_for_name(self, servo_id: int) -> str | None:
+    def get_joint_name_for_servo_id(self, servo_id: int) -> str | None:
         """Look up the joint name by servo ID.
 
         Args:

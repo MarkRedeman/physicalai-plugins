@@ -67,7 +67,7 @@ class LeKiwiPayload(BaseModel):
     serial_number: str = Field(...)
     calibration: dict[str, LeKiwiJointCalibrationPayload] | None = None
     baudrate: int = 1_000_000
-    disable_torque_on_disconnect: bool = True
+    disable_torque_on_disconnect: bool = False
 
 
 class LeKiwiJointCalibrationPayload(BaseModel):
@@ -160,7 +160,7 @@ async def _build_lekiwi_driver(robot: PayloadContainer[LeKiwiPayload], factory: 
             role="follower",
             unit="ticks",
         )
-    driver.torque_on_disconnect = validated.disable_torque_on_disconnect
+    driver.torque_on_disconnect = not validated.disable_torque_on_disconnect
     return driver
 
 

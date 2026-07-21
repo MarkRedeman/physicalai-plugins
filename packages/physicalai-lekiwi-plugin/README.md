@@ -129,9 +129,9 @@ from physicalai_lekiwi_plugin import get_urdf_path
 urdf_path = get_urdf_path()
 ```
 
-| URDF                 | Model                     | Use                               |
-| -------------------- | ------------------------- | --------------------------------- |
-| `lekiwi/LeKiwi.urdf` | LeKiwi mobile manipulator | Kinematics & gravity compensation |
+| URDF                      | Model                     | Use                               |
+| ------------------------- | ------------------------- | --------------------------------- |
+| `lekiwi/urdf/LeKiwi.urdf` | LeKiwi mobile manipulator | Kinematics & gravity compensation |
 
 The URDF references original STL mesh files from the [SIGRobotics-UIUC/LeKiwi](https://github.com/SIGRobotics-UIUC/LeKiwi) project.
 
