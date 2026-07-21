@@ -103,6 +103,11 @@ class LeRobotAdapter:
             raise ValueError(msg)
 
     @property
+    def NUM_JOINTS(self) -> int:  # noqa: N802
+        """Number of joints, derived from the joint order length."""
+        return self._num_joints
+
+    @property
     def joint_names(self) -> list[str]:
         """Ordered joint names matching the position/action array."""
         return self._joint_order

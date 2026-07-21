@@ -70,6 +70,12 @@ def test_payload_requires_fields() -> None:
         LeRobotPayload(robot_type="so100_follower", port="/dev/ttyACM0")
 
 
+def test_payload_model_rebuild() -> None:
+    from physicalai_lerobot_plugin.studio_catalog import LeRobotPayload
+
+    LeRobotPayload.model_rebuild(raise_errors=True)
+
+
 def test_urdf_path_exists() -> None:
     from physicalai_lerobot_plugin import get_urdf_path
 

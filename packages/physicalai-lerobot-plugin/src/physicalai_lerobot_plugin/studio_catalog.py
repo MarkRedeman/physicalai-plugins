@@ -189,7 +189,14 @@ def _definitions() -> list[RobotCatalogDefinition]:
     ]
 
 
+def _assert_payload_model_resolvable(model: type[BaseModel]) -> None:
+    model.model_rebuild(_types_namespace=globals(), raise_errors=True)
+
+
 def register_physicalai_studio_plugin(registry: _RobotCatalogRegistry) -> None:
     """Register LeRobot catalog entries with the Physical AI Studio registry."""
     for definition in _definitions():
+        payload_model = definition.robot_payload
+        if isinstance(payload_model, type) and issubclass(payload_model, BaseModel):
+            _assert_payload_model_resolvable(payload_model)
         registry.register(definition)
