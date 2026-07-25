@@ -16,8 +16,10 @@ from physicalai_studio_plugin import (
     RobotCatalogDefinition,
     RobotProbe,
     SerialPortInfo,
+    robot_field_ui,
+    robot_payload_ui,
 )
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from serial.tools import list_ports
 
 import physicalai_lerobot_plugin
@@ -61,13 +63,55 @@ _LEROBOT_ASSET = RobotAsset(
 class LeRobotPayload(BaseModel):
     """Connection payload for LeRobot-adapted robots."""
 
-    robot_type: str = Field(...)
-    port: str = Field(...)
-    joint_order: list[str] = Field(...)
+    robot_type: Literal["so100_follower", "so101_follower"] = Field(
+        ...,
+        description="LeRobot robot model type",
+    )
+    port: str = Field(
+        ...,
+        description="Serial port path",
+        json_schema_extra=robot_field_ui({"group": "connection"}),
+    )
+    serial_number: str = Field(
+        default="",
+        description="USB serial number",
+        json_schema_extra=robot_field_ui({"group": "connection"}),
+    )
+    joint_order: list[str] = Field(
+        ...,
+        description="Joint name order list",
+    )
     obs_position_keys: list[str] | None = None
     act_position_keys: list[str] | None = None
-    disable_torque_on_disconnect: bool = True
-    serial_number: str = ""
+    disable_torque_on_disconnect: bool = Field(
+        default=True,
+        description="Disable motor torque when disconnecting",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra=robot_payload_ui({
+            "groups": {
+                "connection": {
+                    "title": "Connection",
+                },
+            },
+        }),
+    )
+
+    @model_validator(mode="after")
+    def validate_identifier(self) -> LeRobotPayload:
+        """Require a port or serial number for connection.
+
+        Returns:
+            The validated payload.
+
+        Raises:
+            ValueError: If neither port nor serial_number is configured.
+        """
+        if not self.port and not self.serial_number:
+            msg = "Either port or serial_number is required"
+            raise ValueError(msg)
+        return self
 
 
 class LeRobotProbe(RobotProbe[LeRobotPayload]):
