@@ -58,6 +58,36 @@ def test_payload_model() -> None:
     assert payload.connection_string == ""
 
 
+def test_payload_requires_serial_or_connection_string() -> None:
+    from physicalai_lekiwi_plugin.studio_catalog import LeKiwiPayload
+
+    with pytest.raises(ValidationError):
+        LeKiwiPayload()
+
+    payload = LeKiwiPayload(connection_string="/dev/ttyACM0")
+    assert payload.connection_string == "/dev/ttyACM0"
+    assert payload.serial_number == ""
+
+
+def test_payload_json_schema_has_ui_metadata() -> None:
+    from physicalai_lekiwi_plugin.studio_catalog import LeKiwiPayload
+
+    schema = LeKiwiPayload.model_json_schema()
+    assert "x-physicalai-ui" in schema
+    ui = schema["x-physicalai-ui"]
+    assert "groups" in ui
+    assert "connection" in ui["groups"]
+    assert ui["groups"]["connection"]["device_discovery"] is True
+
+    conn_string_field = schema["properties"]["connection_string"]
+    assert "x-physicalai-ui" in conn_string_field
+    assert conn_string_field["x-physicalai-ui"]["group"] == "connection"
+
+    serial_field = schema["properties"]["serial_number"]
+    assert "x-physicalai-ui" in serial_field
+    assert serial_field["x-physicalai-ui"]["group"] == "connection"
+
+
 def test_payload_with_calibration() -> None:
     from physicalai_lekiwi_plugin.studio_catalog import LeKiwiPayload
 

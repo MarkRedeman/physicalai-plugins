@@ -14,8 +14,10 @@ from physicalai_studio_plugin import (
     RobotCatalogDefinition,
     RobotProbe,
     SerialPortInfo,
+    robot_field_ui,
+    robot_payload_ui,
 )
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from serial.tools import list_ports
 
 import physicalai_lekiwi_plugin
@@ -63,22 +65,64 @@ _LEKIWI_ASSET = RobotAsset(
 class LeKiwiPayload(BaseModel):
     """Connection payload for a LeKiwi robot."""
 
-    connection_string: str = ""
-    serial_number: str = Field(...)
+    connection_string: str = Field(
+        default="",
+        description="Serial port path",
+        json_schema_extra=robot_field_ui({
+            "group": "connection",
+            "widget": "device-selector",
+            "device_value": "connection_string",
+            "manual_entry": True,
+        }),
+    )
+    serial_number: str = Field(
+        default="",
+        description="USB serial number",
+        json_schema_extra=robot_field_ui({
+            "group": "connection",
+            "widget": "device-selector",
+            "device_value": "serial_number",
+            "manual_entry": True,
+        }),
+    )
     calibration: dict[str, LeKiwiJointCalibrationPayload] | None = None
-    baudrate: int = 1_000_000
-    disable_torque_on_disconnect: bool = False
+    baudrate: int = Field(
+        default=1_000_000,
+        description="Serial baud rate",
+    )
+    disable_torque_on_disconnect: bool = Field(
+        default=True,
+        description="Disable motor torque when disconnecting",
+    )
 
+    model_config = ConfigDict(
+        json_schema_extra=robot_payload_ui({
+            "groups": {
+                "connection": {
+                    "title": "Connection",
+                    "device_discovery": True,
+                    "stable_key": "serial_number",
+                    "fallback_key": "connection_string",
+                },
+            },
+        }),
+    )
 
-class LeKiwiJointCalibrationPayload(BaseModel):
-    """Typed calibration payload for one LeKiwi joint."""
+    @model_validator(mode="after")
+    def validate_identifier(self) -> LeKiwiPayload:
+        """Require a stable serial number or a manual serial-port path.
 
-    id: int
-    drive_mode: int
-    homing_offset: int
-    range_min: int
-    range_max: int
+        Returns:
+            The validated payload.
 
+        Raises:
+            ValueError: If neither identifier is configured.
+        """
+        if not self.connection_string and not self.serial_number:
+            msg = "Either serial_number or connection_string is required"
+            raise ValueError(msg)
+        return self
+    
 
 class LeKiwiProbe(RobotProbe[LeKiwiPayload]):
     """Probe implementation for LeKiwi devices."""
@@ -136,7 +180,9 @@ async def _build_lekiwi_driver(robot: PayloadContainer[LeKiwiPayload], factory: 
     validated = raw if isinstance(raw, LeKiwiPayload) else LeKiwiPayload.model_validate(raw)
 
     serial_number = validated.serial_number
-    port = await factory.find_port(SerialPortInfo(connection_string=None, serial_number=serial_number))
+    port = await factory.find_port(
+        SerialPortInfo(connection_string=validated.connection_string, serial_number=serial_number),
+    )
     if port is None:
         msg = f"Robot not found: {serial_number}"
         raise RuntimeError(msg)
@@ -169,7 +215,9 @@ async def _build_lekiwi_leader(robot: PayloadContainer[LeKiwiPayload], factory: 
     validated = raw if isinstance(raw, LeKiwiPayload) else LeKiwiPayload.model_validate(raw)
 
     serial_number = validated.serial_number
-    port = await factory.find_port(SerialPortInfo(connection_string=None, serial_number=serial_number))
+    port = await factory.find_port(
+        SerialPortInfo(connection_string=validated.connection_string, serial_number=serial_number),
+    )
     if port is None:
         msg = f"Robot not found: {serial_number}"
         raise RuntimeError(msg)
