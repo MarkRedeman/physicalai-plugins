@@ -7,6 +7,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 import pytest
+from pydantic import BaseModel, ValidationError
 
 
 @dataclass
@@ -24,6 +25,9 @@ class _FakeRegistry:
         self.definitions.extend(definitions)
 
 
+# ── Registration tests ─────────────────────────────────────────────────────
+
+
 def test_register_plugin() -> None:
     from physicalai_lerobot_plugin.studio_catalog import register_physicalai_studio_plugin
 
@@ -31,93 +35,148 @@ def test_register_plugin() -> None:
     register_physicalai_studio_plugin(registry)
 
     assert registry.definitions is not None
-    assert len(registry.definitions) == 2
-
-    types = {}
-    for d in registry.definitions:
-        types[d.type] = d.role
-    assert types == {"LeRobot_Follower": "follower", "LeRobot_Leader": "leader"}
-
-
-def test_payload_defaults() -> None:
-    from physicalai_lerobot_plugin.studio_catalog import LeRobotPayload
-
-    payload = LeRobotPayload(
-        robot_type="so100_follower",
-        port="/dev/ttyACM0",
-        joint_order=["shoulder_pan", "shoulder_lift", "elbow_flex"],
-    )
-    assert payload.robot_type == "so100_follower"
-    assert payload.port == "/dev/ttyACM0"
-    assert payload.joint_order == ["shoulder_pan", "shoulder_lift", "elbow_flex"]
-    assert payload.obs_position_keys is None
-    assert payload.act_position_keys is None
-    assert payload.disable_torque_on_disconnect is True
-    assert payload.serial_number == ""
+    types = {d.type for d in registry.definitions}
+    assert "LeRobot_so100_follower" in types
+    assert "LeRobot_so101_follower" in types
+    assert "LeRobot_koch_follower" in types
+    assert "LeRobot_omx_follower" in types
+    assert "LeRobot_hope_jr_hand" in types
+    assert "LeRobot_hope_jr_arm" in types
+    assert "LeRobot_openarm_follower" in types
+    assert "LeRobot_rebot_b601_follower" in types
+    assert "LeRobot_reachy2" in types
+    assert "LeRobot_earthrover_mini_plus" in types
 
 
-def test_payload_accepts_serial_number() -> None:
-    from physicalai_lerobot_plugin.studio_catalog import LeRobotPayload
+def test_skip_list_excludes_bimanual_and_deferred() -> None:
+    from physicalai_lerobot_plugin.studio_catalog import register_physicalai_studio_plugin
 
-    payload = LeRobotPayload(
-        robot_type="so101_follower",
-        port="/dev/ttyACM1",
-        serial_number="SN-001",
-        joint_order=["shoulder_pan", "shoulder_lift", "elbow_flex"],
-    )
+    registry = _FakeRegistry()
+    register_physicalai_studio_plugin(registry)
+
+    assert registry.definitions is not None
+    types = {d.type for d in registry.definitions}
+    assert "LeRobot_bi_so_follower" not in types
+    assert "LeRobot_bi_rebot_b601_follower" not in types
+    assert "LeRobot_bi_openarm_follower" not in types
+    assert "LeRobot_lekiwi" not in types
+    assert "LeRobot_unitree_g1" not in types
+
+
+# ── Dynamic payload model tests ────────────────────────────────────────────
+
+
+def test_make_payload_model_for_so100() -> None:
+    from lerobot.robots import so_follower  # noqa: F401
+    from lerobot.robots.config import RobotConfig
+
+    from physicalai_lerobot_plugin.studio_catalog import _make_payload_model
+
+    config_cls = RobotConfig.get_known_choices()["so100_follower"]
+    model = _make_payload_model(config_cls)
+
+    assert issubclass(model, BaseModel)
+    assert model.__name__ == "SOFollowerRobotConfigPayload"
+
+    payload = model(serial_number="SN-001", port="/dev/ttyACM0")
     assert payload.serial_number == "SN-001"
+    assert payload.port == "/dev/ttyACM0"
+    assert payload.disable_torque_on_disconnect is True
+    assert payload.use_degrees is True
 
 
-def test_payload_requires_fields() -> None:
-    from pydantic import ValidationError
+def test_make_payload_model_for_hope_jr_hand() -> None:
+    from lerobot.robots import hope_jr  # noqa: F401
+    from lerobot.robots.config import RobotConfig
 
-    from physicalai_lerobot_plugin.studio_catalog import LeRobotPayload
+    from physicalai_lerobot_plugin.studio_catalog import _make_payload_model
+
+    config_cls = RobotConfig.get_known_choices()["hope_jr_hand"]
+    model = _make_payload_model(config_cls)
+
+    payload = model(serial_number="SN-002", port="/dev/ttyACM1", side="left")
+    assert payload.port == "/dev/ttyACM1"
+    assert payload.side == "left"
+
+
+def test_make_payload_model_requires_serial_or_connection_string() -> None:
+    from lerobot.robots import so_follower  # noqa: F401
+    from lerobot.robots.config import RobotConfig
+
+    from physicalai_lerobot_plugin.studio_catalog import _make_payload_model
+
+    config_cls = RobotConfig.get_known_choices()["so100_follower"]
+    model = _make_payload_model(config_cls)
 
     with pytest.raises(ValidationError):
-        LeRobotPayload()
-
-    with pytest.raises(ValidationError):
-        LeRobotPayload(robot_type="so100_follower")
-
-    with pytest.raises(ValidationError):
-        LeRobotPayload(robot_type="so100_follower", port="/dev/ttyACM0")
+        model()
 
 
-def test_payload_rejects_invalid_robot_type() -> None:
-    from pydantic import ValidationError
+def test_make_payload_model_skips_complex_fields() -> None:
+    from lerobot.robots import hope_jr  # noqa: F401
+    from lerobot.robots.config import RobotConfig
 
-    from physicalai_lerobot_plugin.studio_catalog import LeRobotPayload
+    from physicalai_lerobot_plugin.studio_catalog import _make_payload_model
 
-    with pytest.raises(ValidationError):
-        LeRobotPayload(
-            robot_type="invalid_type",  # type: ignore[arg-type]
-            port="/dev/ttyACM0",
-            joint_order=["a", "b", "c"],
-        )
+    config_cls = RobotConfig.get_known_choices()["hope_jr_hand"]
+    model = _make_payload_model(config_cls)
+
+    assert "cameras" not in model.model_fields
+    assert "calibration_dir" not in model.model_fields
 
 
-def test_payload_json_schema_has_ui_metadata() -> None:
-    from physicalai_lerobot_plugin.studio_catalog import LeRobotPayload
+def test_make_payload_model_json_schema_has_ui_metadata() -> None:
+    from lerobot.robots import so_follower  # noqa: F401
+    from lerobot.robots.config import RobotConfig
 
-    schema = LeRobotPayload.model_json_schema()
+    from physicalai_lerobot_plugin.studio_catalog import _make_payload_model
+
+    config_cls = RobotConfig.get_known_choices()["so100_follower"]
+    model = _make_payload_model(config_cls)
+    schema = model.model_json_schema()
+
     assert "x-physicalai-ui" in schema
     ui = schema["x-physicalai-ui"]
     assert "groups" in ui
     assert "connection" in ui["groups"]
+    assert ui["groups"]["connection"]["device_discovery"] is True
 
-    port_field = schema["properties"]["port"]
-    assert "x-physicalai-ui" in port_field
-    assert port_field["x-physicalai-ui"]["group"] == "connection"
-
-    robot_type_field = schema["properties"]["robot_type"]
-    assert "enum" in robot_type_field
-    assert robot_type_field["enum"] == ["so100_follower", "so101_follower"]
+    conn_string_field = schema["properties"]["connection_string"]
+    assert "x-physicalai-ui" in conn_string_field
+    assert conn_string_field["x-physicalai-ui"]["widget"] == "device-selector"
 
 
-def test_payload_model_rebuild() -> None:
-    from physicalai_lerobot_plugin.studio_catalog import LeRobotPayload
+def test_make_payload_model_for_reachy2() -> None:
+    from lerobot.robots import reachy2  # noqa: F401
+    from lerobot.robots.config import RobotConfig
 
-    LeRobotPayload.model_rebuild(raise_errors=True)
+    from physicalai_lerobot_plugin.studio_catalog import _make_payload_model
+
+    config_cls = RobotConfig.get_known_choices()["reachy2"]
+    model = _make_payload_model(config_cls)
+
+    assert "port" in model.model_fields
+    assert "with_mobile_base" in model.model_fields
+    assert "cameras" not in model.model_fields
+
+
+# ── Builder tests ──────────────────────────────────────────────────────────
+
+
+def test_make_builder_config_kwargs() -> None:
+    from lerobot.robots import so_follower  # noqa: F401
+    from lerobot.robots.config import RobotConfig
+
+    from physicalai_lerobot_plugin.studio_catalog import _make_builder, _make_payload_model
+
+    config_cls = RobotConfig.get_known_choices()["so100_follower"]
+    payload_cls = _make_payload_model(config_cls)
+    builder = _make_builder(config_cls, payload_cls)
+
+    assert callable(builder)
+
+
+# ── URDF path test ─────────────────────────────────────────────────────────
 
 
 def test_urdf_path_exists() -> None:
