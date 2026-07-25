@@ -19,8 +19,10 @@ from physicalai_studio_plugin import (
     RobotCatalogDefinition,
     RobotProbe,
     SerialPortInfo,
+    robot_field_ui,
+    robot_payload_ui,
 )
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 import physicalai_rebot_b601_plugin
 from physicalai_rebot_b601_plugin import ReBotArm102Leader, ReBotB601DM, get_urdf_path
@@ -89,23 +91,139 @@ _REBOT_ARM102_ASSET = RobotAsset(
 class ReBotB601DMPayload(BaseModel):
     """Connection payload for a ReBot B601 DM follower arm."""
 
-    connection_string: str = ""
-    serial_number: str = Field(...)
-    can_adapter: Literal["damiao", "socketcan"] = "damiao"
-    dm_serial_baud: int = 921600
-    disable_torque_on_disconnect: bool = True
-    force_pos_torque_ratio: float = 0.1
+    connection_string: str = Field(
+        default="",
+        description="Serial port path",
+        json_schema_extra=robot_field_ui({
+            "group": "connection",
+            "widget": "device-selector",
+            "device_value": "connection_string",
+            "manual_entry": True,
+        }),
+    )
+    serial_number: str = Field(
+        default="",
+        description="USB serial number",
+        json_schema_extra=robot_field_ui({
+            "group": "connection",
+            "widget": "device-selector",
+            "device_value": "serial_number",
+            "manual_entry": True,
+        }),
+    )
+    can_adapter: Literal["damiao", "socketcan"] = Field(
+        default="damiao",
+        description="CAN adapter implementation",
+    )
+    dm_serial_baud: int = Field(
+        default=921600,
+        description="CAN adapter serial baud rate",
+    )
+    disable_torque_on_disconnect: bool = Field(
+        default=True,
+        description="Disable motor torque when disconnecting",
+    )
+    force_pos_torque_ratio: float = Field(
+        default=0.1,
+        description="Force-position torque ratio",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra=robot_payload_ui({
+            "groups": {
+                "connection": {
+                    "title": "Connection",
+                    "device_discovery": True,
+                    "stable_key": "serial_number",
+                    "fallback_key": "connection_string",
+                },
+            },
+        }),
+    )
+
+    @model_validator(mode="after")
+    def validate_identifier(self) -> ReBotB601DMPayload:
+        """Require a stable serial number or a manual serial-port path.
+
+        Returns:
+            The validated payload.
+
+        Raises:
+            ValueError: If neither identifier is configured.
+        """
+        if not self.connection_string and not self.serial_number:
+            msg = "Either serial_number or connection_string is required"
+            raise ValueError(msg)
+        return self
 
 
 class ReBotArm102Payload(BaseModel):
     """Connection payload for a ReBot Arm102 leader arm."""
 
-    connection_string: str = ""
-    serial_number: str = Field(...)
-    baudrate: int = 1_000_000
-    unlock_on_connect: bool = True
-    reset_multi_turn_on_connect: bool = True
-    zero_on_connect: bool = False
+    connection_string: str = Field(
+        default="",
+        description="Serial port path",
+        json_schema_extra=robot_field_ui({
+            "group": "connection",
+            "widget": "device-selector",
+            "device_value": "connection_string",
+            "manual_entry": True,
+        }),
+    )
+    serial_number: str = Field(
+        default="",
+        description="USB serial number",
+        json_schema_extra=robot_field_ui({
+            "group": "connection",
+            "widget": "device-selector",
+            "device_value": "serial_number",
+            "manual_entry": True,
+        }),
+    )
+    baudrate: int = Field(
+        default=1_000_000,
+        description="Serial baud rate",
+    )
+    unlock_on_connect: bool = Field(
+        default=True,
+        description="Unlock the arm after connecting",
+    )
+    reset_multi_turn_on_connect: bool = Field(
+        default=True,
+        description="Reset multi-turn encoder state after connecting",
+    )
+    zero_on_connect: bool = Field(
+        default=False,
+        description="Set the current position as zero after connecting",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra=robot_payload_ui({
+            "groups": {
+                "connection": {
+                    "title": "Connection",
+                    "device_discovery": True,
+                    "stable_key": "serial_number",
+                    "fallback_key": "connection_string",
+                },
+            },
+        }),
+    )
+
+    @model_validator(mode="after")
+    def validate_identifier(self) -> ReBotArm102Payload:
+        """Require a stable serial number or a manual serial-port path.
+
+        Returns:
+            The validated payload.
+
+        Raises:
+            ValueError: If neither identifier is configured.
+        """
+        if not self.connection_string and not self.serial_number:
+            msg = "Either serial_number or connection_string is required"
+            raise ValueError(msg)
+        return self
 
 
 type ReBotPayload = ReBotB601DMPayload | ReBotArm102Payload
