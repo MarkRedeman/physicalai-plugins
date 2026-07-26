@@ -221,7 +221,7 @@ class MuJoCoSO101:
         self._target_body_id = int(target_id) if target_id >= 0 else None
 
     def _key_callback(self, key: int) -> None:
-        if key == ord("N"):
+        if key == ord("N") and not self._pending_scene_switch:
             self._pending_scene_switch = True
 
     def _switch_to_scene(self, scene_id: str) -> None:
@@ -265,7 +265,7 @@ class MuJoCoSO101:
         self._block_min_sep = scene.block_min_sep
         self._target_min_sep = scene.target_min_sep
 
-        self._last_sim_time = float(new_data.time)
+        self._last_sim_time = None
         self._init_block_joint_addrs()
         self._init_cameras()
 
@@ -288,18 +288,21 @@ class MuJoCoSO101:
 
         from physicalai_mujoco_so101_plugin.scene_registry import list_scenes
 
-        scene_ids = list(list_scenes().keys())
-        if not scene_ids:
-            logger.warning("No scenes available for switching")
-            return
+        try:
+            scene_ids = list(list_scenes().keys())
+            if not scene_ids:
+                logger.warning("No scenes available for switching")
+                return
 
-        current = self._current_scene_id
-        if current is None or current not in scene_ids:
-            idx = 0
-        else:
-            idx = scene_ids.index(current)
-        next_idx = (idx + 1) % len(scene_ids)
-        self._switch_to_scene(scene_ids[next_idx])
+            current = self._current_scene_id
+            if current is None or current not in scene_ids:
+                idx = 0
+            else:
+                idx = scene_ids.index(current)
+            next_idx = (idx + 1) % len(scene_ids)
+            self._switch_to_scene(scene_ids[next_idx])
+        except Exception as exc:
+            logger.warning("Failed to switch scene: {}", exc)
 
     def _handle_viewer_reset(self) -> None:
         current = float(self._data.time)
@@ -309,6 +312,8 @@ class MuJoCoSO101:
         if current + 1e-9 < self._last_sim_time:
             logger.info("Viewer reset detected; randomizing blocks")
             self._randomize_blocks()
+            if self._viewer is not None and self._viewer.is_running():
+                self._viewer.sync()
             current = float(self._data.time)
         self._last_sim_time = current
 
