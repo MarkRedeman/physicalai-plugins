@@ -1,0 +1,56 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "physicalai-mujoco-so101-plugin"
+dynamic = ["version"]
+description = "MuJoCo SO-101 simulation plugin for PhysicalAI Studio"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+dependencies = [
+    "physicalai[transport]>=0.1.1",
+    "physicalai-studio-plugin",
+    "numpy>=1.24",
+    "mujoco>=3.1.0",
+    "loguru>=0.7",
+    "pyfakewebcam>=0.1.0",
+    "pydantic>=2.0",
+]
+
+[project.optional-dependencies]
+tests = ["pytest", "pytest-asyncio"]
+
+[project.urls]
+Homepage = "https://github.com/MarkRedeman/physicalai-rebot-b601-plugin"
+Repository = "https://github.com/MarkRedeman/physicalai-rebot-b601-plugin"
+Issues = "https://github.com/MarkRedeman/physicalai-rebot-b601-plugin/issues"
+
+[project.entry-points."physicalai.studio.catalog_plugins"]
+mujoco-so101 = "physicalai_mujoco_so101_plugin.studio_catalog:register_physicalai_studio_plugin"
+
+[project.scripts]
+physicalai-mujoco-so101 = "physicalai_mujoco_so101_plugin.__main__:main"
+
+[tool.uv.sources]
+physicalai = { git = "https://github.com/openvinotoolkit/physicalai.git", rev = "d4af359eb63cfac258f44564eb44aae6f5333fbd" }
+
+[tool.hatch.version]
+source = "vcs"
+raw-options = { search_parent_directories = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/physicalai_mujoco_so101_plugin"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"urdf" = "urdf"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/physicalai_mujoco_so101_plugin/**",
+    "urdf/**",
+    "README.md",
+    "pyproject.toml",
+    "LICENSE",
+]
