@@ -38,7 +38,8 @@ uv run --no-sync physicalai-mujoco-so101 start --help
 Common options:
 
 - `--name <robot-name>`: transport name (must match Studio payload)
-- `--model <path>`: custom XML/URDF path
+- `--model <path>`: custom XML/URDF path (bypasses scene resolution)
+- `--scene <name>`: scene name (`pick_lift` or `pick_place`, default `pick_lift`)
 - `--no-gui`: disable MuJoCo interactive viewer
 - `--no-cameras`: disable v4l2loopback camera output
 - `--wrist-video-id <int>`: video ID for wrist stream (default `60`)
@@ -118,6 +119,31 @@ Typical workflow:
 4. Run policy inference and play action outputs into the same simulated robot
 
 Because this uses PhysicalAI transport + Studio catalog integration, you can iterate on control and inference loops in simulation before moving to hardware.
+
+## Scenes
+
+The plugin ships with built-in scenes that provide different environments for the robot:
+
+| Scene ID | Description | Free objects | Target |
+|----------|-------------|--------------|--------|
+| `pick_lift` (default) | Three colored cubes and a target disc | 3 cubes | target disc |
+| `pick_place` | A cube, a cylinder, and a target zone | cube + cylinder | target zone |
+
+Start with a specific scene:
+
+```bash
+uv run --no-sync physicalai-mujoco-so101 start --scene pick_place
+```
+
+### Keyboard shortcut: cycle scenes
+
+When the MuJoCo viewer is open, press **`s`** to cycle through available scenes. The scene switches at the next control cycle:
+- Closes the current viewer
+- Loads the new scene XML
+- Re-launches the viewer with the new environment
+- Resets block joints, target bodies, and spawn parameters
+
+`--model` bypasses scene resolution entirely; only the exported scene XML path is loaded, and scene cycling is unavailable.
 
 ## Current status and future improvements
 

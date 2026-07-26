@@ -172,6 +172,7 @@ class TestMuJoCoSO101Pickling:
             "_spawn_angle_half_deg": 125.0,
             "_block_min_sep": 0.09,
             "_target_min_sep": 0.11,
+            "_current_scene_id": None,
         }
 
     def test_getstate_after_connect(self, mock_mujoco: MagicMock) -> None:

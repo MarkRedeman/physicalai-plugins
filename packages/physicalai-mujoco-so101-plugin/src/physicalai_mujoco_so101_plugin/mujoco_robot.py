@@ -76,6 +76,8 @@ class MuJoCoSO101:
         self._target_body_id: int | None = None
         self._last_sim_time: float | None = None
         self._rng = np.random.default_rng()
+        self._pending_scene_switch: bool = False
+        self._current_scene_id: str | None = None
 
         if scene_config is not None:
             self._free_joints: tuple[str, ...] = tuple(scene_config["free_joints"])
@@ -86,6 +88,7 @@ class MuJoCoSO101:
             self._spawn_angle_half_deg: float = scene_config["spawn_angle_half_deg"]
             self._block_min_sep: float = scene_config["block_min_sep"]
             self._target_min_sep: float = scene_config["target_min_sep"]
+            self._current_scene_id = scene_config.get("scene_id")
         else:
             self._free_joints: tuple[str, ...] = self.DEFAULT_BLOCK_FREEJOINTS
             self._target_body_name: str = self.DEFAULT_TARGET_BODY_NAME
@@ -126,7 +129,10 @@ class MuJoCoSO101:
             try:
                 import mujoco.viewer
 
-                self._viewer = mujoco.viewer.launch_passive(self._model, self._data)
+                self._viewer = mujoco.viewer.launch_passive(
+                    self._model, self._data,
+                    key_callback=self._key_callback,
+                )
                 logger.info("MuJoCo viewer opened")
             except Exception as exc:  # ruff: ignore[blind-except]
                 logger.warning("Failed to open MuJoCo viewer: {}", exc)
@@ -145,12 +151,11 @@ class MuJoCoSO101:
         self._target_body_id = None
         self._last_sim_time = None
 
-        if self._viewer is not None:
-            with contextlib.suppress(Exception):
-                self._viewer.close()
-            self._viewer = None
+        self._close_viewer()
         self._model = None
         self._data = None
+        self._current_scene_id = None
+        self._pending_scene_switch = False
         logger.info("MuJoCo SO101 disconnected")
 
     def is_connected(self) -> bool:
@@ -214,6 +219,91 @@ class MuJoCoSO101:
 
         target_id = mujoco.mj_name2id(self._model, mujoco.mjtObj.mjOBJ_BODY, self._target_body_name)
         self._target_body_id = int(target_id) if target_id >= 0 else None
+
+    def _key_callback(self, key: int) -> None:
+        if key == ord("S"):
+            self._pending_scene_switch = True
+
+    def _switch_to_scene(self, scene_id: str) -> None:
+        from physicalai_mujoco_so101_plugin.scene_registry import get_scene
+
+        import mujoco
+
+        scene = get_scene(scene_id)
+        xml_path = scene.scene_xml_path
+        if not xml_path.exists():
+            logger.error("Scene XML not found: {}", xml_path)
+            return
+
+        self._close_viewer()
+        for renderer in self._camera_renderers.values():
+            with contextlib.suppress(Exception):
+                renderer.close()
+        self._camera_renderers.clear()
+        self._camera_devices.clear()
+
+        self._model_path = str(xml_path)
+        self._model = mujoco.MjModel.from_xml_path(self._model_path)
+        self._data = mujoco.MjData(self._model)
+        mujoco.mj_forward(self._model, self._data)
+        self._last_sim_time = float(self._data.time)
+
+        self._free_joints = scene.free_joints
+        self._target_body_name = scene.target_bodies[0] if scene.target_bodies else ""
+        self._spawn_center = scene.spawn_center
+        self._spawn_min_r = scene.spawn_min_r
+        self._spawn_max_r = scene.spawn_max_r
+        self._spawn_angle_half_deg = scene.spawn_angle_half_deg
+        self._block_min_sep = scene.block_min_sep
+        self._target_min_sep = scene.target_min_sep
+
+        self._init_block_joint_addrs()
+        self._init_cameras()
+
+        if self._enable_viewer:
+            try:
+                import mujoco.viewer
+
+                self._viewer = mujoco.viewer.launch_passive(
+                    self._model, self._data,
+                    key_callback=self._key_callback,
+                )
+                logger.info("Viewer re-launched for scene '{}'", scene_id)
+            except Exception as exc:  # ruff: ignore[blind-except]
+                logger.warning("Failed to re-launch viewer: {}", exc)
+                self._enable_viewer = False
+
+        self._current_scene_id = scene_id
+        logger.info(
+            "Switched to scene '{}' ({} bodies, {} geoms, {} joints)",
+            scene_id, self._model.nbody, self._model.ngeom, self._model.njnt,
+        )
+
+    def _close_viewer(self) -> None:
+        if self._viewer is not None:
+            with contextlib.suppress(Exception):
+                self._viewer.close()
+            self._viewer = None
+
+    def _check_pending_scene_switch(self) -> None:
+        if not self._pending_scene_switch:
+            return
+        self._pending_scene_switch = False
+
+        from physicalai_mujoco_so101_plugin.scene_registry import list_scenes
+
+        scene_ids = list(list_scenes().keys())
+        if not scene_ids:
+            logger.warning("No scenes available for switching")
+            return
+
+        current = self._current_scene_id
+        if current is None or current not in scene_ids:
+            idx = 0
+        else:
+            idx = scene_ids.index(current)
+        next_idx = (idx + 1) % len(scene_ids)
+        self._switch_to_scene(scene_ids[next_idx])
 
     def _handle_viewer_reset(self) -> None:
         current = float(self._data.time)
@@ -306,6 +396,7 @@ class MuJoCoSO101:
             msg = "Robot is not connected. Call connect() first."
             raise ConnectionError(msg)
 
+        self._check_pending_scene_switch()
         self._step_and_sync()
 
         positions = np.empty(self.NUM_JOINTS, dtype=np.float64)
@@ -372,6 +463,7 @@ class MuJoCoSO101:
             "_spawn_angle_half_deg": self._spawn_angle_half_deg,
             "_block_min_sep": self._block_min_sep,
             "_target_min_sep": self._target_min_sep,
+            "_current_scene_id": self._current_scene_id,
         }
 
     def __setstate__(self, state: dict) -> None:
@@ -387,6 +479,7 @@ class MuJoCoSO101:
         self._spawn_angle_half_deg = state.get("_spawn_angle_half_deg", self.DEFAULT_SPAWN_ANGLE_HALF_DEG)
         self._block_min_sep = state.get("_block_min_sep", self.DEFAULT_BLOCK_MIN_SEP)
         self._target_min_sep = state.get("_target_min_sep", self.DEFAULT_TARGET_MIN_SEP)
+        self._current_scene_id = state.get("_current_scene_id")
         self._model = None
         self._data = None
         self._viewer = None
@@ -397,3 +490,4 @@ class MuJoCoSO101:
         self._target_body_id = None
         self._last_sim_time = None
         self._rng = np.random.default_rng()
+        self._pending_scene_switch = False
