@@ -35,6 +35,20 @@ _SCENES: dict[str, SceneConfig] = {
         free_joints=("block1:joint", "block2:joint", "block3:joint"),
         target_bodies=("target",),
     ),
+    "pick_place": SceneConfig(
+        scene_id="pick_place",
+        display_name="Pick & Place",
+        description="Two objects (cube + cylinder) and a target zone",
+        scene_xml_relpath="scenes/pick_place/scene.xml",
+        free_joints=("obj1:joint", "obj2:joint"),
+        target_bodies=("target_zone",),
+        spawn_center=(0.26, 0.0),
+        spawn_min_r=0.06,
+        spawn_max_r=0.30,
+        spawn_angle_half_deg=135.0,
+        block_min_sep=0.10,
+        target_min_sep=0.08,
+    ),
 }
 
 
