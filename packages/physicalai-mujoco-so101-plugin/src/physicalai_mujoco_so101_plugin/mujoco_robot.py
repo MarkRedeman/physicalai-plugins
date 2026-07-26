@@ -221,7 +221,7 @@ class MuJoCoSO101:
         self._target_body_id = int(target_id) if target_id >= 0 else None
 
     def _key_callback(self, key: int) -> None:
-        if key == ord("S"):
+        if key == ord("N"):
             self._pending_scene_switch = True
 
     def _switch_to_scene(self, scene_id: str) -> None:

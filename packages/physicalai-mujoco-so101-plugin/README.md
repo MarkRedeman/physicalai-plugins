@@ -137,7 +137,7 @@ uv run --no-sync physicalai-mujoco-so101 start --scene pick_place
 
 ### Keyboard shortcut: cycle scenes
 
-When the MuJoCo viewer is open, press **`s`** to cycle through available scenes. The scene switches at the next control cycle:
+When the MuJoCo viewer is open, press **`n`** (next scene) to cycle through available scenes. The scene switches at the next control cycle:
 - Closes the current viewer
 - Loads the new scene XML
 - Re-launches the viewer with the new environment
