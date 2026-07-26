@@ -77,7 +77,6 @@ class MuJoCoSO101:
         self._last_sim_time: float | None = None
         self._rng = np.random.default_rng()
         self._pending_scene_switch: bool = False
-        self._closing_viewer: bool = False
         self._current_scene_id: str | None = None
 
         if scene_config is not None:
@@ -157,7 +156,6 @@ class MuJoCoSO101:
         self._data = None
         self._current_scene_id = None
         self._pending_scene_switch = False
-        self._closing_viewer = False
         logger.info("MuJoCo SO101 disconnected")
 
     def is_connected(self) -> bool:
@@ -223,7 +221,7 @@ class MuJoCoSO101:
         self._target_body_id = int(target_id) if target_id >= 0 else None
 
     def _key_callback(self, key: int) -> None:
-        if key == ord("S") and not self._closing_viewer:
+        if key == ord("S"):
             self._pending_scene_switch = True
 
     def _switch_to_scene(self, scene_id: str) -> None:
@@ -237,7 +235,10 @@ class MuJoCoSO101:
             logger.error("Scene XML not found: {}", xml_path)
             return
 
-        self._close_viewer()
+        new_model = mujoco.MjModel.from_xml_path(str(xml_path))
+        new_data = mujoco.MjData(new_model)
+        mujoco.mj_forward(new_model, new_data)
+
         for renderer in self._camera_renderers.values():
             with contextlib.suppress(Exception):
                 renderer.close()
@@ -245,10 +246,15 @@ class MuJoCoSO101:
         self._camera_devices.clear()
 
         self._model_path = str(xml_path)
-        self._model = mujoco.MjModel.from_xml_path(self._model_path)
-        self._data = mujoco.MjData(self._model)
-        mujoco.mj_forward(self._model, self._data)
-        self._last_sim_time = float(self._data.time)
+        self._model = new_model
+        self._data = new_data
+
+        if self._viewer is not None and self._viewer.is_running():
+            with self._viewer.lock():
+                sim = self._viewer._get_sim()
+                if sim is not None:
+                    sim.m = new_model
+                    sim.d = new_data
 
         self._free_joints = scene.free_joints
         self._target_body_name = scene.target_bodies[0] if scene.target_bodies else ""
@@ -259,36 +265,18 @@ class MuJoCoSO101:
         self._block_min_sep = scene.block_min_sep
         self._target_min_sep = scene.target_min_sep
 
+        self._last_sim_time = float(new_data.time)
         self._init_block_joint_addrs()
         self._init_cameras()
-
-        if self._enable_viewer:
-            try:
-                import mujoco.viewer
-
-                self._viewer = mujoco.viewer.launch_passive(
-                    self._model, self._data,
-                    key_callback=self._key_callback,
-                )
-                logger.info("Viewer re-launched for scene '{}'", scene_id)
-            except Exception as exc:  # ruff: ignore[blind-except]
-                logger.warning("Failed to re-launch viewer: {}", exc)
-                self._enable_viewer = False
-        self._closing_viewer = False
 
         self._current_scene_id = scene_id
         logger.info(
             "Switched to scene '{}' ({} bodies, {} geoms, {} joints)",
-            scene_id, self._model.nbody, self._model.ngeom, self._model.njnt,
+            scene_id, new_model.nbody, new_model.ngeom, new_model.njnt,
         )
 
     def _close_viewer(self) -> None:
-        self._closing_viewer = True
         if self._viewer is not None:
-            with contextlib.suppress(Exception):
-                import glfw
-
-                glfw.poll_events()
             with contextlib.suppress(Exception):
                 self._viewer.close()
             self._viewer = None
@@ -499,4 +487,3 @@ class MuJoCoSO101:
         self._last_sim_time = None
         self._rng = np.random.default_rng()
         self._pending_scene_switch = False
-        self._closing_viewer = False
