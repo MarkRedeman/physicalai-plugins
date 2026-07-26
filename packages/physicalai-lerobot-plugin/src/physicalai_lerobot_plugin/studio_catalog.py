@@ -329,7 +329,9 @@ def _make_builder(
 
         lerobot_config = config_cls(**config_kwargs)
         lerobot_robot = make_robot_from_config(lerobot_config)
-        return LeRobotAdapter(lerobot_robot, role=role)
+        return LeRobotAdapter(
+            config_cls, config_kwargs, role=role, _robot=lerobot_robot,
+        )
 
     return _build
 
@@ -387,7 +389,9 @@ def _make_teleop_builder(
 
         teleop_config = config_cls(**config_kwargs)
         teleoperator = make_teleoperator_from_config(teleop_config)
-        return LeRobotTeleoperatorAdapter(teleoperator, role=role)
+        return LeRobotTeleoperatorAdapter(
+            config_cls, config_kwargs, role=role, _teleoperator=teleoperator,
+        )
 
     return _build
 

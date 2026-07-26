@@ -127,7 +127,7 @@ def test_make_payload_model_for_so100() -> None:
     assert issubclass(model, BaseModel)
     assert model.__name__ == "SOFollowerRobotConfigPayload"
 
-    payload = model(serial_number="SN-001", port="/dev/ttyACM0")
+    payload = model(id="", serial_number="SN-001", port="/dev/ttyACM0")
     assert payload.serial_number == "SN-001"
     assert payload.port == "/dev/ttyACM0"
     assert payload.disable_torque_on_disconnect is True
@@ -143,7 +143,7 @@ def test_make_payload_model_for_hope_jr_hand() -> None:
     config_cls = RobotConfig.get_known_choices()["hope_jr_hand"]
     model = _make_payload_model(config_cls)
 
-    payload = model(serial_number="SN-002", port="/dev/ttyACM1", side="left")
+    payload = model(id="", serial_number="SN-002", port="/dev/ttyACM1", side="left")
     assert payload.port == "/dev/ttyACM1"
     assert payload.side == "left"
 

@@ -7,6 +7,23 @@ from unittest.mock import MagicMock, PropertyMock
 import numpy as np
 import pytest
 
+_MOCK_CONFIG_CLS = type("MockRobotConfig", (), {})
+
+
+def _make_adapter(
+    mock_robot: MagicMock,
+    role: str = "follower",
+) -> object:
+    from physicalai_lerobot_plugin.lerobot_adapter import LeRobotAdapter
+
+    return LeRobotAdapter(
+        config_cls=_MOCK_CONFIG_CLS,
+        config_kwargs={},
+        role=role,
+        _robot=mock_robot,
+    )
+
+
 SO100_POS_KEYS = [
     "shoulder_pan.pos",
     "shoulder_lift.pos",
@@ -51,7 +68,7 @@ class TestLeRobotAdapterConstruction:
     def test_defaults(self, mock_lerobot_robot: MagicMock) -> None:
         from physicalai_lerobot_plugin import LeRobotAdapter
 
-        adapter = LeRobotAdapter(robot=mock_lerobot_robot)
+        adapter = _make_adapter(mock_lerobot_robot)
 
         assert not adapter.is_connected()
         with pytest.raises(RuntimeError, match="not yet discovered"):
@@ -61,14 +78,14 @@ class TestLeRobotAdapterConstruction:
         from physicalai_lerobot_plugin import LeRobotAdapter
 
         with pytest.raises(ValueError, match="Invalid role"):
-            LeRobotAdapter(robot=mock_lerobot_robot, role="invalid")
+            _make_adapter(mock_lerobot_robot, role="invalid")
 
 
 class TestLeRobotAdapterLifecycle:
     def test_connect_and_disconnect(self, mock_lerobot_robot: MagicMock) -> None:
         from physicalai_lerobot_plugin import LeRobotAdapter
 
-        adapter = LeRobotAdapter(robot=mock_lerobot_robot)
+        adapter = _make_adapter(mock_lerobot_robot)
 
         assert not adapter.is_connected()
         adapter.connect()
@@ -81,7 +98,7 @@ class TestLeRobotAdapterLifecycle:
     def test_connect_is_idempotent(self, mock_lerobot_robot: MagicMock) -> None:
         from physicalai_lerobot_plugin import LeRobotAdapter
 
-        adapter = LeRobotAdapter(robot=mock_lerobot_robot)
+        adapter = _make_adapter(mock_lerobot_robot)
 
         adapter.connect()
         adapter.connect()
@@ -90,7 +107,7 @@ class TestLeRobotAdapterLifecycle:
     def test_disconnect_is_idempotent(self, mock_lerobot_robot: MagicMock) -> None:
         from physicalai_lerobot_plugin import LeRobotAdapter
 
-        adapter = LeRobotAdapter(robot=mock_lerobot_robot)
+        adapter = _make_adapter(mock_lerobot_robot)
 
         adapter.disconnect()
         adapter.disconnect()
@@ -101,7 +118,7 @@ class TestLeRobotAdapterAutoDetection:
     def test_connect_discovers_joint_order(self, mock_lerobot_robot: MagicMock) -> None:
         from physicalai_lerobot_plugin import LeRobotAdapter
 
-        adapter = LeRobotAdapter(robot=mock_lerobot_robot)
+        adapter = _make_adapter(mock_lerobot_robot)
 
         adapter.connect()
         assert adapter.joint_names == [
@@ -117,7 +134,7 @@ class TestLeRobotAdapterAutoDetection:
     def test_get_observation_auto_discovers(self, mock_lerobot_robot: MagicMock) -> None:
         from physicalai_lerobot_plugin import LeRobotAdapter
 
-        adapter = LeRobotAdapter(robot=mock_lerobot_robot)
+        adapter = _make_adapter(mock_lerobot_robot)
 
         obs = adapter.get_observation()
         assert adapter.NUM_JOINTS == 6
@@ -133,7 +150,7 @@ class TestLeRobotAdapterAutoDetection:
         mock_lerobot_robot.get_observation.side_effect = None
         mock_lerobot_robot.get_observation.return_value = custom_obs
 
-        adapter = LeRobotAdapter(robot=mock_lerobot_robot)
+        adapter = _make_adapter(mock_lerobot_robot)
         obs = adapter.get_observation()
         assert adapter.joint_names == ["j1", "j2", "j3"]
         np.testing.assert_array_almost_equal(
@@ -144,7 +161,7 @@ class TestLeRobotAdapterAutoDetection:
     def test_properties_raise_before_discovery(self, mock_lerobot_robot: MagicMock) -> None:
         from physicalai_lerobot_plugin import LeRobotAdapter
 
-        adapter = LeRobotAdapter(robot=mock_lerobot_robot)
+        adapter = _make_adapter(mock_lerobot_robot)
 
         with pytest.raises(RuntimeError, match="not yet discovered"):
             _ = adapter.joint_names
@@ -157,7 +174,7 @@ class TestLeRobotAdapterObservation:
     def test_observation_has_correct_structure(self, mock_lerobot_robot: MagicMock) -> None:
         from physicalai_lerobot_plugin import LeRobotAdapter
 
-        adapter = LeRobotAdapter(robot=mock_lerobot_robot)
+        adapter = _make_adapter(mock_lerobot_robot)
 
         obs = adapter.get_observation()
         assert obs.timestamp > 0
@@ -170,7 +187,7 @@ class TestLeRobotAdapterAction:
     def test_send_action_follower(self, mock_lerobot_robot: MagicMock) -> None:
         from physicalai_lerobot_plugin import LeRobotAdapter
 
-        adapter = LeRobotAdapter(robot=mock_lerobot_robot)
+        adapter = _make_adapter(mock_lerobot_robot)
         adapter.connect()
 
         sorted_pos_keys = sorted(SO100_POS_KEYS)
@@ -183,7 +200,7 @@ class TestLeRobotAdapterAction:
     def test_send_action_leader_raises(self, mock_lerobot_robot: MagicMock) -> None:
         from physicalai_lerobot_plugin import LeRobotAdapter
 
-        adapter = LeRobotAdapter(robot=mock_lerobot_robot, role="leader")
+        adapter = _make_adapter(mock_lerobot_robot, role="leader")
 
         action = np.zeros(3, dtype=np.float32)
         with pytest.raises(RuntimeError, match="Cannot send actions to a leader"):
@@ -192,7 +209,7 @@ class TestLeRobotAdapterAction:
     def test_send_action_wrong_shape(self, mock_lerobot_robot: MagicMock) -> None:
         from physicalai_lerobot_plugin import LeRobotAdapter
 
-        adapter = LeRobotAdapter(robot=mock_lerobot_robot)
+        adapter = _make_adapter(mock_lerobot_robot)
         adapter.connect()
 
         action = np.zeros(3, dtype=np.float32)
@@ -202,7 +219,7 @@ class TestLeRobotAdapterAction:
     def test_send_action_raises_before_discovery(self, mock_lerobot_robot: MagicMock) -> None:
         from physicalai_lerobot_plugin import LeRobotAdapter
 
-        adapter = LeRobotAdapter(robot=mock_lerobot_robot)
+        adapter = _make_adapter(mock_lerobot_robot)
         action = np.zeros(6, dtype=np.float32)
 
         with pytest.raises(RuntimeError, match="not yet discovered"):
