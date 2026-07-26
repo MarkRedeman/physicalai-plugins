@@ -77,6 +77,7 @@ class MuJoCoSO101:
         self._last_sim_time: float | None = None
         self._rng = np.random.default_rng()
         self._pending_scene_switch: bool = False
+        self._closing_viewer: bool = False
         self._current_scene_id: str | None = None
 
         if scene_config is not None:
@@ -156,6 +157,7 @@ class MuJoCoSO101:
         self._data = None
         self._current_scene_id = None
         self._pending_scene_switch = False
+        self._closing_viewer = False
         logger.info("MuJoCo SO101 disconnected")
 
     def is_connected(self) -> bool:
@@ -221,7 +223,7 @@ class MuJoCoSO101:
         self._target_body_id = int(target_id) if target_id >= 0 else None
 
     def _key_callback(self, key: int) -> None:
-        if key == ord("S"):
+        if key == ord("S") and not self._closing_viewer:
             self._pending_scene_switch = True
 
     def _switch_to_scene(self, scene_id: str) -> None:
@@ -272,6 +274,7 @@ class MuJoCoSO101:
             except Exception as exc:  # ruff: ignore[blind-except]
                 logger.warning("Failed to re-launch viewer: {}", exc)
                 self._enable_viewer = False
+        self._closing_viewer = False
 
         self._current_scene_id = scene_id
         logger.info(
@@ -280,6 +283,7 @@ class MuJoCoSO101:
         )
 
     def _close_viewer(self) -> None:
+        self._closing_viewer = True
         if self._viewer is not None:
             with contextlib.suppress(Exception):
                 self._viewer.close()
@@ -491,3 +495,4 @@ class MuJoCoSO101:
         self._last_sim_time = None
         self._rng = np.random.default_rng()
         self._pending_scene_switch = False
+        self._closing_viewer = False
