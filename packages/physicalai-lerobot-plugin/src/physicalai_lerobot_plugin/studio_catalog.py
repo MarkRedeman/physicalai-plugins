@@ -237,7 +237,7 @@ def _make_payload_model(config_cls: type) -> type[BaseModel]:
 
         pydantic_type, default_val = _resolve_field_type(f)
 
-        if default_val is _REQUIRED_SENTINEL:
+        if default_val is _REQUIRED_SENTINEL or f.name == "id":
             field_defs[f.name] = (pydantic_type, Field(..., description=f.name))
         else:
             field_defs[f.name] = (pydantic_type, Field(default=default_val, description=f.name))
@@ -307,6 +307,8 @@ def _make_builder(
         from physicalai_lerobot_plugin.lerobot_adapter import LeRobotAdapter
 
         raw = robot.payload
+        if isinstance(raw, BaseModel) and type(raw) is not payload_cls:
+            raw = raw.model_dump()
         validated = raw if isinstance(raw, payload_cls) else payload_cls.model_validate(raw)
 
         serial_number = validated.serial_number
@@ -363,6 +365,8 @@ def _make_teleop_builder(
         )
 
         raw = robot.payload
+        if isinstance(raw, BaseModel) and type(raw) is not payload_cls:
+            raw = raw.model_dump()
         validated = raw if isinstance(raw, payload_cls) else payload_cls.model_validate(raw)
 
         serial_number = validated.serial_number
