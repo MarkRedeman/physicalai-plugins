@@ -13,8 +13,6 @@ from loguru import logger
 from physicalai_mujoco_so101_plugin.constants import NUM_JOINTS, SO101_JOINT_ORDER
 
 if TYPE_CHECKING:
-    from physicalai_mujoco_so101_plugin.scene_registry import SceneConfig
-
     from physicalai.capture.frame import Frame
     from physicalai.robot.interface import RobotObservation
 
@@ -62,7 +60,7 @@ class MuJoCoSO101:
         cameras: list[CameraConfig | dict] | None = None,
         model: object = None,
         data: object = None,
-        scene_config: SceneConfig | None = None,
+        scene_config: dict | None = None,
     ) -> None:
         self._model_path = model_path
         self._substeps = substeps
@@ -80,14 +78,14 @@ class MuJoCoSO101:
         self._rng = np.random.default_rng()
 
         if scene_config is not None:
-            self._free_joints: tuple[str, ...] = scene_config.free_joints
-            self._target_body_name: str = scene_config.target_bodies[0] if scene_config.target_bodies else ""
-            self._spawn_center: tuple[float, float] = scene_config.spawn_center
-            self._spawn_min_r: float = scene_config.spawn_min_r
-            self._spawn_max_r: float = scene_config.spawn_max_r
-            self._spawn_angle_half_deg: float = scene_config.spawn_angle_half_deg
-            self._block_min_sep: float = scene_config.block_min_sep
-            self._target_min_sep: float = scene_config.target_min_sep
+            self._free_joints: tuple[str, ...] = tuple(scene_config["free_joints"])
+            self._target_body_name: str = scene_config["target_bodies"][0] if scene_config["target_bodies"] else ""
+            self._spawn_center: tuple[float, float] = tuple(scene_config["spawn_center"])
+            self._spawn_min_r: float = scene_config["spawn_min_r"]
+            self._spawn_max_r: float = scene_config["spawn_max_r"]
+            self._spawn_angle_half_deg: float = scene_config["spawn_angle_half_deg"]
+            self._block_min_sep: float = scene_config["block_min_sep"]
+            self._target_min_sep: float = scene_config["target_min_sep"]
         else:
             self._free_joints: tuple[str, ...] = self.DEFAULT_BLOCK_FREEJOINTS
             self._target_body_name: str = self.DEFAULT_TARGET_BODY_NAME

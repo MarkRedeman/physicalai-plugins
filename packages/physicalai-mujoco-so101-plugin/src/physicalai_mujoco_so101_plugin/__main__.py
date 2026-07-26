@@ -15,6 +15,7 @@ import argparse
 import signal
 import sys
 import threading
+from dataclasses import asdict
 from pathlib import Path
 
 from loguru import logger
@@ -154,7 +155,7 @@ def _start(args: argparse.Namespace) -> None:
         "cameras": cameras,
     }
     if scene_config is not None:
-        robot_kwargs["scene_config"] = scene_config
+        robot_kwargs["scene_config"] = asdict(scene_config)
 
     from physicalai.robot.transport import SharedRobot
 
