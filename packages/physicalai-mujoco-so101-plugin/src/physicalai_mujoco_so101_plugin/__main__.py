@@ -53,6 +53,12 @@ def _build_parser() -> argparse.ArgumentParser:
         help="MuJoCo simulation steps per control cycle (default: 10, real-time at 50 Hz with dt=0.002)",
     )
     start.add_argument(
+        "--scene",
+        type=str,
+        default="pick_lift",
+        help="Scene name (default: pick_lift)",
+    )
+    start.add_argument(
         "--allow-remote",
         action="store_true",
         default=False,
@@ -91,30 +97,26 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _resolve_model_path(model_arg: str | None) -> str:
+def _resolve_model_and_scene(model_arg: str | None, scene_arg: str) -> tuple[str, object | None]:
     if model_arg is not None:
         path = Path(model_arg).resolve()
         if not path.exists():
             logger.error("Model file not found: {}", path)
             sys.exit(1)
-        return str(path)
+        return str(path), None
 
-    from physicalai_mujoco_so101_plugin._urdf import get_urdf_path
+    from physicalai_mujoco_so101_plugin.scene_registry import get_scene
 
-    urdf_root = get_urdf_path()
-    bundled = urdf_root / "so101" / "so101.xml"
-    if bundled.exists():
-        return str(bundled)
-    fallback = urdf_root / "so101" / "so101_new_calib.urdf"
-    if fallback.exists():
-        logger.warning("so101.xml not found, falling back to URDF (no position actuators)")
-        return str(fallback)
-    logger.error("No bundled model found at {}. Specify --model.", urdf_root / "so101")
-    sys.exit(1)
+    scene = get_scene(scene_arg)
+    xml_path = scene.scene_xml_path
+    if not xml_path.exists():
+        logger.error("Scene XML not found: {}", xml_path)
+        sys.exit(1)
+    return str(xml_path), scene
 
 
 def _start(args: argparse.Namespace) -> None:
-    model_path = _resolve_model_path(args.model)
+    model_path, scene_config = _resolve_model_and_scene(args.model, args.scene)
 
     cameras: list[dict[str, object]] = []
     if not args.no_cameras:
@@ -151,6 +153,8 @@ def _start(args: argparse.Namespace) -> None:
         "enable_viewer": not args.no_gui,
         "cameras": cameras,
     }
+    if scene_config is not None:
+        robot_kwargs["scene_config"] = scene_config
 
     from physicalai.robot.transport import SharedRobot
 

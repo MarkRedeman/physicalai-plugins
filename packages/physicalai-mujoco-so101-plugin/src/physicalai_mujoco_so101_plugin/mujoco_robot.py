@@ -13,6 +13,7 @@ from loguru import logger
 from physicalai_mujoco_so101_plugin.constants import NUM_JOINTS, SO101_JOINT_ORDER
 
 if TYPE_CHECKING:
+    from physicalai_mujoco_so101_plugin.scene_registry import SceneConfig
 
     from physicalai.capture.frame import Frame
     from physicalai.robot.interface import RobotObservation
@@ -43,14 +44,14 @@ class CameraConfig:
 class MuJoCoSO101:
     JOINT_ORDER: ClassVar[tuple[str, ...]] = SO101_JOINT_ORDER
     NUM_JOINTS: ClassVar[int] = NUM_JOINTS
-    BLOCK_FREEJOINTS: ClassVar[tuple[str, ...]] = ("block1:joint", "block2:joint", "block3:joint")
-    TARGET_BODY_NAME: ClassVar[str] = "target"
-    SPAWN_CENTER: ClassVar[tuple[float, float]] = (0.24, 0.0)
-    SPAWN_MIN_R: ClassVar[float] = 0.08
-    SPAWN_MAX_R: ClassVar[float] = 0.34
-    SPAWN_ANGLE_HALF_DEG: ClassVar[float] = 125.0
-    BLOCK_MIN_SEP: ClassVar[float] = 0.09
-    TARGET_MIN_SEP: ClassVar[float] = 0.11
+    DEFAULT_BLOCK_FREEJOINTS: ClassVar[tuple[str, ...]] = ("block1:joint", "block2:joint", "block3:joint")
+    DEFAULT_TARGET_BODY_NAME: ClassVar[str] = "target"
+    DEFAULT_SPAWN_CENTER: ClassVar[tuple[float, float]] = (0.24, 0.0)
+    DEFAULT_SPAWN_MIN_R: ClassVar[float] = 0.08
+    DEFAULT_SPAWN_MAX_R: ClassVar[float] = 0.34
+    DEFAULT_SPAWN_ANGLE_HALF_DEG: ClassVar[float] = 125.0
+    DEFAULT_BLOCK_MIN_SEP: ClassVar[float] = 0.09
+    DEFAULT_TARGET_MIN_SEP: ClassVar[float] = 0.11
 
     def __init__(
         self,
@@ -61,6 +62,7 @@ class MuJoCoSO101:
         cameras: list[CameraConfig | dict] | None = None,
         model: object = None,
         data: object = None,
+        scene_config: SceneConfig | None = None,
     ) -> None:
         self._model_path = model_path
         self._substeps = substeps
@@ -76,6 +78,25 @@ class MuJoCoSO101:
         self._target_body_id: int | None = None
         self._last_sim_time: float | None = None
         self._rng = np.random.default_rng()
+
+        if scene_config is not None:
+            self._free_joints: tuple[str, ...] = scene_config.free_joints
+            self._target_body_name: str = scene_config.target_bodies[0] if scene_config.target_bodies else ""
+            self._spawn_center: tuple[float, float] = scene_config.spawn_center
+            self._spawn_min_r: float = scene_config.spawn_min_r
+            self._spawn_max_r: float = scene_config.spawn_max_r
+            self._spawn_angle_half_deg: float = scene_config.spawn_angle_half_deg
+            self._block_min_sep: float = scene_config.block_min_sep
+            self._target_min_sep: float = scene_config.target_min_sep
+        else:
+            self._free_joints: tuple[str, ...] = self.DEFAULT_BLOCK_FREEJOINTS
+            self._target_body_name: str = self.DEFAULT_TARGET_BODY_NAME
+            self._spawn_center: tuple[float, float] = self.DEFAULT_SPAWN_CENTER
+            self._spawn_min_r: float = self.DEFAULT_SPAWN_MIN_R
+            self._spawn_max_r: float = self.DEFAULT_SPAWN_MAX_R
+            self._spawn_angle_half_deg: float = self.DEFAULT_SPAWN_ANGLE_HALF_DEG
+            self._block_min_sep: float = self.DEFAULT_BLOCK_MIN_SEP
+            self._target_min_sep: float = self.DEFAULT_TARGET_MIN_SEP
 
     @property
     def joint_names(self) -> list[str]:
@@ -185,7 +206,7 @@ class MuJoCoSO101:
         import mujoco
 
         self._block_joint_addrs.clear()
-        for joint_name in self.BLOCK_FREEJOINTS:
+        for joint_name in self._free_joints:
             jid = mujoco.mj_name2id(self._model, mujoco.mjtObj.mjOBJ_JOINT, joint_name)
             if jid < 0:
                 continue
@@ -193,7 +214,7 @@ class MuJoCoSO101:
             dof_addr = int(self._model.jnt_dofadr[jid])
             self._block_joint_addrs.append((qpos_addr, dof_addr))
 
-        target_id = mujoco.mj_name2id(self._model, mujoco.mjtObj.mjOBJ_BODY, self.TARGET_BODY_NAME)
+        target_id = mujoco.mj_name2id(self._model, mujoco.mjtObj.mjOBJ_BODY, self._target_body_name)
         self._target_body_id = int(target_id) if target_id >= 0 else None
 
     def _handle_viewer_reset(self) -> None:
@@ -208,11 +229,11 @@ class MuJoCoSO101:
         self._last_sim_time = current
 
     def _sample_spawn_xy(self) -> tuple[float, float]:
-        r = float(self._rng.uniform(self.SPAWN_MIN_R, self.SPAWN_MAX_R))
-        theta = float(self._rng.uniform(-np.radians(self.SPAWN_ANGLE_HALF_DEG), np.radians(self.SPAWN_ANGLE_HALF_DEG)))
+        r = float(self._rng.uniform(self._spawn_min_r, self._spawn_max_r))
+        theta = float(self._rng.uniform(-np.radians(self._spawn_angle_half_deg), np.radians(self._spawn_angle_half_deg)))
         return (
-            self.SPAWN_CENTER[0] + r * float(np.cos(theta)),
-            self.SPAWN_CENTER[1] + r * float(np.sin(theta)),
+            self._spawn_center[0] + r * float(np.cos(theta)),
+            self._spawn_center[1] + r * float(np.sin(theta)),
         )
 
     def _sample_target_and_blocks(self, count: int) -> tuple[tuple[float, float], list[tuple[float, float]]]:
@@ -226,8 +247,8 @@ class MuJoCoSO101:
                 x, y = self._sample_spawn_xy()
                 cand = (x, y)
                 best = cand
-                far_from_target = np.hypot(x - target_xy[0], y - target_xy[1]) >= self.TARGET_MIN_SEP
-                if far_from_target and all(np.hypot(x - px, y - py) >= self.BLOCK_MIN_SEP for px, py in positions):
+                far_from_target = np.hypot(x - target_xy[0], y - target_xy[1]) >= self._target_min_sep
+                if far_from_target and all(np.hypot(x - px, y - py) >= self._block_min_sep for px, py in positions):
                     positions.append(cand)
                     break
             else:
@@ -345,6 +366,14 @@ class MuJoCoSO101:
             "_substeps": self._substeps,
             "_enable_viewer": self._enable_viewer,
             "_cameras": [asdict(cam) for cam in self._cameras],
+            "_free_joints": self._free_joints,
+            "_target_body_name": self._target_body_name,
+            "_spawn_center": self._spawn_center,
+            "_spawn_min_r": self._spawn_min_r,
+            "_spawn_max_r": self._spawn_max_r,
+            "_spawn_angle_half_deg": self._spawn_angle_half_deg,
+            "_block_min_sep": self._block_min_sep,
+            "_target_min_sep": self._target_min_sep,
         }
 
     def __setstate__(self, state: dict) -> None:
@@ -352,6 +381,14 @@ class MuJoCoSO101:
         self._substeps = state["_substeps"]
         self._enable_viewer = state.get("_enable_viewer", False)
         self._cameras = [CameraConfig(**cam) for cam in state.get("_cameras", [])]
+        self._free_joints = state.get("_free_joints", self.DEFAULT_BLOCK_FREEJOINTS)
+        self._target_body_name = state.get("_target_body_name", self.DEFAULT_TARGET_BODY_NAME)
+        self._spawn_center = state.get("_spawn_center", self.DEFAULT_SPAWN_CENTER)
+        self._spawn_min_r = state.get("_spawn_min_r", self.DEFAULT_SPAWN_MIN_R)
+        self._spawn_max_r = state.get("_spawn_max_r", self.DEFAULT_SPAWN_MAX_R)
+        self._spawn_angle_half_deg = state.get("_spawn_angle_half_deg", self.DEFAULT_SPAWN_ANGLE_HALF_DEG)
+        self._block_min_sep = state.get("_block_min_sep", self.DEFAULT_BLOCK_MIN_SEP)
+        self._target_min_sep = state.get("_target_min_sep", self.DEFAULT_TARGET_MIN_SEP)
         self._model = None
         self._data = None
         self._viewer = None

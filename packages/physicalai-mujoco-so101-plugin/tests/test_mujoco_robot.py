@@ -164,6 +164,14 @@ class TestMuJoCoSO101Pickling:
             "_substeps": 3,
             "_enable_viewer": False,
             "_cameras": [],
+            "_free_joints": ("block1:joint", "block2:joint", "block3:joint"),
+            "_target_body_name": "target",
+            "_spawn_center": (0.24, 0.0),
+            "_spawn_min_r": 0.08,
+            "_spawn_max_r": 0.34,
+            "_spawn_angle_half_deg": 125.0,
+            "_block_min_sep": 0.09,
+            "_target_min_sep": 0.11,
         }
 
     def test_getstate_after_connect(self, mock_mujoco: MagicMock) -> None:
