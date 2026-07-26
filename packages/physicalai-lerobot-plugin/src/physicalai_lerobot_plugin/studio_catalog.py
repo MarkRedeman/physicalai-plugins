@@ -180,6 +180,39 @@ class _LeRobotDynPayloadBase(BaseModel):
 
 # ── Payload model factory ──────────────────────────────────────────────────
 
+_REQUIRED_SENTINEL: Any = object()
+
+
+def _resolve_field_type(
+    f: dataclasses.Field[Any],
+) -> tuple[type, Any]:
+    """Resolve a dataclass field into a (pydantic_type, default) pair.
+
+    Nullable strings (``str | None``) are flattened to plain ``str`` with
+    ``default=""`` so the JSON Schema uses ``type: string`` instead of
+    ``anyOf: [string, null]`` — the latter is not cleanly rendered by the
+    Physical AI Studio form UI.
+
+    Returns:
+        A tuple of (pydantic_type, default_value).
+    """
+    origin = get_origin(f.type)
+    is_nullable_str = origin in {Union, types.UnionType} and get_args(f.type) == (str, type(None))
+
+    if is_nullable_str:
+        pydantic_type = str
+        default_val = f.default if f.default is not dataclasses.MISSING and f.default is not None else ""
+    else:
+        pydantic_type = f.type
+        if f.default is not dataclasses.MISSING:
+            default_val = f.default
+        elif f.default_factory is not dataclasses.MISSING:
+            default_val = f.default_factory()
+        else:
+            default_val = _REQUIRED_SENTINEL
+
+    return pydantic_type, default_val
+
 
 def _make_payload_model(config_cls: type) -> type[BaseModel]:
     """Dynamically create a Pydantic payload model from a lerobot ``RobotConfig``.
@@ -201,13 +234,13 @@ def _make_payload_model(config_cls: type) -> type[BaseModel]:
     for f in dataclasses.fields(config_cls):
         if not _is_simple_scalar(f.type):
             continue
-        pydantic_type = f.type
-        if f.default is not dataclasses.MISSING:
-            field_defs[f.name] = (pydantic_type, Field(default=f.default, description=f.name))
-        elif f.default_factory is not dataclasses.MISSING:
-            field_defs[f.name] = (pydantic_type, Field(default_factory=f.default_factory, description=f.name))
-        else:
+
+        pydantic_type, default_val = _resolve_field_type(f)
+
+        if default_val is _REQUIRED_SENTINEL:
             field_defs[f.name] = (pydantic_type, Field(..., description=f.name))
+        else:
+            field_defs[f.name] = (pydantic_type, Field(default=default_val, description=f.name))
 
     return create_model(
         f"{config_cls.__name__}Payload",
