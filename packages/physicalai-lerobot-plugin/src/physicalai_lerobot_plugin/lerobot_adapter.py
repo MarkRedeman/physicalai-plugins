@@ -18,6 +18,7 @@ from physicalai_lerobot_plugin.constants import VALID_ROLES
 
 if TYPE_CHECKING:
     from lerobot.robots.robot import Robot as LeRobotRobot
+    from lerobot.teleoperators.teleoperator import Teleoperator
     from physicalai.capture.frame import Frame
     from physicalai.robot.interface import RobotObservation
 
@@ -239,3 +240,174 @@ class LeRobotAdapter:
             action_dict[key] = float(action[i])
 
         self._robot.send_action(action_dict)
+
+
+class LeRobotTeleoperatorAdapter:
+    """Wraps a lerobot ``Teleoperator`` into PhysicalAI's ``Robot`` protocol.
+
+    Teleoperators produce actions (e.g. from a human guiding a leader arm) and
+    can receive feedback.  This adapter maps:
+    * ``teleoperator.get_action()`` → ``get_observation()``
+    * ``teleoperator.send_feedback()`` → ``send_action()`` (follower role only)
+
+    In leader role the adapter exposes the teleoperator's state as a read-only
+    observation source — ``send_action()`` raises ``RuntimeError``.
+    """
+
+    def __init__(
+        self,
+        teleoperator: Teleoperator,
+        *,
+        role: Literal["leader", "follower"] = "leader",
+    ) -> None:
+        """Initialize the teleoperator adapter.
+
+        Args:
+            teleoperator: A lerobot Teleoperator instance to wrap.
+            role: ``"leader"`` (read-only, default) or ``"follower"`` (full).
+
+        Raises:
+            ValueError: If role is invalid.
+        """
+        if role not in VALID_ROLES:
+            msg = f"Invalid role {role!r}. Must be one of {sorted(VALID_ROLES)}."
+            raise ValueError(msg)
+
+        self._teleop = teleoperator
+        self._role = role
+        self._joint_order: list[str] | None = None
+        self._action_position_keys: list[str] | None = None
+        self._num_joints: int | None = None
+
+    def _ensure_joint_order(self, action: dict[str, Any]) -> None:
+        if self._joint_order is not None:
+            return
+        pos_keys = sorted(k for k in action if k.endswith(_POSITION_KEY_SUFFIX))
+        self._joint_order = [k[: -len(_POSITION_KEY_SUFFIX)] for k in pos_keys]
+        self._num_joints = len(self._joint_order)
+        self._action_position_keys = list(pos_keys)
+
+    def _require_joint_order(self) -> None:
+        if self._joint_order is None:
+            msg = "Joint order not yet discovered. Call connect() first."
+            raise RuntimeError(msg)
+
+    @property
+    def NUM_JOINTS(self) -> int:  # noqa: N802
+        """Number of joints (available after first observation)."""
+        self._require_joint_order()
+        return self._num_joints  # type: ignore[return-value]
+
+    @property
+    def joint_names(self) -> list[str]:
+        """Ordered joint names matching the position/action array."""
+        self._require_joint_order()
+        return self._joint_order  # type: ignore[return-value]
+
+    @property
+    def robot(self) -> Teleoperator:
+        """The wrapped lerobot Teleoperator instance."""
+        return self._teleop
+
+    def connect(self) -> None:
+        """Open the connection and discover joint order.
+
+        Idempotent — no-op if already connected.
+        Calls ``get_action()`` once to auto-detect joint names.
+
+        Raises:
+            ConnectionError: If the connection or initial observation fails.
+        """
+        if self.is_connected():
+            return
+        try:
+            self._teleop.connect()
+            action = self._teleop.get_action()
+            self._ensure_joint_order(action)
+        except Exception as e:
+            msg = f"Failed to connect LeRobot teleoperator {self._teleop}: {e}"
+            raise ConnectionError(msg) from e
+
+    def disconnect(self) -> None:
+        """Close the connection. Safe to call multiple times."""
+        if not self.is_connected():
+            return
+        try:
+            self._teleop.disconnect()
+        except Exception:  # noqa: BLE001
+            logger.exception("Error during LeRobot teleoperator disconnect")
+
+    def is_connected(self) -> bool:
+        """Check if the teleoperator is currently connected.
+
+        Returns:
+            True if connected.
+        """
+        return self._teleop.is_connected
+
+    def get_observation(self) -> RobotObservation:
+        """Read current teleoperator action and return as observation.
+
+        Joint order is auto-detected on the first call.
+
+        Returns:
+            LeRobotAdapterObservation with joint positions and sensor data.
+        """
+        action = self._teleop.get_action()
+        self._ensure_joint_order(action)
+        self._require_joint_order()
+
+        positions = np.array(
+            [action[key] for key in self._action_position_keys],  # type: ignore[union-attr]
+            dtype=np.float32,
+        )
+
+        sensor_data: dict[str, np.ndarray] = {}
+        images: dict[str, Frame] = {}
+        key_set = set(self._action_position_keys)  # type: ignore[union-attr]
+        for key, value in action.items():
+            if key in key_set:
+                continue
+            if isinstance(value, np.ndarray) and value.ndim >= _DIM_THRESHOLD_IMAGE:
+                images[key] = cast("Frame", value)
+            elif isinstance(value, np.ndarray):
+                sensor_data[key] = value
+            elif isinstance(value, (int, float)):
+                sensor_data[key] = np.array([value], dtype=np.float32)
+
+        return LeRobotAdapterObservation(
+            joint_positions=positions,
+            timestamp=time.monotonic(),
+            sensor_data=sensor_data or None,
+            images=images or None,
+        )
+
+    def send_action(self, action: np.ndarray, *, goal_time: float = 0.1) -> None:
+        """Send a feedback command to the teleoperator.
+
+        In leader role this raises ``RuntimeError`` (read-only).
+        In follower role the action is forwarded as feedback to the teleoperator.
+
+        Args:
+            action: Array of shape ``(N,)`` matching ``joint_names`` order.
+            goal_time: Time to reach the goal in seconds (ignored).
+
+        Raises:
+            RuntimeError: If called in leader role or before ``connect()``.
+            ValueError: If action has incorrect shape.
+        """
+        _ = goal_time
+        if self._role == "leader":
+            msg = "Cannot send actions to a leader arm."
+            raise RuntimeError(msg)
+
+        self._require_joint_order()
+        if action.shape != (self._num_joints,):
+            msg = f"Expected action shape ({self._num_joints},), got {action.shape}"
+            raise ValueError(msg)
+
+        feedback_dict: dict[str, Any] = {}
+        for i, key in enumerate(self._action_position_keys):  # type: ignore[union-attr]
+            feedback_dict[key] = float(action[i])
+
+        self._teleop.send_feedback(feedback_dict)

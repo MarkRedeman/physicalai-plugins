@@ -2,7 +2,9 @@
 
 ## LeKiwi — Calibration Not Configurable
 
-**Problem:** `LeKiwiPayload.calibration` is typed as `dict[str, LeKiwiJointCalibrationPayload] | None`. This is a nested object containing per-joint calibration data (servo IDs, drive modes, homing offsets, tick range limits). The schema-driven form does not support nested objects or arrays, so this field defaults to `None` and is hidden from the UI.
+**Status: Unresolved**
+
+`LeKiwiPayload.calibration` is typed as `dict[str, LeKiwiJointCalibrationPayload] | None`. This is a nested object containing per-joint calibration data (servo IDs, drive modes, homing offsets, tick range limits). The schema-driven form does not support nested objects or arrays, so this field defaults to `None` and is hidden from the UI.
 
 **Impact:** A user configuring a LeKiwi follower through the Studio UI always starts in uncalibrated raw-ticks mode (`LeKiwi.uncalibrated(...)`). Calibrated operation with normalized units requires either a custom Studio workflow or programmatic payload construction.
 
@@ -15,29 +17,55 @@
 | **3. Calibration as a reference string** — Store a calibration file path or name in the payload instead of inline dict data. The builder loads from disk. | Low | Simple string field is renderable. | Calibration files must be pre-installed; indirection makes the payload non-self-describing. |
 | **4. Custom Studio workflow** — Add a named Studio workflow (`calibrate-lekiwi`) that provides a full calibration UI outside the schema form. | High | Full flexibility; calibration could include guided servo sweeps. | Requires React development in Studio; adds workflow infrastructure. |
 
-## LeRobot — List Fields Not Renderable
+## LeRobot — Dynamic Registration Resolved Gaps
 
-**Problem:** `LeRobotPayload` has required list fields (`joint_order: list[str]`) and optional list fields (`obs_position_keys`, `act_position_keys`) that the schema-driven form cannot render.
+The following gaps from the original implementation were resolved by rewriting the lerobot plugin:
 
-**Impact:** The `joint_order` field is required but cannot be set through the generic form UI. A user submitting the form will fail validation because `joint_order` is missing.
+| Gap | Resolution |
+|-----|-----------|
+| **List fields not renderable** (`joint_order`, `obs_position_keys`, `act_position_keys`) | `LeRobotAdapter` now auto-detects joint order from the lerobot observation dict keys ending in `.pos`. These fields were removed from the payload entirely. |
+| **Connection model ambiguity** | The dynamically generated payload models now use the same `connection_string`/`serial_number` device-selector pattern as the rebot plugin, with `device_discovery=True`. |
 
-**Possible approaches:**
+## LeRobot — Bimanual Robots Skipped
 
-| Approach | Effort | Upside | Downside |
-|----------|--------|--------|----------|
-| **1. Custom Studio workflow** — Add a workflow (`configure-lerobot`) that provides a full LeRobot configuration UI, including joint order selection and key mapping. | High | Full flexibility. | Requires React development; the workflow must exist before LeRobot can be configured. |
-| **2. Per-robot-type payloads** — Split into `SO100Payload` and `SO101Payload` with hardcoded `joint_order` and key defaults. The schema form only shows `robot_type`, `port`, and `serial_number`. | Medium | Clean separation; `joint_order` is never a user concern. | Requires separate builder functions for each type; payload model change. |
-| **3. String serialization** — Replace `joint_order` with a comma-separated `str` field, then parse in the builder. | Low | Simple string fields render fine. | Fragile format; no schema-level validation of joint names. |
+**Status: Deferred**
 
-## LeRobot — Connection Model Ambiguity
+Three lerobot bimanual robots are excluded from dynamic registration:
+- `bi_so_follower`
+- `bi_rebot_b601_follower`
+- `bi_openarm_follower`
 
-**Problem:** LeRobot adapters use a `port` field (serial path) rather than the dual `connection_string`/`serial_number` pattern used by serial robots. The current probe checks both `serial_number` and `port`, but the builder does not use `serial_number` for device discovery.
+These require nested `left_arm_config`/`right_arm_config` dataclass fields (typed as other `RobotConfig` subclasses) which the schema form cannot render. A custom Studio workflow (`configure-bimanual-lerobot`) would be needed to provide a UI that composes two sub-arm configs.
 
-**Impact:** The connection group is marked without `device_discovery`, so users must manually enter a port. The `serial_number` field is mostly decorative.
+## LeRobot — unitree_g1 (Humanoid) Deferred
+
+**Status: Deferred (planned for future inclusion)**
+
+`unitree_g1` is a full-body humanoid with 29 joints, simulation mode, and complex configuration (list-typed `kp`, `kd`, `default_positions`). Dedicated catalog entries for this robot should be added once the plugin and/or Studio supports its specific workflow requirements (IP configuration, simulation toggle, joint limit setup).
+
+## LeRobot — No URDF Assets
+
+**Status: Accepted limitation**
+
+Dynamically registered lerobot robots use `asset=None`. Most lerobot robots don't ship URDF files, and those that do have no standard discovery path. Over time, known robots could be mapped to bundled URDFs in the plugin or discovered from the lerobot package at registration time.
+
+## LeRobot — Network Robots with Serial Connection UI
+
+**Status: Minor UX friction**
+
+`reachy2` (IP-based) and `earthrover_mini_plus` (HTTP-based) are registered with the same serial device-selector connection fields. The device-selector won't find anything useful for these robots, but the fields are harmless — the builder simply doesn't override non-string `port` fields and the robots work with their lerobot defaults.
+
+## LeRobot — lerobot Config Fields Hidden by Default
+
+**Status: By design**
+
+All lerobot config fields with defaults (e.g. `disable_torque_on_disconnect: bool = True`, `use_degrees: bool = True`, `sdk_url: str = "http://localhost:8000"`) are initialized and submitted but not shown in the form. This follows the schema form convention in the handoff doc. A user who needs to change hidden fields requires programmatic payload construction or a custom workflow.
 
 ## General — No Identify Support
 
-**Problem:** All three plugin probes (ReBot, LeKiwi, LeRobot) have no-op `identify()` methods. The connection group metadata does not set `identify: True`.
+**Status: Unresolved**
+
+All three plugin probes (ReBot, LeKiwi, LeRobot) have no-op `identify()` methods. The connection group metadata does not set `identify: True`.
 
 **Impact:** The Studio UI never shows the "Identify" action button next to the connection selector.
 

@@ -28,6 +28,34 @@ class _FakeRegistry:
 # ── Registration tests ─────────────────────────────────────────────────────
 
 
+_LEROBOT_ROBOT_TYPES: list[str] = [
+    "so100_follower",
+    "so101_follower",
+    "koch_follower",
+    "omx_follower",
+    "hope_jr_hand",
+    "hope_jr_arm",
+    "openarm_follower",
+    "rebot_b601_follower",
+    "reachy2",
+    "earthrover_mini_plus",
+]
+
+# Robot types that have a corresponding leader teleoperator.
+_HAS_LEADER: set[str] = {
+    "so100_follower",
+    "so101_follower",
+    "koch_follower",
+    "omx_follower",
+    "openarm_follower",
+    "rebot_b601_follower",
+    "reachy2",
+}
+
+# Reuse the source mapping so tests stay in sync.
+from physicalai_lerobot_plugin.studio_catalog import _FOLLOWER_TO_LEADER as _FOLLOWER_TO_LEADER  # noqa: E402
+
+
 def test_register_plugin() -> None:
     from physicalai_lerobot_plugin.studio_catalog import register_physicalai_studio_plugin
 
@@ -35,17 +63,18 @@ def test_register_plugin() -> None:
     register_physicalai_studio_plugin(registry)
 
     assert registry.definitions is not None
+    # 10 followers + 7 leaders = 17
+    assert len(registry.definitions) == 17
+
     types = {d.type for d in registry.definitions}
-    assert "LeRobot_so100_follower" in types
-    assert "LeRobot_so101_follower" in types
-    assert "LeRobot_koch_follower" in types
-    assert "LeRobot_omx_follower" in types
-    assert "LeRobot_hope_jr_hand" in types
-    assert "LeRobot_hope_jr_arm" in types
-    assert "LeRobot_openarm_follower" in types
-    assert "LeRobot_rebot_b601_follower" in types
-    assert "LeRobot_reachy2" in types
-    assert "LeRobot_earthrover_mini_plus" in types
+    for robot_type in _LEROBOT_ROBOT_TYPES:
+        assert f"LeRobot_{robot_type}" in types
+        if robot_type in _HAS_LEADER:
+            # Leader type uses the teleoperator name
+            leader_type = _FOLLOWER_TO_LEADER[robot_type]
+            assert f"LeRobot_{leader_type}" in types
+        else:
+            assert f"LeRobot_{robot_type}_Leader" not in types
 
 
 def test_skip_list_excludes_bimanual_and_deferred() -> None:
@@ -56,11 +85,31 @@ def test_skip_list_excludes_bimanual_and_deferred() -> None:
 
     assert registry.definitions is not None
     types = {d.type for d in registry.definitions}
-    assert "LeRobot_bi_so_follower" not in types
-    assert "LeRobot_bi_rebot_b601_follower" not in types
-    assert "LeRobot_bi_openarm_follower" not in types
-    assert "LeRobot_lekiwi" not in types
-    assert "LeRobot_unitree_g1" not in types
+    for skipped in (
+        "LeRobot_bi_so_follower",
+        "LeRobot_bi_rebot_b601_follower",
+        "LeRobot_bi_openarm_follower",
+        "LeRobot_lekiwi",
+        "LeRobot_lekiwi_client",
+        "LeRobot_unitree_g1",
+        "LeRobot_mock_robot",
+    ):
+        assert skipped not in types
+
+
+def test_each_definition_has_correct_role() -> None:
+    from physicalai_lerobot_plugin.studio_catalog import register_physicalai_studio_plugin
+
+    registry = _FakeRegistry()
+    register_physicalai_studio_plugin(registry)
+
+    assert registry.definitions is not None
+    for d in registry.definitions:
+        role = d.role
+        assert role in {"follower", "leader"}
+        # Followers: type is LeRobot_{follower_name}
+        # Leaders: type is LeRobot_{teleop_name}
+        assert d.type.startswith("LeRobot_")
 
 
 # ── Dynamic payload model tests ────────────────────────────────────────────
@@ -171,8 +220,30 @@ def test_make_builder_config_kwargs() -> None:
 
     config_cls = RobotConfig.get_known_choices()["so100_follower"]
     payload_cls = _make_payload_model(config_cls)
-    builder = _make_builder(config_cls, payload_cls)
+    follower_builder = _make_builder(config_cls, payload_cls, role="follower")
+    assert callable(follower_builder)
 
+
+def test_make_teleop_builder_config_kwargs() -> None:
+    import importlib
+    import pkgutil
+
+    import lerobot.teleoperators
+
+    for _importer, modname, is_pkg in pkgutil.walk_packages(
+        lerobot.teleoperators.__path__,
+        prefix="lerobot.teleoperators.",
+    ):
+        if "config" in modname and not is_pkg:
+            importlib.import_module(modname)
+
+    from lerobot.teleoperators.config import TeleoperatorConfig
+
+    from physicalai_lerobot_plugin.studio_catalog import _make_payload_model, _make_teleop_builder
+
+    teleop_config_cls = TeleoperatorConfig.get_known_choices()["so100_leader"]
+    payload_cls = _make_payload_model(teleop_config_cls)
+    builder = _make_teleop_builder(teleop_config_cls, payload_cls, role="leader")
     assert callable(builder)
 
 
