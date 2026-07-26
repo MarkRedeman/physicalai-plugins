@@ -489,7 +489,7 @@ def _definitions() -> list[RobotCatalogDefinition]:
                 robot_builder=follower_builder,
                 robot_payload=payload_cls,
                 asset=None,
-                adapter_options=RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
+                adapter_options=RobotAdapterOptions(include_velocities=False, external_effort_gain=None),
                 probe=_LEROBOT_PROBE,
             ),
         )
@@ -508,7 +508,7 @@ def _definitions() -> list[RobotCatalogDefinition]:
                     robot_builder=leader_builder,
                     robot_payload=leader_payload_cls,
                     asset=None,
-                    adapter_options=RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
+                    adapter_options=RobotAdapterOptions(include_velocities=False, external_effort_gain=None),
                     probe=_LEROBOT_PROBE,
                 ),
             )
