@@ -286,6 +286,10 @@ class MuJoCoSO101:
         self._closing_viewer = True
         if self._viewer is not None:
             with contextlib.suppress(Exception):
+                import glfw
+
+                glfw.poll_events()
+            with contextlib.suppress(Exception):
                 self._viewer.close()
             self._viewer = None
 
