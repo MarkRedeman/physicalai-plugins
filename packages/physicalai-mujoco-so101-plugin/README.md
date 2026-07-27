@@ -39,7 +39,7 @@ Common options:
 
 - `--name <robot-name>`: transport name (must match Studio payload)
 - `--model <path>`: custom XML/URDF path (bypasses scene resolution)
-- `--scene <name>`: scene name (`pick_lift` or `pick_place`, default `pick_lift`)
+- `--scene <name>`: scene name (`single_pick_place`, `pick_lift`, or `pick_place`, default `single_pick_place`)
 - `--no-gui`: disable MuJoCo interactive viewer
 - `--no-cameras`: disable v4l2loopback camera output
 - `--wrist-video-id <int>`: video ID for wrist stream (default `60`)
@@ -126,7 +126,8 @@ The plugin ships with built-in scenes that provide different environments for th
 
 | Scene ID | Description | Free objects | Target |
 |----------|-------------|--------------|--------|
-| `pick_lift` (default) | Three colored cubes and a target disc | 3 cubes | target disc |
+| `single_pick_place` (default) | One block and a target disc | 1 cube | target disc |
+| `pick_lift` | Three colored cubes and a target disc | 3 cubes | target disc |
 | `pick_place` | A cube, a cylinder, and a target zone | cube + cylinder | target zone |
 
 Start with a specific scene:

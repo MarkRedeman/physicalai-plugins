@@ -131,6 +131,54 @@ def _pick_place_reset(model: object, data: object, rng: np.random.Generator) -> 
     mujoco.mj_forward(model, data)
 
 
+def _single_pick_place_reset(model: object, data: object, rng: np.random.Generator) -> None:
+    import mujoco
+
+    block_joints = ("block1:joint",)
+    target_body = "target"
+    center = (0.24, 0.0)
+    min_r, max_r = 0.08, 0.30
+    angle_half_deg = 125.0
+    block_min_sep, target_min_sep = 0.09, 0.11
+
+    def sample_xy():
+        r = float(rng.uniform(min_r, max_r))
+        theta = float(rng.uniform(-np.radians(angle_half_deg), np.radians(angle_half_deg)))
+        return (center[0] + r * np.cos(theta), center[1] + r * np.sin(theta))
+
+    tx, ty = sample_xy()
+    tid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, target_body)
+    if tid >= 0:
+        model.body_pos[tid] = [tx, ty, 0.001]
+
+    positions: list[tuple[float, float]] = []
+    for _ in block_joints:
+        best: tuple[float, float] | None = None
+        for _ in range(200):
+            x, y = sample_xy()
+            best = (x, y)
+            far_from_target = np.hypot(x - tx, y - ty) >= target_min_sep
+            if far_from_target:
+                positions.append((x, y))
+                break
+        else:
+            if best is not None:
+                positions.append(best)
+
+    for joint_name, (x, y) in zip(block_joints, positions, strict=True):
+        jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, joint_name)
+        if jid < 0:
+            continue
+        qpos_adr = int(model.jnt_qposadr[jid])
+        dof_adr = int(model.jnt_dofadr[jid])
+        yaw = float(rng.uniform(0.0, 2.0 * np.pi))
+        data.qpos[qpos_adr : qpos_adr + 3] = [x, y, 0.02]
+        data.qpos[qpos_adr + 3 : qpos_adr + 7] = [np.cos(yaw / 2.0), 0.0, 0.0, np.sin(yaw / 2.0)]
+        data.qvel[dof_adr : dof_adr + 6] = 0.0
+
+    mujoco.mj_forward(model, data)
+
+
 def _yahtzee_reset(model: object, data: object, rng: np.random.Generator) -> None:
     import mujoco
 
@@ -183,6 +231,14 @@ _SCENES: dict[str, SceneConfig] = {
         free_joints=("block1:joint", "block2:joint", "block3:joint"),
         target_bodies=("target",),
     ),
+    "single_pick_place": SceneConfig(
+        scene_id="single_pick_place",
+        display_name="Single Pick & Place",
+        description="One block and a target disc",
+        scene_xml_relpath="scenes/single_pick_place/scene.xml",
+        free_joints=("block1:joint",),
+        target_bodies=("target",),
+    ),
     "pick_place": SceneConfig(
         scene_id="pick_place",
         display_name="Pick & Place",
@@ -216,6 +272,7 @@ _SCENES: dict[str, SceneConfig] = {
 
 _RESET_FUNCTIONS: dict[str, ResetFn] = {
     "pick_lift": _pick_lift_reset,
+    "single_pick_place": _single_pick_place_reset,
     "pick_place": _pick_place_reset,
     "yahtzee": _yahtzee_reset,
 }

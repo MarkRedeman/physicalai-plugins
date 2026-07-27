@@ -56,8 +56,8 @@ def _build_parser() -> argparse.ArgumentParser:
     start.add_argument(
         "--scene",
         type=str,
-        default="pick_lift",
-        help="Scene name (default: pick_lift)",
+        default="single_pick_place",
+        help="Scene name (default: single_pick_place)",
     )
     start.add_argument(
         "--allow-remote",
