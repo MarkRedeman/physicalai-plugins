@@ -78,6 +78,7 @@ class MuJoCoSO101:
         self._rng = np.random.default_rng()
         self._pending_scene_switch: bool = False
         self._current_scene_id: str | None = None
+        self._scene_on_reset: object | None = None
 
         if scene_config is not None:
             self._free_joints: tuple[str, ...] = tuple(scene_config["free_joints"])
@@ -89,6 +90,9 @@ class MuJoCoSO101:
             self._block_min_sep: float = scene_config["block_min_sep"]
             self._target_min_sep: float = scene_config["target_min_sep"]
             self._current_scene_id = scene_config.get("scene_id")
+            if self._current_scene_id:
+                from physicalai_mujoco_so101_plugin.scene_registry import get_reset_fn
+                self._scene_on_reset = get_reset_fn(self._current_scene_id)
         else:
             self._free_joints: tuple[str, ...] = self.DEFAULT_BLOCK_FREEJOINTS
             self._target_body_name: str = self.DEFAULT_TARGET_BODY_NAME
@@ -270,6 +274,8 @@ class MuJoCoSO101:
         self._init_cameras()
 
         self._current_scene_id = scene_id
+        from physicalai_mujoco_so101_plugin.scene_registry import get_reset_fn
+        self._scene_on_reset = get_reset_fn(scene_id)
         logger.info(
             "Switched to scene '{}' ({} bodies, {} geoms, {} joints)",
             scene_id, new_model.nbody, new_model.ngeom, new_model.njnt,
@@ -310,8 +316,11 @@ class MuJoCoSO101:
             self._last_sim_time = current
             return
         if current + 1e-9 < self._last_sim_time:
-            logger.info("Viewer reset detected; randomizing blocks")
-            self._randomize_blocks()
+            logger.info("Viewer reset detected; randomizing")
+            if self._scene_on_reset is not None:
+                self._scene_on_reset(self._model, self._data, self._rng)
+            else:
+                self._randomize_blocks()
             if self._viewer is not None and self._viewer.is_running():
                 self._viewer.sync()
             current = float(self._data.time)
@@ -481,6 +490,11 @@ class MuJoCoSO101:
         self._block_min_sep = state.get("_block_min_sep", self.DEFAULT_BLOCK_MIN_SEP)
         self._target_min_sep = state.get("_target_min_sep", self.DEFAULT_TARGET_MIN_SEP)
         self._current_scene_id = state.get("_current_scene_id")
+        if self._current_scene_id:
+            from physicalai_mujoco_so101_plugin.scene_registry import get_reset_fn
+            self._scene_on_reset = get_reset_fn(self._current_scene_id)
+        else:
+            self._scene_on_reset = None
         self._model = None
         self._data = None
         self._viewer = None

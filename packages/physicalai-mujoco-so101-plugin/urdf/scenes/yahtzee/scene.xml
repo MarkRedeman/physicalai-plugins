@@ -1,0 +1,107 @@
+<?xml version="1.0"?>
+<mujoco model="yahtzee">
+  <compiler angle="radian" meshdir="../../so101/assets" autolimits="true"/>
+  <include file="../../so101/so101_robot_config.xml"/>
+
+  <asset>
+    <texture type="2d" name="wood_floor_tex" file="../../scenes/yahtzee/assets/wood_floor.png"/>
+    <material name="wood_floor" texture="wood_floor_tex" texrepeat="4 4" texuniform="true" reflectance="0.1"/>
+
+    <texture type="2d" name="df1" file="../../scenes/yahtzee/assets/die_face_1.png"/>
+    <texture type="2d" name="df2" file="../../scenes/yahtzee/assets/die_face_2.png"/>
+    <texture type="2d" name="df3" file="../../scenes/yahtzee/assets/die_face_3.png"/>
+    <texture type="2d" name="df4" file="../../scenes/yahtzee/assets/die_face_4.png"/>
+    <texture type="2d" name="df5" file="../../scenes/yahtzee/assets/die_face_5.png"/>
+    <texture type="2d" name="df6" file="../../scenes/yahtzee/assets/die_face_6.png"/>
+
+    <material name="die_face_1" texture="df1"/>
+    <material name="die_face_2" texture="df2"/>
+    <material name="die_face_3" texture="df3"/>
+    <material name="die_face_4" texture="df4"/>
+    <material name="die_face_5" texture="df5"/>
+    <material name="die_face_6" texture="df6"/>
+
+    <mesh name="cup_mesh" file="../../scenes/yahtzee/assets/cup.stl"/>
+    <material name="cup_material" rgba="0.5 0.25 0.1 1"/>
+  </asset>
+
+  <worldbody>
+    <light pos="1 1 3.5" dir="-0.227 -0.268 -0.936" directional="false" cutoff="25" exponent="1" diffuse="0.5 0.5 0.5"/>
+    <light pos="0 0 3.5" dir="0 0 -1" directional="true" diffuse="0.5 0.5 0.5" castshadow="false"/>
+
+    <geom name="floor" type="plane" size="0 0 0.01" pos="0 0 0" material="wood_floor" condim="3" friction="0.8 0.005 0.0001"/>
+
+    <body name="die1" pos="0.36 0.06 0.02" childclass="so101">
+      <joint type="free" name="die1:joint"/>
+      <geom type="box" size="0.010 0.010 0.010" mass="0.008" condim="3" friction="0.6 0.005 0.0001"/>
+      <geom type="box" size="0.0095 0.0095 0.0005" material="die_face_1" pos="0 0 0.0105" contype="0" conaffinity="0" group="1"/>
+      <geom type="box" size="0.0095 0.0095 0.0005" material="die_face_2" pos="0 0 -0.0105" contype="0" conaffinity="0" group="1"/>
+      <geom type="box" size="0.0005 0.0095 0.0095" material="die_face_3" pos="-0.0105 0 0" contype="0" conaffinity="0" group="1"/>
+      <geom type="box" size="0.0005 0.0095 0.0095" material="die_face_4" pos="0.0105 0 0" contype="0" conaffinity="0" group="1"/>
+      <geom type="box" size="0.0095 0.0005 0.0095" material="die_face_5" pos="0 0.0105 0" contype="0" conaffinity="0" group="1"/>
+      <geom type="box" size="0.0095 0.0005 0.0095" material="die_face_6" pos="0 -0.0105 0" contype="0" conaffinity="0" group="1"/>
+    </body>
+
+    <body name="die2" pos="0.26 -0.08 0.02" childclass="so101">
+      <joint type="free" name="die2:joint"/>
+      <geom type="box" size="0.010 0.010 0.010" mass="0.008" condim="3" friction="0.6 0.005 0.0001"/>
+      <geom type="box" size="0.0095 0.0095 0.0005" material="die_face_1" pos="0 0 0.0105" contype="0" conaffinity="0" group="1"/>
+      <geom type="box" size="0.0095 0.0095 0.0005" material="die_face_2" pos="0 0 -0.0105" contype="0" conaffinity="0" group="1"/>
+      <geom type="box" size="0.0005 0.0095 0.0095" material="die_face_3" pos="-0.0105 0 0" contype="0" conaffinity="0" group="1"/>
+      <geom type="box" size="0.0005 0.0095 0.0095" material="die_face_4" pos="0.0105 0 0" contype="0" conaffinity="0" group="1"/>
+      <geom type="box" size="0.0095 0.0005 0.0095" material="die_face_5" pos="0 0.0105 0" contype="0" conaffinity="0" group="1"/>
+      <geom type="box" size="0.0095 0.0005 0.0095" material="die_face_6" pos="0 -0.0105 0" contype="0" conaffinity="0" group="1"/>
+    </body>
+
+    <body name="die3" pos="0.38 -0.10 0.02" childclass="so101">
+      <joint type="free" name="die3:joint"/>
+      <geom type="box" size="0.010 0.010 0.010" mass="0.008" condim="3" friction="0.6 0.005 0.0001"/>
+      <geom type="box" size="0.0095 0.0095 0.0005" material="die_face_1" pos="0 0 0.0105" contype="0" conaffinity="0" group="1"/>
+      <geom type="box" size="0.0095 0.0095 0.0005" material="die_face_2" pos="0 0 -0.0105" contype="0" conaffinity="0" group="1"/>
+      <geom type="box" size="0.0005 0.0095 0.0095" material="die_face_3" pos="-0.0105 0 0" contype="0" conaffinity="0" group="1"/>
+      <geom type="box" size="0.0005 0.0095 0.0095" material="die_face_4" pos="0.0105 0 0" contype="0" conaffinity="0" group="1"/>
+      <geom type="box" size="0.0095 0.0005 0.0095" material="die_face_5" pos="0 0.0105 0" contype="0" conaffinity="0" group="1"/>
+      <geom type="box" size="0.0095 0.0005 0.0095" material="die_face_6" pos="0 -0.0105 0" contype="0" conaffinity="0" group="1"/>
+    </body>
+
+    <body name="die4" pos="0.22 0.12 0.02" childclass="so101">
+      <joint type="free" name="die4:joint"/>
+      <geom type="box" size="0.010 0.010 0.010" mass="0.008" condim="3" friction="0.6 0.005 0.0001"/>
+      <geom type="box" size="0.0095 0.0095 0.0005" material="die_face_1" pos="0 0 0.0105" contype="0" conaffinity="0" group="1"/>
+      <geom type="box" size="0.0095 0.0095 0.0005" material="die_face_2" pos="0 0 -0.0105" contype="0" conaffinity="0" group="1"/>
+      <geom type="box" size="0.0005 0.0095 0.0095" material="die_face_3" pos="-0.0105 0 0" contype="0" conaffinity="0" group="1"/>
+      <geom type="box" size="0.0005 0.0095 0.0095" material="die_face_4" pos="0.0105 0 0" contype="0" conaffinity="0" group="1"/>
+      <geom type="box" size="0.0095 0.0005 0.0095" material="die_face_5" pos="0 0.0105 0" contype="0" conaffinity="0" group="1"/>
+      <geom type="box" size="0.0095 0.0005 0.0095" material="die_face_6" pos="0 -0.0105 0" contype="0" conaffinity="0" group="1"/>
+    </body>
+
+    <body name="die5" pos="0.30 0.14 0.02" childclass="so101">
+      <joint type="free" name="die5:joint"/>
+      <geom type="box" size="0.010 0.010 0.010" mass="0.008" condim="3" friction="0.6 0.005 0.0001"/>
+      <geom type="box" size="0.0095 0.0095 0.0005" material="die_face_1" pos="0 0 0.0105" contype="0" conaffinity="0" group="1"/>
+      <geom type="box" size="0.0095 0.0095 0.0005" material="die_face_2" pos="0 0 -0.0105" contype="0" conaffinity="0" group="1"/>
+      <geom type="box" size="0.0005 0.0095 0.0095" material="die_face_3" pos="-0.0105 0 0" contype="0" conaffinity="0" group="1"/>
+      <geom type="box" size="0.0005 0.0095 0.0095" material="die_face_4" pos="0.0105 0 0" contype="0" conaffinity="0" group="1"/>
+      <geom type="box" size="0.0095 0.0005 0.0095" material="die_face_5" pos="0 0.0105 0" contype="0" conaffinity="0" group="1"/>
+      <geom type="box" size="0.0095 0.0005 0.0095" material="die_face_6" pos="0 -0.0105 0" contype="0" conaffinity="0" group="1"/>
+    </body>
+
+    <body name="die6" pos="0.30 -0.14 0.02" childclass="so101">
+      <joint type="free" name="die6:joint"/>
+      <geom type="box" size="0.010 0.010 0.010" mass="0.008" condim="3" friction="0.6 0.005 0.0001"/>
+      <geom type="box" size="0.0095 0.0095 0.0005" material="die_face_1" pos="0 0 0.0105" contype="0" conaffinity="0" group="1"/>
+      <geom type="box" size="0.0095 0.0095 0.0005" material="die_face_2" pos="0 0 -0.0105" contype="0" conaffinity="0" group="1"/>
+      <geom type="box" size="0.0005 0.0095 0.0095" material="die_face_3" pos="-0.0105 0 0" contype="0" conaffinity="0" group="1"/>
+      <geom type="box" size="0.0005 0.0095 0.0095" material="die_face_4" pos="0.0105 0 0" contype="0" conaffinity="0" group="1"/>
+      <geom type="box" size="0.0095 0.0005 0.0095" material="die_face_5" pos="0 0.0105 0" contype="0" conaffinity="0" group="1"/>
+      <geom type="box" size="0.0095 0.0005 0.0095" material="die_face_6" pos="0 -0.0105 0" contype="0" conaffinity="0" group="1"/>
+    </body>
+
+    <body name="cup" pos="0.30 0 0" childclass="so101">
+      <geom type="mesh" mesh="cup_mesh" material="cup_material" mass="0.02" condim="3" friction="0.5 0.005 0.0001"/>
+    </body>
+
+    <include file="../../so101/so101_robot_bodies.xml"/>
+    <camera name="overview" mode="fixed" pos="0.45 -0.20 0.75" xyaxes="0 1 0 -0.5 0 0.866" fovy="48"/>
+  </worldbody>
+</mujoco>
