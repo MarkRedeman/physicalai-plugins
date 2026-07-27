@@ -4,7 +4,6 @@ members = ["packages/*"]
 [tool.uv.sources]
 physicalai-studio-plugin = { git = "https://github.com/open-edge-platform/physical-ai-studio.git", subdirectory = "application/plugin", rev = "e24bf77765813742cb7076cbb4c228e1784eda81" }
 
-
 [dependency-groups]
 dev = ["pytest", "mypy", "ruff>=0.15.14", "prek", "pyrefly>=0.58.0"]
 
@@ -103,5 +102,11 @@ source = ["packages/*/src"]
 
 [tool.pyrefly]
 python-version = "3.12"
-search-path = ["packages/physicalai-rebot-b601-plugin/src"]
-project-includes = ["packages/physicalai-rebot-b601-plugin/src"]
+search-path = [
+    "packages/physicalai-bimanual-so101-plugin/src",
+    "packages/physicalai-rebot-b601-plugin/src",
+]
+project-includes = [
+    "packages/physicalai-bimanual-so101-plugin/src",
+    "packages/physicalai-rebot-b601-plugin/src",
+]
