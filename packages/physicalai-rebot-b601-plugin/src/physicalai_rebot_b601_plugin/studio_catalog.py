@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from physicalai.robot.interface import Robot as PhysicalAIRobot
 
     class _RobotCatalogRegistry(Protocol):
-        def register(self, definition: RobotCatalogDefinition) -> None: ...
+        def register_robot(self, definition: RobotCatalogDefinition) -> None: ...
 
 
 _REBOT_B601_DM_TO_URDF: dict[str, list[str]] = {
@@ -153,11 +153,20 @@ class ReBotProbe(RobotProbe[ReBotPayload]):
 _REBOT_PROBE = ReBotProbe()
 
 
-async def _build_rebot_b601_dm_driver(robot: PayloadContainer[object], factory: CatalogRobotFactory) -> PhysicalAIRobot:
+async def _build_rebot_b601_dm_driver(
+    robot: PayloadContainer[ReBotB601DMPayload],
+    factory: CatalogRobotFactory,
+) -> PhysicalAIRobot:
     raw = robot.payload
     validated = raw if isinstance(raw, ReBotB601DMPayload) else ReBotB601DMPayload.model_validate(raw)
     serial_number = validated.serial_number
-    port = await factory.find_port_by_serial(serial_number)
+    port = await factory.find_port(
+        SerialPortInfo(
+            connection_string=validated.connection_string,
+            serial_number=serial_number,
+        ),
+    )
+
     if port is None:
         msg = f"Robot not found: {serial_number}"
         raise RuntimeError(msg)
@@ -171,11 +180,19 @@ async def _build_rebot_b601_dm_driver(robot: PayloadContainer[object], factory: 
     )
 
 
-async def _build_rebot_arm102_driver(robot: PayloadContainer[object], factory: CatalogRobotFactory) -> PhysicalAIRobot:
+async def _build_rebot_arm102_driver(
+    robot: PayloadContainer[ReBotArm102Payload],
+    factory: CatalogRobotFactory,
+) -> PhysicalAIRobot:
     raw = robot.payload
     validated = raw if isinstance(raw, ReBotArm102Payload) else ReBotArm102Payload.model_validate(raw)
     serial_number = validated.serial_number
-    port = await factory.find_port_by_serial(serial_number)
+    serial = SerialPortInfo(
+        connection_string=validated.connection_string,
+        serial_number=serial_number,
+    )
+    port = await factory.find_port(serial)
+
     if port is None:
         msg = f"Robot not found: {serial_number}"
         raise RuntimeError(msg)
@@ -213,7 +230,14 @@ def _definitions() -> list[RobotCatalogDefinition]:
     ]
 
 
+def _assert_payload_model_resolvable(model: type[BaseModel]) -> None:
+    model.model_rebuild(_types_namespace=globals(), raise_errors=True)
+
+
 def register_physicalai_studio_plugin(registry: _RobotCatalogRegistry) -> None:
     """Register ReBot catalog entries with the Physical AI Studio registry."""
     for definition in _definitions():
-        registry.register(definition)
+        payload_model = definition.robot_payload
+        if isinstance(payload_model, type) and issubclass(payload_model, BaseModel):
+            _assert_payload_model_resolvable(payload_model)
+        registry.register_robot(definition)

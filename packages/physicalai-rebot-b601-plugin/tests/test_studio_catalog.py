@@ -9,7 +9,8 @@ class _StubFactory:
     def __init__(self, port: str | None = "/dev/ttyACM0") -> None:
         self._port = port
 
-    async def find_port_by_serial(self, serial_number: str) -> str | None:
+    async def find_port(self, serial_info: object) -> str | None:
+        _ = serial_info
         return self._port
 
 
@@ -22,11 +23,8 @@ class _FakeRegistry:
     def __init__(self) -> None:
         self.definitions: list = []
 
-    def register(self, definition: object) -> None:
+    def register_robot(self, definition: object) -> None:
         self.definitions.append(definition)
-
-    def register_many(self, definitions: list[object]) -> None:
-        self.definitions.extend(definitions)
 
 
 def test_definitions_count() -> None:
@@ -80,7 +78,7 @@ def test_definition_robot_type_property() -> None:
     from physicalai_rebot_b601_plugin.studio_catalog import _definitions
 
     for d in _definitions():
-        assert d.robot_type == d.type
+        assert d.type in {"ReBot_B601_DM_Follower", "ReBot_Arm102_Leader"}
 
 
 def test_dm_follower_has_robot_builder() -> None:
@@ -131,6 +129,13 @@ def test_rebot_arm102_payload_defaults() -> None:
     assert payload.unlock_on_connect is True
     assert payload.reset_multi_turn_on_connect is True
     assert payload.zero_on_connect is False
+
+
+def test_payload_models_rebuild() -> None:
+    from physicalai_rebot_b601_plugin.studio_catalog import ReBotArm102Payload, ReBotB601DMPayload
+
+    ReBotB601DMPayload.model_rebuild(raise_errors=True)
+    ReBotArm102Payload.model_rebuild(raise_errors=True)
 
 
 @pytest.mark.anyio
