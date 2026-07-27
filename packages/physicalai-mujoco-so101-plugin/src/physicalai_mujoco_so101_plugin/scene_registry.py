@@ -152,12 +152,20 @@ def _yahtzee_reset(model: object, data: object, rng: np.random.Generator) -> Non
         y = cy + float(rng.uniform(-cup_jitter, cup_jitter)) + r * float(np.sin(theta))
 
         yaw = float(rng.uniform(0.0, 2.0 * np.pi))
-        tilt = float(rng.uniform(-0.1, 0.1))
+        tilt = float(rng.uniform(-0.3, 0.3))
         c = np.cos(yaw / 2.0)
         s = np.sin(yaw / 2.0)
-        data.qpos[qpos_adr : qpos_adr + 3] = [x, y, 0.016]
+        drop_z = float(rng.uniform(0.12, 0.18))
+        data.qpos[qpos_adr : qpos_adr + 3] = [x, y, drop_z]
         data.qpos[qpos_adr + 3 : qpos_adr + 7] = [c * np.sin(tilt / 2.0), s * np.sin(tilt / 2.0), s * np.cos(tilt / 2.0), c * np.cos(tilt / 2.0)]
-        data.qvel[dof_adr : dof_adr + 6] = 0.0
+
+        vx = float(rng.uniform(-0.5, 0.5))
+        vy = float(rng.uniform(-0.5, 0.5))
+        vz = float(rng.uniform(-0.4, -0.05))
+        wx = float(rng.uniform(-15.0, 15.0))
+        wy = float(rng.uniform(-15.0, 15.0))
+        wz = float(rng.uniform(-8.0, 8.0))
+        data.qvel[dof_adr : dof_adr + 6] = [vx, vy, vz, wx, wy, wz]
 
     mujoco.mj_forward(model, data)
 
