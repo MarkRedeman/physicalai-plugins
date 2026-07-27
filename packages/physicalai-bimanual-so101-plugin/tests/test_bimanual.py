@@ -175,6 +175,32 @@ class TestBimanualSO101Lifecycle:
         robot.disconnect()
         assert not robot.is_connected()
 
+    def test_disconnect_attempts_both_arms_when_left_fails(self) -> None:
+        from physicalai_bimanual_so101_plugin.bimanual import BimanualSO101
+
+        class _FailingDisconnectSO101(_StubSO101):
+            def __init__(self, *, should_fail: bool) -> None:
+                super().__init__()
+                self.should_fail = should_fail
+                self.disconnect_calls = 0
+
+            def disconnect(self) -> None:
+                self.disconnect_calls += 1
+                if self.should_fail:
+                    msg = "disconnect failure"
+                    raise RuntimeError(msg)
+                super().disconnect()
+
+        left = _FailingDisconnectSO101(should_fail=True)
+        right = _FailingDisconnectSO101(should_fail=False)
+        robot = BimanualSO101(left=left, right=right)
+
+        with pytest.raises(RuntimeError, match="disconnect failure"):
+            robot.disconnect()
+
+        assert left.disconnect_calls == 1
+        assert right.disconnect_calls == 1
+
 
 class TestBimanualSO101Observation:
     def test_get_observation_shape(self) -> None:

@@ -102,9 +102,22 @@ class BimanualSO101(Robot):
             raise
 
     def disconnect(self) -> None:
-        """Disconnect both arms."""
-        self._left.disconnect()
-        self._right.disconnect()
+        """Disconnect both arms, attempting both even if one fails."""
+        first_error: Exception | None = None
+
+        try:
+            self._left.disconnect()
+        except Exception as exc:  # noqa: BLE001  # pragma: no cover - defensive against hardware failures
+            first_error = exc
+
+        try:
+            self._right.disconnect()
+        except Exception as exc:  # noqa: BLE001  # pragma: no cover - defensive against hardware failures
+            if first_error is None:
+                first_error = exc
+
+        if first_error is not None:
+            raise first_error
 
     def is_connected(self) -> bool:
         """Return ``True`` when both arms report connected."""

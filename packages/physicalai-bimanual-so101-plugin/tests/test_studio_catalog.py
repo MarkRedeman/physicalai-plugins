@@ -256,10 +256,20 @@ class TestBuilder:
 
 class TestProbe:
     @pytest.mark.anyio
-    async def test_is_online_no_manager(self) -> None:
+    async def test_is_online_no_manager(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from physicalai_bimanual_so101_plugin.studio_catalog import (
             BimanualSO101Payload,
             BimanualSO101Probe,
+        )
+
+        class _ListPortsStub:
+            @staticmethod
+            def comports() -> list[object]:
+                return []
+
+        monkeypatch.setattr(
+            "physicalai_bimanual_so101_plugin.studio_catalog.list_ports",
+            _ListPortsStub,
         )
 
         probe = BimanualSO101Probe()
