@@ -45,10 +45,10 @@ def _draw_dot(arr: np.ndarray, cx: float, cy: float, r: float, color: tuple[int,
     arr[mask] = color
 
 
-def _make_die_face(dots: list[tuple[float, float]], size: int = 64) -> np.ndarray:
-    img = np.full((size, size, 3), 240, dtype=np.uint8)
+def _make_die_face(dots: list[tuple[float, float]], size: int = 128) -> np.ndarray:
+    img = np.full((size, size, 3), 255, dtype=np.uint8)
     for cx, cy in dots:
-        _draw_dot(img, cx, cy, 0.12, (0, 0, 0))
+        _draw_dot(img, cx, cy, 0.18, (0, 0, 0))
     return img
 
 
@@ -75,40 +75,7 @@ for i, dots in enumerate(_DIE_FACES, 1):
 print("  done")
 
 
-# ---------------------------------------------------------------------------
-# Wood floor texture
-# ---------------------------------------------------------------------------
-
-def _make_wood_texture(size: int = 512) -> np.ndarray:
-    rng = np.random.default_rng(42)
-    img = np.zeros((size, size, 3), dtype=np.uint8)
-
-    base = np.array([160, 130, 90], dtype=np.uint8)
-
-    num_rings = 120
-    ring_positions = np.sort(rng.uniform(0, size * 1.1, num_rings))
-    ring_amplitudes = rng.uniform(2.0, 8.0, num_rings)
-    ring_phases = rng.uniform(0, 2 * np.pi, num_rings)
-
-    ys, xs = np.ogrid[:size, :size]
-    dist = np.sqrt((xs - size * 0.5) ** 2 + (ys - size * 0.3) ** 2)
-
-    noise = np.zeros((size, size), dtype=np.float32)
-    for i in range(num_rings):
-        noise += ring_amplitudes[i] * np.sin(dist * 0.3 + ring_positions[i] * 0.05 + ring_phases[i])
-
-    noise += rng.normal(0, 3.0, (size, size)).astype(np.float32)
-    noise = np.clip(noise, -30, 30)
-
-    for c in range(3):
-        img[:, :, c] = np.clip(base[c] + noise.astype(np.int16), 0, 255).astype(np.uint8)
-
-    return img
-
-
-print("Generating wood floor texture ...")
-_write_png(OUT / "wood_floor.png", _make_wood_texture())
-print("  done")
+print("NOTE: wood_floor.png comes from OpenGameArt.org (CC0) — re-download if missing")
 
 
 # ---------------------------------------------------------------------------

@@ -155,7 +155,7 @@ def _yahtzee_reset(model: object, data: object, rng: np.random.Generator) -> Non
         tilt = float(rng.uniform(-0.1, 0.1))
         c = np.cos(yaw / 2.0)
         s = np.sin(yaw / 2.0)
-        data.qpos[qpos_adr : qpos_adr + 3] = [x, y, 0.008]
+        data.qpos[qpos_adr : qpos_adr + 3] = [x, y, 0.016]
         data.qpos[qpos_adr + 3 : qpos_adr + 7] = [c * np.sin(tilt / 2.0), s * np.sin(tilt / 2.0), s * np.cos(tilt / 2.0), c * np.cos(tilt / 2.0)]
         data.qvel[dof_adr : dof_adr + 6] = 0.0
 
