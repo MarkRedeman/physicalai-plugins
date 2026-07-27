@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from physicalai.robot.interface import Robot as PhysicalAIRobot
 
     class _RobotCatalogRegistry(Protocol):
-        def register(self, definition: RobotCatalogDefinition) -> None: ...
+        def register_robot(self, definition: RobotCatalogDefinition) -> None: ...
 
 
 def _get_lerobot_urdf_root() -> Path:
@@ -134,7 +134,10 @@ def _make_lerobot_config(validated: LeRobotPayload) -> object:
     raise ValueError(msg)
 
 
-def _build_lerobot_driver(robot: PayloadContainer[object], role: Literal["follower", "leader"]) -> PhysicalAIRobot:
+def _build_lerobot_driver(
+    robot: PayloadContainer[LeRobotPayload],
+    role: Literal["follower", "leader"],
+) -> PhysicalAIRobot:
     from lerobot.robots import make_robot_from_config
 
     from physicalai_lerobot_plugin.lerobot_adapter import LeRobotAdapter
@@ -154,12 +157,18 @@ def _build_lerobot_driver(robot: PayloadContainer[object], role: Literal["follow
     )
 
 
-async def _build_lerobot_follower(robot: PayloadContainer[object], factory: CatalogRobotFactory) -> PhysicalAIRobot:
+async def _build_lerobot_follower(
+    robot: PayloadContainer[LeRobotPayload],
+    factory: CatalogRobotFactory,
+) -> PhysicalAIRobot:
     _ = factory
     return _build_lerobot_driver(robot, "follower")
 
 
-async def _build_lerobot_leader(robot: PayloadContainer[object], factory: CatalogRobotFactory) -> PhysicalAIRobot:
+async def _build_lerobot_leader(
+    robot: PayloadContainer[LeRobotPayload],
+    factory: CatalogRobotFactory,
+) -> PhysicalAIRobot:
     _ = factory
     return _build_lerobot_driver(robot, "leader")
 
@@ -199,4 +208,4 @@ def register_physicalai_studio_plugin(registry: _RobotCatalogRegistry) -> None:
         payload_model = definition.robot_payload
         if isinstance(payload_model, type) and issubclass(payload_model, BaseModel):
             _assert_payload_model_resolvable(payload_model)
-        registry.register(definition)
+        registry.register_robot(definition)
