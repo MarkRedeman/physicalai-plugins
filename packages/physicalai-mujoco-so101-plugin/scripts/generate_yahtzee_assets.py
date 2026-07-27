@@ -9,6 +9,11 @@ import numpy as np
 OUT = Path(__file__).resolve().parent.parent / "urdf" / "scenes" / "yahtzee" / "assets"
 OUT.mkdir(parents=True, exist_ok=True)
 
+# Wood texture from OpenGameArt.org: Tiny Texture Pack 2, wood_01-512x512.png
+# by Screaming Brain Studios, CC0 license.
+# Re-download from:
+#   https://opengameart.org/sites/default/files/oga-textures/134697/wood_01-512x512.png
+
 
 # ---------------------------------------------------------------------------
 # Minimal PNG writer (no external dependencies)
@@ -18,7 +23,7 @@ def _write_png(path: Path, data: np.ndarray) -> None:
     h, w, channels = data.shape
     raw = b""
     for y in range(h):
-        raw += b"\x00"  # filter byte (none)
+        raw += b"\x00"
         raw += data[y, :, :].tobytes()
     compressed = zlib.compress(raw)
 
@@ -27,13 +32,13 @@ def _write_png(path: Path, data: np.ndarray) -> None:
         return struct.pack(">I", len(cdata)) + c + struct.pack(">I", zlib.crc32(c) & 0xFFFFFFFF)
 
     sig = b"\x89PNG\r\n\x1a\n"
-    ihdr = struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0)  # 8-bit RGB
+    ihdr = struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0)
     iend = b""
     path.write_bytes(sig + chunk(b"IHDR", ihdr) + chunk(b"IDAT", compressed) + chunk(b"IEND", iend))
 
 
 # ---------------------------------------------------------------------------
-# Die face textures (white with black dots)
+# Dot drawing helpers
 # ---------------------------------------------------------------------------
 
 def _draw_dot(arr: np.ndarray, cx: float, cy: float, r: float, color: tuple[int, ...]) -> None:
@@ -45,99 +50,145 @@ def _draw_dot(arr: np.ndarray, cx: float, cy: float, r: float, color: tuple[int,
     arr[mask] = color
 
 
-def _make_die_face(dots: list[tuple[float, float]], size: int = 128) -> np.ndarray:
-    img = np.full((size, size, 3), 255, dtype=np.uint8)
+_DIE_FACES: list[list[tuple[float, float]]] = [
+    [(0.5, 0.5)],                                    # 1: centre
+    [(0.25, 0.75), (0.75, 0.25)],                    # 2: diagonal
+    [(0.25, 0.75), (0.5, 0.5), (0.75, 0.25)],       # 3: diagonal
+    [(0.25, 0.25), (0.75, 0.25), (0.25, 0.75), (0.75, 0.75)],           # 4: corners
+    [(0.25, 0.25), (0.75, 0.25), (0.5, 0.5), (0.25, 0.75), (0.75, 0.75)],  # 5: corners+centre
+    [(0.25, 0.1667), (0.25, 0.5), (0.25, 0.8333),
+     (0.75, 0.1667), (0.75, 0.5), (0.75, 0.8333)],  # 6: two columns of three
+]
+
+CELL = 128
+DOT_RADIUS = 0.12
+
+
+def _make_face(dots: list[tuple[float, float]]) -> np.ndarray:
+    img = np.full((CELL, CELL, 3), 255, dtype=np.uint8)
     for cx, cy in dots:
-        _draw_dot(img, cx, cy, 0.18, (0, 0, 0))
+        _draw_dot(img, cx, cy, DOT_RADIUS, (0, 0, 0))
     return img
 
 
-_DIE_FACES: list[list[tuple[float, float]]] = [
-    # 1: centre
-    [(0.5, 0.5)],
-    # 2: diagonal
-    [(0.25, 0.75), (0.75, 0.25)],
-    # 3: diagonal
-    [(0.25, 0.75), (0.5, 0.5), (0.75, 0.25)],
-    # 4: four corners
-    [(0.25, 0.25), (0.75, 0.25), (0.25, 0.75), (0.75, 0.75)],
-    # 5: four corners + centre
-    [(0.25, 0.25), (0.75, 0.25), (0.5, 0.5), (0.25, 0.75), (0.75, 0.75)],
-    # 6: two columns of three
-    [(0.25, 0.1667), (0.25, 0.5), (0.25, 0.8333),
-     (0.75, 0.1667), (0.75, 0.5), (0.75, 0.8333)],
-]
+# ---------------------------------------------------------------------------
+# Texture atlas — cross layout
+#
+#          [top:2]
+#   [left:4] [front:1] [right:3] [back:6]
+#         [bottom:5]
+# ---------------------------------------------------------------------------
 
-print("Generating die face textures ...")
-for i, dots in enumerate(_DIE_FACES, 1):
-    img = _make_die_face(dots)
-    _write_png(OUT / f"die_face_{i}.png", img)
-print("  done")
+print("Generating die texture atlas ...")
+ATLAS_W, ATLAS_H = CELL * 4, CELL * 3
+atlas = np.full((ATLAS_H, ATLAS_W, 3), 255, dtype=np.uint8)
 
+# cell positions (col, row) in 4×3 grid
+_cells = {
+    1: (1, 1),  # front
+    2: (1, 0),  # top
+    3: (2, 1),  # right
+    4: (0, 1),  # left
+    5: (1, 2),  # bottom
+    6: (3, 1),  # back
+}
 
-print("NOTE: wood_floor.png comes from OpenGameArt.org (CC0) — re-download if missing")
+for face_id, dots in enumerate(_DIE_FACES, 1):
+    face_img = _make_face(dots)
+    col, row = _cells[face_id]
+    y0, x0 = row * CELL, col * CELL
+    atlas[y0 : y0 + CELL, x0 : x0 + CELL] = face_img
+
+_write_png(OUT / "die_atlas.png", atlas)
+print("  die_atlas.png (512×384)")
+
+# Also save individual face PNGs (useful for reference)
+for face_id, dots in enumerate(_DIE_FACES, 1):
+    _write_png(OUT / f"die_face_{face_id}.png", _make_face(dots))
+print("  die_face_{1..6}.png done")
 
 
 # ---------------------------------------------------------------------------
-# Cup STL (binary)
+# Cube mesh with UV coordinates
+#
+# Half-size = 0.01, each face maps to its atlas cell.
+# UV coordinates are projected per-face (24 unshared vertices, 12 triangles).
 # ---------------------------------------------------------------------------
 
-def _write_binary_stl(path: Path, vertices: np.ndarray, faces: np.ndarray) -> None:
-    n = len(faces)
-    with path.open("wb") as f:
-        f.write(b"\x00" * 80)
-        f.write(struct.pack("<I", n))
-        for tri in faces:
-            v0, v1, v2 = vertices[tri]
-            normal = np.cross(v1 - v0, v2 - v0)
-            norm = np.linalg.norm(normal)
-            if norm > 0:
-                normal /= norm
-            f.write(struct.pack("<3f", *normal))
-            f.write(struct.pack("<3f", *v0))
-            f.write(struct.pack("<3f", *v1))
-            f.write(struct.pack("<3f", *v2))
-            f.write(struct.pack("<H", 0))
+print("Generating die_cube.obj ...")
 
+S = 0.01  # half-size
 
-def _make_cup_mesh(inner_r: float = 0.035, outer_r: float = 0.045,
-                   height: float = 0.06, segments: int = 24) -> tuple[np.ndarray, np.ndarray]:
-    verts: list[np.ndarray] = []
-    faces: list[list[int]] = []
+# Each vertex has a position and a UV.  We use 4 unique vertices per face
+# (24 total) so that each face gets the correct UV region of the atlas.
+# Vertex order per face: CCW when viewed from outside (outward-facing normals).
 
-    base_idx = len(verts)
-    for i in range(segments):
-        theta = 2.0 * np.pi * i / segments
-        ct, st = np.cos(theta), np.sin(theta)
-        verts.append(np.array([outer_r * ct, outer_r * st, 0.0]))
-        verts.append(np.array([inner_r * ct, inner_r * st, 0.0]))
-        verts.append(np.array([outer_r * ct, outer_r * st, height]))
-        verts.append(np.array([inner_r * ct, inner_r * st, height]))
+_face_verts: dict[int, list[tuple[float, float, float, float, float]]] = {
+    # face_id -> [(x, y, z, u, vt), ...]  4 corners
+    # front (+z): face 1
+    1: [
+        (-S, -S, S, 0.25, 0.33),
+        (S, -S, S, 0.50, 0.33),
+        (S, S, S, 0.50, 0.67),
+        (-S, S, S, 0.25, 0.67),
+    ],
+    # top (+y): face 2
+    2: [
+        (S, S, -S, 0.50, 0.00),
+        (-S, S, -S, 0.25, 0.00),
+        (-S, S, S, 0.25, 0.33),
+        (S, S, S, 0.50, 0.33),
+    ],
+    # right (+x): face 3
+    3: [
+        (S, -S, -S, 0.50, 0.33),
+        (S, S, -S, 0.75, 0.33),
+        (S, S, S, 0.75, 0.67),
+        (S, -S, S, 0.50, 0.67),
+    ],
+    # left (-x): face 4
+    4: [
+        (-S, S, -S, 0.25, 0.33),
+        (-S, -S, -S, 0.00, 0.33),
+        (-S, -S, S, 0.00, 0.67),
+        (-S, S, S, 0.25, 0.67),
+    ],
+    # bottom (-y): face 5
+    5: [
+        (-S, -S, -S, 0.25, 0.67),
+        (S, -S, -S, 0.50, 0.67),
+        (S, -S, S, 0.50, 1.00),
+        (-S, -S, S, 0.25, 1.00),
+    ],
+    # back (-z): face 6
+    6: [
+        (S, -S, -S, 0.75, 0.33),
+        (-S, -S, -S, 1.00, 0.33),
+        (-S, S, -S, 1.00, 0.67),
+        (S, S, -S, 0.75, 0.67),
+    ],
+}
 
-    for i in range(segments):
-        nxt = (i + 1) % segments
-        b0 = base_idx + i * 4
-        b1 = base_idx + nxt * 4
+# Write vertices and texcoords, then faces.
+# Each quad → 2 triangles: (0,1,2) and (2,3,0) — same winding for both.
+lines: list[str] = ["# Cube mesh — UV mapped to die_atlas.png\n", "o die_cube\n"]
+idx = 1
+for face_id in range(1, 7):
+    corners = _face_verts[face_id]
+    for tri in [(0, 1, 2), (2, 3, 0)]:
+        for ci in tri:
+            x, y, z, u, vt = corners[ci]
+            lines.append(f"v {x} {y} {z}\n")
+            lines.append(f"vt {u} {1.0 - vt}\n")
+            idx += 2  # we just wrote 2 lines
+lines.append("usemtl die_visual\ns off\n")
 
-        # outer wall
-        faces.append([b0 + 2, b1 + 0, b0 + 0])
-        faces.append([b0 + 2, b1 + 2, b1 + 0])
-        # inner wall (reverse winding)
-        faces.append([b0 + 1, b1 + 1, b0 + 3])
-        faces.append([b1 + 1, b1 + 3, b0 + 3])
-        # top ring
-        faces.append([b0 + 3, b1 + 2, b0 + 2])
-        faces.append([b0 + 3, b1 + 3, b1 + 2])
+for fi in range(12):
+    base = 1 + fi * 3
+    lines.append(f"f {base}/{base} {base+1}/{base+1} {base+2}/{base+2}\n")
 
-    vertices = np.array(verts)
-    faces_np = np.array(faces, dtype=np.int32)
-    return vertices, faces_np
-
-
-print("Generating cup STL ...")
-verts, faces = _make_cup_mesh()
-_write_binary_stl(OUT / "cup.stl", verts, faces)
-print("  done")
+(OUT / "die_cube.obj").write_text("".join(lines))
+print("  die_cube.obj done")
 
 
 print(f"\nAll assets written to {OUT}")
