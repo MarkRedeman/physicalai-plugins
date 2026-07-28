@@ -62,6 +62,10 @@
     </body>
 
     <include file="../../so101/so101_robot_bodies.xml"/>
-    <camera name="overview" mode="fixed" pos="0.25 0 0.80" xyaxes="0 -1 0 1 0 0" fovy="48"/>
+    <body name="overview_camera_rig" pos="-0.10 0 0.80" euler="-1.5707963267948966 -1.5707963267948966 0">
+      <body name="overview_camera_tilt" euler="1.00 0 0">
+        <camera name="overview" mode="fixed" fovy="50"/>
+      </body>
+    </body>
   </worldbody>
 </mujoco>
