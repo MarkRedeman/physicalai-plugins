@@ -57,7 +57,25 @@ Each entry is exposed as:
 - Payload models are generated from LeRobot config dataclasses, so fields can
   differ by robot type.
 
-### Payload fields
+### How payload fields are built
+
+Payload classes are generated dynamically from each LeRobot config dataclass.
+
+1. Base fields are always added:
+   - `connection_string: str = ""`
+   - `serial_number: str = ""`
+2. Scalar config fields are included from the selected LeRobot config:
+   - `str`, `int`, `float`, `bool`, `Literal[...]`, `Optional[str]`
+3. Complex fields are skipped:
+   - nested dataclasses, `dict[...]`, `list[...]`, and complex unions
+4. Required/default behavior:
+   - fields without dataclass defaults are required
+   - `Optional[str]` is flattened to `str` with `""` default for cleaner UI
+   - `id` is treated as required in the generated payload
+5. Validation rule:
+   - either `serial_number` or `connection_string` must be set
+
+### Common payload fields
 
 | Field                        | Type   | Required | Default | Description                                            |
 | ---------------------------- | ------ | -------- | ------- | ------------------------------------------------------ |
@@ -66,6 +84,46 @@ Each entry is exposed as:
 | Robot-specific config fields | varies | varies   | varies  | Scalar fields derived from the selected LeRobot config |
 
 Either `serial_number` or `connection_string` must be provided.
+
+### Payload examples
+
+#### 1) `LeRobot_so100_follower` (serial-number lookup)
+
+```json
+{
+  "serial_number": "SO100-ABC123",
+  "id": "so100-main",
+  "disable_torque_on_disconnect": true,
+  "use_degrees": true
+}
+```
+
+#### 2) `LeRobot_hope_jr_hand` (manual port + side)
+
+```json
+{
+  "connection_string": "/dev/ttyACM1",
+  "id": "hope-left-hand",
+  "port": "/dev/ttyACM1",
+  "side": "left",
+  "disable_torque_on_disconnect": true
+}
+```
+
+#### 3) `LeRobot_reachy2` (network-style options)
+
+```json
+{
+  "serial_number": "REACHY2-USB-01",
+  "id": "reachy2-lab",
+  "ip_address": "192.168.1.40",
+  "with_mobile_base": true,
+  "with_l_arm": true,
+  "with_r_arm": true,
+  "with_neck": true,
+  "disable_torque_on_disconnect": false
+}
+```
 
 ## Development
 
