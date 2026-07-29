@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from physicalai_studio_plugin import (
     CatalogRobotFactory,
@@ -24,22 +24,11 @@ from physicalai_lekiwi_plugin.calibration import LeKiwiCalibration
 
 if TYPE_CHECKING:
     from typing import Protocol
-    from uuid import UUID
 
     from physicalai.robot.interface import Robot as PhysicalAIRobot
 
     class _RobotCatalogRegistry(Protocol):
-        def register(self, definition: RobotCatalogDefinition) -> None: ...
-
-    class _CalibrationValue(Protocol):
-        id: int
-        drive_mode: int
-        homing_offset: int
-        range_min: int
-        range_max: int
-
-    class _CalibrationData(Protocol):
-        values: dict[str, _CalibrationValue]
+        def register_robot(self, definition: RobotCatalogDefinition) -> None: ...
 
 
 _LEKIWI_TO_URDF: dict[str, list[str]] = {
@@ -76,9 +65,19 @@ class LeKiwiPayload(BaseModel):
 
     connection_string: str = ""
     serial_number: str = Field(...)
-    calibration_id: UUID | None = None
+    calibration: dict[str, LeKiwiJointCalibrationPayload] | None = None
     baudrate: int = 1_000_000
     disable_torque_on_disconnect: bool = True
+
+
+class LeKiwiJointCalibrationPayload(BaseModel):
+    """Typed calibration payload for one LeKiwi joint."""
+
+    id: int
+    drive_mode: int
+    homing_offset: int
+    range_min: int
+    range_max: int
 
 
 class LeKiwiProbe(RobotProbe[LeKiwiPayload]):
@@ -126,37 +125,25 @@ class LeKiwiProbe(RobotProbe[LeKiwiPayload]):
 _LEKIWI_PROBE = LeKiwiProbe()
 
 
-def _calibration_to_lekiwi(calibration: object) -> LeKiwiCalibration:
-    validated = cast("_CalibrationData", calibration)
-    return LeKiwiCalibration.from_dict({
-        name: {
-            "id": val.id,
-            "drive_mode": val.drive_mode,
-            "homing_offset": val.homing_offset,
-            "range_min": val.range_min,
-            "range_max": val.range_max,
-        }
-        for name, val in validated.values.items()
-    })
+def _payload_calibration_to_lekiwi(
+    calibration: dict[str, LeKiwiJointCalibrationPayload],
+) -> LeKiwiCalibration:
+    return LeKiwiCalibration.from_dict({name: value.model_dump() for name, value in calibration.items()})
 
 
-async def _build_lekiwi_driver(robot: PayloadContainer[object], factory: CatalogRobotFactory) -> PhysicalAIRobot:
+async def _build_lekiwi_driver(robot: PayloadContainer[LeKiwiPayload], factory: CatalogRobotFactory) -> PhysicalAIRobot:
     raw = robot.payload
     validated = raw if isinstance(raw, LeKiwiPayload) else LeKiwiPayload.model_validate(raw)
 
     serial_number = validated.serial_number
-    port = await factory.find_port_by_serial(serial_number)
+    port = await factory.find_port(SerialPortInfo(connection_string=None, serial_number=serial_number))
     if port is None:
         msg = f"Robot not found: {serial_number}"
         raise RuntimeError(msg)
 
     calibration: LeKiwiCalibration | None = None
-    if validated.calibration_id is not None:
-        calibration_data = await factory.get_calibration_by_id(validated.calibration_id)
-        if calibration_data is None:
-            msg = f"Calibration not found: {validated.calibration_id}"
-            raise RuntimeError(msg)
-        calibration = _calibration_to_lekiwi(calibration_data)
+    if validated.calibration is not None:
+        calibration = _payload_calibration_to_lekiwi(validated.calibration)
 
     if calibration is not None:
         driver = LeKiwi(
@@ -177,12 +164,12 @@ async def _build_lekiwi_driver(robot: PayloadContainer[object], factory: Catalog
     return driver
 
 
-async def _build_lekiwi_leader(robot: PayloadContainer[object], factory: CatalogRobotFactory) -> PhysicalAIRobot:
+async def _build_lekiwi_leader(robot: PayloadContainer[LeKiwiPayload], factory: CatalogRobotFactory) -> PhysicalAIRobot:
     raw = robot.payload
     validated = raw if isinstance(raw, LeKiwiPayload) else LeKiwiPayload.model_validate(raw)
 
     serial_number = validated.serial_number
-    port = await factory.find_port_by_serial(serial_number)
+    port = await factory.find_port(SerialPortInfo(connection_string=None, serial_number=serial_number))
     if port is None:
         msg = f"Robot not found: {serial_number}"
         raise RuntimeError(msg)
@@ -219,7 +206,14 @@ def _definitions() -> list[RobotCatalogDefinition]:
     ]
 
 
+def _assert_payload_model_resolvable(model: type[BaseModel]) -> None:
+    model.model_rebuild(_types_namespace=globals(), raise_errors=True)
+
+
 def register_physicalai_studio_plugin(registry: _RobotCatalogRegistry) -> None:
     """Register LeKiwi catalog entries with the Physical AI Studio registry."""
     for definition in _definitions():
-        registry.register(definition)
+        payload_model = definition.robot_payload
+        if isinstance(payload_model, type) and issubclass(payload_model, BaseModel):
+            _assert_payload_model_resolvable(payload_model)
+        registry.register_robot(definition)

@@ -8,13 +8,14 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 import pytest
+from pydantic import ValidationError
 
 
 @dataclass
 class _FakeRegistry:
     definitions: list[object] | None = None
 
-    def register(self, definition: object) -> None:
+    def register_robot(self, definition: object) -> None:
         if self.definitions is None:
             self.definitions = []
         self.definitions.append(definition)
@@ -57,11 +58,72 @@ def test_payload_model() -> None:
     assert payload.connection_string == ""
 
 
+def test_payload_with_calibration() -> None:
+    from physicalai_lekiwi_plugin.studio_catalog import LeKiwiPayload
+
+    payload = LeKiwiPayload(
+        serial_number="12345",
+        calibration={
+            "arm_shoulder_pan": {
+                "id": 1,
+                "drive_mode": 0,
+                "homing_offset": 2048,
+                "range_min": 100,
+                "range_max": 4000,
+            },
+            "arm_shoulder_lift": {
+                "id": 2,
+                "drive_mode": 1,
+                "homing_offset": 1024,
+                "range_min": 200,
+                "range_max": 3900,
+            },
+            "arm_elbow_flex": {
+                "id": 3,
+                "drive_mode": 0,
+                "homing_offset": 1024,
+                "range_min": 150,
+                "range_max": 3800,
+            },
+            "arm_wrist_flex": {
+                "id": 4,
+                "drive_mode": 1,
+                "homing_offset": 1024,
+                "range_min": 150,
+                "range_max": 3800,
+            },
+            "arm_wrist_roll": {
+                "id": 5,
+                "drive_mode": 0,
+                "homing_offset": 1024,
+                "range_min": 150,
+                "range_max": 3800,
+            },
+            "arm_gripper": {
+                "id": 6,
+                "drive_mode": 1,
+                "homing_offset": 1024,
+                "range_min": 300,
+                "range_max": 3500,
+            },
+        },
+    )
+
+    assert payload.calibration is not None
+    assert payload.calibration["arm_shoulder_pan"].id == 1
+
+
 def test_payload_requires_serial() -> None:
     from physicalai_lekiwi_plugin.studio_catalog import LeKiwiPayload
 
-    with pytest.raises(Exception):  # noqa: B017, PT011
+    with pytest.raises(ValidationError):
         LeKiwiPayload()
+
+
+def test_payload_model_rebuild() -> None:
+    from physicalai_lekiwi_plugin.studio_catalog import LeKiwiPayload
+
+    LeKiwiPayload.model_rebuild(raise_errors=True)
 
 
 def test_urdf_path_exists() -> None:
