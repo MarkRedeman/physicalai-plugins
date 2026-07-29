@@ -23,8 +23,10 @@ from physicalai_studio_plugin import (
     RobotCatalogDefinition,
     RobotProbe,
     SerialPortInfo,
+    robot_field_ui,
+    robot_payload_ui,
 )
-from pydantic import BaseModel, Field, create_model, model_validator
+from pydantic import BaseModel, ConfigDict, Field, create_model, model_validator
 from serial.tools import list_ports
 
 if TYPE_CHECKING:
@@ -147,11 +149,48 @@ class _LeRobotDynPayloadBase(BaseModel):
     connection_string: str = Field(
         default="",
         description="Serial port path",
+        json_schema_extra=robot_field_ui({
+            "group": "connection",
+            "widget": "device-selector",
+            "device_value": "connection_string",
+            "manual_entry": True,
+        }),
     )
     serial_number: str = Field(
         default="",
         description="USB serial number",
+        json_schema_extra=robot_field_ui({
+            "group": "connection",
+            "widget": "device-selector",
+            "device_value": "serial_number",
+            "manual_entry": True,
+        }),
     )
+
+    model_config = ConfigDict(
+        json_schema_extra=robot_payload_ui({
+            "groups": {
+                "connection": {
+                    "title": "Connection",
+                    "device_discovery": True,
+                    "stable_key": "serial_number",
+                    "fallback_key": "connection_string",
+                },
+            },
+        }),
+    )
+
+    model_config = {
+        "json_schema_extra": {
+            "x-physicalai-ui": {
+                "groups": {
+                    "connection": {
+                        "device_discovery": True,
+                    },
+                },
+            },
+        },
+    }
 
     @model_validator(mode="after")
     def _validate_identifier(self) -> _LeRobotDynPayloadBase:
