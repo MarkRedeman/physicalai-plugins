@@ -147,24 +147,11 @@ class _LeRobotDynPayloadBase(BaseModel):
     connection_string: str = Field(
         default="",
         description="Serial port path",
-        json_schema_extra={"x-physicalai-ui": {"widget": "device-selector"}},
     )
     serial_number: str = Field(
         default="",
         description="USB serial number",
     )
-
-    model_config = {
-        "json_schema_extra": {
-            "x-physicalai-ui": {
-                "groups": {
-                    "connection": {
-                        "device_discovery": True,
-                    },
-                },
-            },
-        },
-    }
 
     @model_validator(mode="after")
     def _validate_identifier(self) -> _LeRobotDynPayloadBase:
