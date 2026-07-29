@@ -1,8 +1,14 @@
 # physicalai-lerobot-plugin
 
-An adapter plugin that wraps [LeRobot](https://github.com/huggingface/lerobot)-compatible robots into the
-[PhysicalAI](https://github.com/openvinotoolkit/physicalai) Robot protocol so they can be driven from
-**Physical AI Studio**.
+`physicalai-lerobot-plugin` bridges
+[LeRobot](https://github.com/huggingface/lerobot) robot and teleoperator
+configs into the
+[PhysicalAI](https://github.com/openvinotoolkit/physicalai) Studio catalog.
+
+The intent of this package is to let Studio users select supported LeRobot
+hardware from a schema-driven UI, auto-resolve serial devices, and run them
+through a PhysicalAI-compatible adapter without writing robot-specific glue
+code.
 
 ## Installation
 
@@ -12,25 +18,54 @@ uv add physicalai-lerobot-plugin
 
 ## Usage
 
-The plugin registers `LeRobot_Follower` and `LeRobot_Leader` catalog entries with Studio.
-Configure a robot by providing its type, serial port, and joint order in the Studio UI payload.
+The plugin registers one catalog entry per supported LeRobot follower robot,
+plus leader entries for follower types that have a matching LeRobot
+teleoperator.
 
-### Supported robot types
+Each entry is exposed as:
 
-- `so100_follower` — SO-100 arm (6-DOF shoulder+elbow+wrist+gripper)
-- `so101_follower` — SO-101 arm (6-DOF shoulder+elbow+wrist+gripper)
+- follower type: `LeRobot_<follower_type>`
+- leader type: `LeRobot_<leader_teleoperator_type>`
+
+### Supported followers
+
+- `so100_follower`
+- `so101_follower`
+- `koch_follower`
+- `omx_follower`
+- `hope_jr_hand`
+- `hope_jr_arm`
+- `openarm_follower`
+- `rebot_b601_follower`
+- `reachy2`
+- `earthrover_mini_plus`
+
+### Supported leader teleoperators
+
+- `so100_leader` (for `so100_follower`)
+- `so101_leader` (for `so101_follower`)
+- `koch_leader` (for `koch_follower`)
+- `omx_leader` (for `omx_follower`)
+- `openarm_leader` (for `openarm_follower`)
+- `rebot_102_leader` (for `rebot_b601_follower`)
+- `reachy2_teleoperator` (for `reachy2`)
+
+### Notes
+
+- Bimanual, test-only, and separately maintained robots are intentionally not
+  registered by this plugin.
+- Payload models are generated from LeRobot config dataclasses, so fields can
+  differ by robot type.
 
 ### Payload fields
 
-| Field                          | Type        | Required | Default                     | Description                                  |
-| ------------------------------ | ----------- | -------- | --------------------------- | -------------------------------------------- |
-| `robot_type`                   | `str`       | Yes      | —                           | LeRobot robot name (e.g. `"so100_follower"`) |
-| `port`                         | `str`       | Yes      | —                           | Serial port path (e.g. `"/dev/ttyACM0"`)     |
-| `joint_order`                  | `list[str]` | Yes      | —                           | Joint names in PhysicalAI order              |
-| `obs_position_keys`            | `list[str]` | No       | `["{name}.pos", ...]`       | Keys in the LeRobot observation dict         |
-| `act_position_keys`            | `list[str]` | No       | same as `obs_position_keys` | Keys in the LeRobot action dict              |
-| `disable_torque_on_disconnect` | `bool`      | No       | `True`                      | Whether to disable torque on disconnect      |
-| `serial_number`                | `str`       | No       | `""`                        | Serial number for port discovery             |
+| Field                        | Type   | Required | Default | Description                                            |
+| ---------------------------- | ------ | -------- | ------- | ------------------------------------------------------ |
+| `connection_string`          | `str`  | No       | `""`    | Serial device path (for example, `"/dev/ttyACM0"`)     |
+| `serial_number`              | `str`  | No       | `""`    | USB serial number for device discovery                 |
+| Robot-specific config fields | varies | varies   | varies  | Scalar fields derived from the selected LeRobot config |
+
+Either `serial_number` or `connection_string` must be provided.
 
 ## Development
 
