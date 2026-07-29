@@ -10,6 +10,8 @@ creating a typed Pydantic payload model for each from the lerobot
 from __future__ import annotations
 
 import dataclasses
+import importlib.machinery
+import sys
 import types
 from typing import TYPE_CHECKING, Any, Literal, Union, get_args, get_origin
 
@@ -38,13 +40,13 @@ if TYPE_CHECKING:
 # ── Robots to exclude from dynamic registration ────────────────────────────
 
 _ROBOTS_TO_SKIP: frozenset[str] = frozenset({
-    "bi_so_follower",                # bimanual — nested sub-arm configs
-    "bi_rebot_b601_follower",        # bimanual
-    "bi_openarm_follower",           # bimanual
-    "lekiwi",                        # separate dedicated plugin
-    "lekiwi_client",                 # separate dedicated plugin
-    "unitree_g1",                    # full-body humanoid (deferred)
-    "mock_robot",                    # test-only
+    "bi_so_follower",  # bimanual — nested sub-arm configs
+    "bi_rebot_b601_follower",  # bimanual
+    "bi_openarm_follower",  # bimanual
+    "lekiwi",  # separate dedicated plugin
+    "lekiwi_client",  # separate dedicated plugin
+    "unitree_g1",  # full-body humanoid (deferred)
+    "mock_robot",  # test-only
 })
 
 
@@ -66,6 +68,21 @@ _FOLLOWER_TO_LEADER: dict[str, str] = {
 _LEROBOT_CONFIGS_IMPORTED: bool = False
 
 
+def _ensure_optional_dependency_module_specs() -> None:
+    """Normalize optional dependency stubs in ``sys.modules`` for ``find_spec``.
+
+    Some tests inject ``MagicMock`` placeholders for optional hardware SDKs.
+    ``importlib.util.find_spec()`` raises ``ValueError`` when a loaded module's
+    ``__spec__`` is missing, so we attach a minimal ``ModuleSpec`` when needed.
+    """
+    for module_name in ("scservo_sdk", "motorbridge", "motorbridge_smart_servo"):
+        loaded = sys.modules.get(module_name)
+        if loaded is None:
+            continue
+        if not isinstance(getattr(loaded, "__spec__", None), importlib.machinery.ModuleSpec):
+            loaded.__spec__ = importlib.machinery.ModuleSpec(module_name, loader=None)
+
+
 def _ensure_lerobot_configs_imported() -> None:
     """Walk the ``lerobot.robots`` package and import every ``config_*`` module.
 
@@ -75,6 +92,7 @@ def _ensure_lerobot_configs_imported() -> None:
     global _LEROBOT_CONFIGS_IMPORTED  # noqa: PLW0603
     if _LEROBOT_CONFIGS_IMPORTED:
         return
+    _ensure_optional_dependency_module_specs()
     import importlib
     import pkgutil
 
@@ -129,11 +147,24 @@ class _LeRobotDynPayloadBase(BaseModel):
     connection_string: str = Field(
         default="",
         description="Serial port path",
+        json_schema_extra={"x-physicalai-ui": {"widget": "device-selector"}},
     )
     serial_number: str = Field(
         default="",
         description="USB serial number",
     )
+
+    model_config = {
+        "json_schema_extra": {
+            "x-physicalai-ui": {
+                "groups": {
+                    "connection": {
+                        "device_discovery": True,
+                    },
+                },
+            },
+        },
+    }
 
     @model_validator(mode="after")
     def _validate_identifier(self) -> _LeRobotDynPayloadBase:
@@ -234,6 +265,7 @@ def _ensure_lerobot_teleoperators_imported() -> None:
     global _LEROBOT_TELEOPERATORS_IMPORTED  # noqa: PLW0603
     if _LEROBOT_TELEOPERATORS_IMPORTED:
         return
+    _ensure_optional_dependency_module_specs()
     import importlib
     import pkgutil
 
@@ -266,10 +298,7 @@ def _make_builder(
     Returns:
         An async callable ``(robot, factory) -> PhysicalAIRobot``.
     """
-    has_str_port = any(
-        f.name == "port" and f.type is str
-        for f in dataclasses.fields(config_cls)
-    )
+    has_str_port = any(f.name == "port" and f.type is str for f in dataclasses.fields(config_cls))
 
     async def _build(
         robot: PayloadContainer[Any],
@@ -303,7 +332,10 @@ def _make_builder(
         lerobot_config = config_cls(**config_kwargs)
         lerobot_robot = make_robot_from_config(lerobot_config)
         return LeRobotAdapter(
-            config_cls, config_kwargs, role=role, _robot=lerobot_robot,
+            config_cls,
+            config_kwargs,
+            role=role,
+            _robot=lerobot_robot,
         )
 
     return _build
@@ -324,10 +356,7 @@ def _make_teleop_builder(
     Returns:
         An async callable ``(robot, factory) -> PhysicalAIRobot``.
     """
-    has_str_port = any(
-        f.name == "port" and f.type is str
-        for f in dataclasses.fields(config_cls)
-    )
+    has_str_port = any(f.name == "port" and f.type is str for f in dataclasses.fields(config_cls))
 
     async def _build(
         robot: PayloadContainer[Any],
@@ -363,7 +392,10 @@ def _make_teleop_builder(
         teleop_config = config_cls(**config_kwargs)
         teleoperator = make_teleoperator_from_config(teleop_config)
         return LeRobotTeleoperatorAdapter(
-            config_cls, config_kwargs, role=role, _teleoperator=teleoperator,
+            config_cls,
+            config_kwargs,
+            role=role,
+            _teleoperator=teleoperator,
         )
 
     return _build

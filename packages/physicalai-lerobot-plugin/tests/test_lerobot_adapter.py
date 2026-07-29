@@ -66,7 +66,6 @@ def mock_lerobot_robot() -> MagicMock:
 
 class TestLeRobotAdapterConstruction:
     def test_defaults(self, mock_lerobot_robot: MagicMock) -> None:
-        from physicalai_lerobot_plugin import LeRobotAdapter
 
         adapter = _make_adapter(mock_lerobot_robot)
 
@@ -75,7 +74,6 @@ class TestLeRobotAdapterConstruction:
             _ = adapter.NUM_JOINTS
 
     def test_invalid_role(self, mock_lerobot_robot: MagicMock) -> None:
-        from physicalai_lerobot_plugin import LeRobotAdapter
 
         with pytest.raises(ValueError, match="Invalid role"):
             _make_adapter(mock_lerobot_robot, role="invalid")
@@ -83,7 +81,6 @@ class TestLeRobotAdapterConstruction:
 
 class TestLeRobotAdapterLifecycle:
     def test_connect_and_disconnect(self, mock_lerobot_robot: MagicMock) -> None:
-        from physicalai_lerobot_plugin import LeRobotAdapter
 
         adapter = _make_adapter(mock_lerobot_robot)
 
@@ -96,7 +93,6 @@ class TestLeRobotAdapterLifecycle:
         assert not adapter.is_connected()
 
     def test_connect_is_idempotent(self, mock_lerobot_robot: MagicMock) -> None:
-        from physicalai_lerobot_plugin import LeRobotAdapter
 
         adapter = _make_adapter(mock_lerobot_robot)
 
@@ -105,7 +101,6 @@ class TestLeRobotAdapterLifecycle:
         assert mock_lerobot_robot.connect.call_count == 1
 
     def test_disconnect_is_idempotent(self, mock_lerobot_robot: MagicMock) -> None:
-        from physicalai_lerobot_plugin import LeRobotAdapter
 
         adapter = _make_adapter(mock_lerobot_robot)
 
@@ -116,7 +111,6 @@ class TestLeRobotAdapterLifecycle:
 
 class TestLeRobotAdapterAutoDetection:
     def test_connect_discovers_joint_order(self, mock_lerobot_robot: MagicMock) -> None:
-        from physicalai_lerobot_plugin import LeRobotAdapter
 
         adapter = _make_adapter(mock_lerobot_robot)
 
@@ -132,7 +126,6 @@ class TestLeRobotAdapterAutoDetection:
         assert adapter.NUM_JOINTS == 6
 
     def test_get_observation_auto_discovers(self, mock_lerobot_robot: MagicMock) -> None:
-        from physicalai_lerobot_plugin import LeRobotAdapter
 
         adapter = _make_adapter(mock_lerobot_robot)
 
@@ -144,7 +137,6 @@ class TestLeRobotAdapterAutoDetection:
         )
 
     def test_joint_names_autodetected_from_pos_suffix(self, mock_lerobot_robot: MagicMock) -> None:
-        from physicalai_lerobot_plugin import LeRobotAdapter
 
         custom_obs = {"j1.pos": 1.0, "j2.pos": 2.0, "j3.pos": 3.0}
         mock_lerobot_robot.get_observation.side_effect = None
@@ -159,7 +151,6 @@ class TestLeRobotAdapterAutoDetection:
         )
 
     def test_properties_raise_before_discovery(self, mock_lerobot_robot: MagicMock) -> None:
-        from physicalai_lerobot_plugin import LeRobotAdapter
 
         adapter = _make_adapter(mock_lerobot_robot)
 
@@ -172,7 +163,6 @@ class TestLeRobotAdapterAutoDetection:
 
 class TestLeRobotAdapterObservation:
     def test_observation_has_correct_structure(self, mock_lerobot_robot: MagicMock) -> None:
-        from physicalai_lerobot_plugin import LeRobotAdapter
 
         adapter = _make_adapter(mock_lerobot_robot)
 
@@ -185,7 +175,6 @@ class TestLeRobotAdapterObservation:
 
 class TestLeRobotAdapterAction:
     def test_send_action_follower(self, mock_lerobot_robot: MagicMock) -> None:
-        from physicalai_lerobot_plugin import LeRobotAdapter
 
         adapter = _make_adapter(mock_lerobot_robot)
         adapter.connect()
@@ -198,7 +187,6 @@ class TestLeRobotAdapterAction:
         mock_lerobot_robot.send_action.assert_called_once_with(expected_dict)
 
     def test_send_action_leader_raises(self, mock_lerobot_robot: MagicMock) -> None:
-        from physicalai_lerobot_plugin import LeRobotAdapter
 
         adapter = _make_adapter(mock_lerobot_robot, role="leader")
 
@@ -207,7 +195,6 @@ class TestLeRobotAdapterAction:
             adapter.send_action(action)
 
     def test_send_action_wrong_shape(self, mock_lerobot_robot: MagicMock) -> None:
-        from physicalai_lerobot_plugin import LeRobotAdapter
 
         adapter = _make_adapter(mock_lerobot_robot)
         adapter.connect()
@@ -217,7 +204,6 @@ class TestLeRobotAdapterAction:
             adapter.send_action(action)
 
     def test_send_action_raises_before_discovery(self, mock_lerobot_robot: MagicMock) -> None:
-        from physicalai_lerobot_plugin import LeRobotAdapter
 
         adapter = _make_adapter(mock_lerobot_robot)
         action = np.zeros(6, dtype=np.float32)

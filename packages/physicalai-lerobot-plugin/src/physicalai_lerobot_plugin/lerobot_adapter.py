@@ -17,8 +17,6 @@ from loguru import logger
 from physicalai_lerobot_plugin.constants import VALID_ROLES
 
 if TYPE_CHECKING:
-    from lerobot.robots.robot import Robot as LeRobotRobot
-    from lerobot.teleoperators.teleoperator import Teleoperator
     from physicalai.capture.frame import Frame
     from physicalai.robot.interface import RobotObservation
 
@@ -70,7 +68,7 @@ class LeRobotAdapter:
         config_kwargs: dict[str, Any],
         *,
         role: Literal["leader", "follower"] = "follower",
-        _robot: Any = None,
+        _robot: object | None = None,
     ) -> None:
         """Initialize the adapter.
 
@@ -89,7 +87,7 @@ class LeRobotAdapter:
         self._config_cls = config_cls
         self._config_kwargs = config_kwargs
         self._role = role
-        self._robot: Any = _robot
+        self._robot: object | None = _robot
         self._joint_order: list[str] | None = None
         self._obs_position_keys: list[str] | None = None
         self._act_position_keys: list[str] | None = None
@@ -101,6 +99,7 @@ class LeRobotAdapter:
                 self._ensure_joint_order(features)
 
     def __getstate__(self) -> dict[str, object]:
+        """Return pickle-safe state without the live lerobot instance."""
         return {
             "_config_cls": self._config_cls,
             "_config_kwargs": self._config_kwargs,
@@ -108,6 +107,7 @@ class LeRobotAdapter:
         }
 
     def __setstate__(self, state: dict[str, object]) -> None:
+        """Restore state and reset runtime-only members after unpickling."""
         self._config_cls = state["_config_cls"]
         self._config_kwargs = state["_config_kwargs"]
         self._role = state["_role"]
@@ -120,8 +120,7 @@ class LeRobotAdapter:
     def _ensure_robot(self) -> None:
         if self._robot is not None:
             return
-        from lerobot.robots import make_robot_from_config
-        from lerobot.robots.config import RobotConfig
+        from lerobot.robots import make_robot_from_config  # noqa: PLC0415
 
         lerobot_config = self._config_cls(**self._config_kwargs)
         self._robot = make_robot_from_config(lerobot_config)
@@ -139,9 +138,7 @@ class LeRobotAdapter:
             return
         pos_keys = sorted(k for k in obs if k.endswith(_POSITION_KEY_SUFFIX))
         if not pos_keys:
-            pos_keys = sorted(
-                k for k in obs if "position" in k.lower() or k.endswith("pos")
-            )
+            pos_keys = sorted(k for k in obs if "position" in k.lower() or k.endswith("pos"))
         self._joint_order = [k[: -len(_POSITION_KEY_SUFFIX)] for k in pos_keys]
         self._num_joints = len(self._joint_order)
         self._obs_position_keys = list(pos_keys)
@@ -154,10 +151,7 @@ class LeRobotAdapter:
             RuntimeError: If ``connect()`` has not been called.
         """
         if self._joint_order is None:
-            msg = (
-                "Joint order not yet discovered. Call connect() first "
-                "or ensure the robot has been observed."
-            )
+            msg = "Joint order not yet discovered. Call connect() first or ensure the robot has been observed."
             raise RuntimeError(msg)
 
     @property
@@ -173,7 +167,7 @@ class LeRobotAdapter:
         return self._joint_order  # type: ignore[return-value]
 
     @property
-    def robot(self) -> Any:
+    def robot(self) -> object | None:
         """The wrapped lerobot Robot instance (may be None before connect)."""
         return self._robot
 
@@ -304,7 +298,7 @@ class LeRobotTeleoperatorAdapter:
         config_kwargs: dict[str, Any],
         *,
         role: Literal["leader", "follower"] = "leader",
-        _teleoperator: Any = None,
+        _teleoperator: object | None = None,
     ) -> None:
         """Initialize the teleoperator adapter.
 
@@ -323,7 +317,7 @@ class LeRobotTeleoperatorAdapter:
         self._config_cls = config_cls
         self._config_kwargs = config_kwargs
         self._role = role
-        self._teleoperator: Any = _teleoperator
+        self._teleoperator: object | None = _teleoperator
         self._joint_order: list[str] | None = None
         self._action_position_keys: list[str] | None = None
         self._num_joints: int | None = None
@@ -334,6 +328,7 @@ class LeRobotTeleoperatorAdapter:
                 self._ensure_joint_order(features)
 
     def __getstate__(self) -> dict[str, object]:
+        """Return pickle-safe state without the live teleoperator instance."""
         return {
             "_config_cls": self._config_cls,
             "_config_kwargs": self._config_kwargs,
@@ -341,6 +336,7 @@ class LeRobotTeleoperatorAdapter:
         }
 
     def __setstate__(self, state: dict[str, object]) -> None:
+        """Restore state and reset runtime-only members after unpickling."""
         self._config_cls = state["_config_cls"]
         self._config_kwargs = state["_config_kwargs"]
         self._role = state["_role"]
@@ -352,7 +348,7 @@ class LeRobotTeleoperatorAdapter:
     def _ensure_teleoperator(self) -> None:
         if self._teleoperator is not None:
             return
-        from lerobot.teleoperators import make_teleoperator_from_config
+        from lerobot.teleoperators import make_teleoperator_from_config  # noqa: PLC0415
 
         teleop_config = self._config_cls(**self._config_kwargs)
         self._teleoperator = make_teleoperator_from_config(teleop_config)
@@ -383,7 +379,7 @@ class LeRobotTeleoperatorAdapter:
         return self._joint_order  # type: ignore[return-value]
 
     @property
-    def robot(self) -> Any:
+    def robot(self) -> object | None:
         """The wrapped lerobot Teleoperator instance (may be None before connect)."""
         return self._teleoperator
 

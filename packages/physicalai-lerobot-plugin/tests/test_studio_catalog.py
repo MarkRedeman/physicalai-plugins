@@ -53,7 +53,7 @@ _HAS_LEADER: set[str] = {
 }
 
 # Reuse the source mapping so tests stay in sync.
-from physicalai_lerobot_plugin.studio_catalog import _FOLLOWER_TO_LEADER as _FOLLOWER_TO_LEADER  # noqa: E402
+from physicalai_lerobot_plugin.studio_catalog import _FOLLOWER_TO_LEADER  # noqa: E402
 
 
 def test_register_plugin() -> None:
