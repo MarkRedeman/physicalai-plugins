@@ -46,7 +46,7 @@
       <geom type="box" size="0.0095 0.0095 0.0095" rgba="0 0 0 0" mass="0.008" condim="3" friction="0.4 0.005 0.0001"/>
       <geom type="mesh" mesh="die_cube" material="die_visual" group="2" contype="0" conaffinity="0" mass="0"/>
     </body>
-    <body name="cup" pos="0.30 0 0">
+    <body name="cup" pos="0.20 0.2 0">
       <joint type="free" name="cup:joint"/>
       <geom name="cup_bottom" type="cylinder" size="0.037 0.0025" pos="0 0 0.0025" material="cup_exterior" mass="0.116" condim="3" friction="0.7 0.005 0.0001"/>
       <geom name="cup_bottom_liner" type="cylinder" size="0.032 0.0002" pos="0 0 0.0052" material="cup_interior" mass="0" contype="0" conaffinity="0"/>
