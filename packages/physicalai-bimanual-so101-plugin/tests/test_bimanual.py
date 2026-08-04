@@ -118,6 +118,17 @@ class TestBimanualSO101Construction:
         assert BIMANUAL_SO101_JOINT_ORDER == robot.JOINT_ORDER
         assert robot.NUM_JOINTS == 12
 
+    def test_device_ids_are_sorted_and_deduplicated(self) -> None:
+        from physicalai_bimanual_so101_plugin.bimanual import BimanualSO101
+
+        left = _StubSO101(port="/dev/ttyACM1")
+        right = _StubSO101(port="/dev/ttyACM0")
+        left.device_ids = ("serial:shared", "serial:left")
+        right.device_ids = ("serial:right", "serial:shared")
+
+        robot = BimanualSO101(left=left, right=right)
+        assert robot.device_ids == ("serial:left", "serial:right", "serial:shared")
+
 
 class TestBimanualSO101Lifecycle:
     def test_connect_disconnect(self) -> None:

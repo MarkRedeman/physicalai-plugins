@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
+from physicalai.config import export_config
 from physicalai.robot import Robot
 
 from physicalai_bimanual_so101_plugin.constants import (
@@ -44,10 +45,11 @@ class BimanualSO101Observation:
 
     @property
     def state(self) -> np.ndarray:
-        """Return joint positions as the canonical state vector."""
+        """Joint positions as the canonical state vector."""
         return self.joint_positions
 
 
+@export_config(class_path="physicalai_bimanual_so101_plugin.BimanualSO101")
 class BimanualSO101(Robot):
     """Two-arm SO-101 driver composing a left and right :class:`SO101`.
 
@@ -82,12 +84,17 @@ class BimanualSO101(Robot):
 
     @property
     def role(self) -> str:
-        """Return the shared role of both arms."""
+        """Shared role of both arms."""
         return self._left.role
 
     @property
+    def device_ids(self) -> tuple[str, ...]:
+        """Sorted, deduplicated device identifiers for both arms."""
+        return tuple(sorted(set(self._left.device_ids) | set(self._right.device_ids)))
+
+    @property
     def joint_names(self) -> list[str]:
-        """Return prefixed joint names ordered as left arm then right arm."""
+        """Prefixed joint names ordered as left arm then right arm."""
         left_names = [f"left_{n}" for n in self._left.joint_names]
         right_names = [f"right_{n}" for n in self._right.joint_names]
         return left_names + right_names
