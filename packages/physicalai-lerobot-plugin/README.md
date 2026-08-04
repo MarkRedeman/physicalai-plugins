@@ -29,6 +29,9 @@ Each entry is exposed as:
 
 ### Supported followers
 
+- `bi_so_follower`
+- `bi_rebot_b601_follower`
+- `bi_openarm_follower`
 - `so100_follower`
 - `so101_follower`
 - `koch_follower`
@@ -39,6 +42,9 @@ Each entry is exposed as:
 - `rebot_b601_follower`
 - `reachy2`
 - `earthrover_mini_plus`
+- `unitree_g1`
+- `lekiwi`
+- `lekiwi_client`
 
 ### Supported leader teleoperators
 
@@ -52,8 +58,7 @@ Each entry is exposed as:
 
 ### Notes
 
-- Bimanual, test-only, and separately maintained robots are intentionally not
-  registered by this plugin.
+- Test-only robots are intentionally not registered by this plugin.
 - Payload models are generated from LeRobot config dataclasses, so fields can
   differ by robot type.
 
@@ -61,67 +66,59 @@ Each entry is exposed as:
 
 Payload classes are generated dynamically from each LeRobot config dataclass.
 
-1. Base fields are always added:
-   - `connection_string: str = ""`
-   - `serial_number: str = ""`
-2. Scalar config fields are included from the selected LeRobot config:
-   - `str`, `int`, `float`, `bool`, `Literal[...]`, `Optional[str]`
-3. Complex fields are skipped:
-   - nested dataclasses, `dict[...]`, `list[...]`, and complex unions
-4. Required/default behavior:
+1. Fields are derived directly from the selected LeRobot config dataclass.
+2. Complex fields are supported recursively:
+   - nested dataclasses, `dict[...]`, `list[...]`, tuples, optional/union types
+3. Required/default behavior:
    - fields without dataclass defaults are required
-   - `Optional[str]` is flattened to `str` with `""` default for cleaner UI
-   - `id` is treated as required in the generated payload
-5. Validation rule:
-   - either `serial_number` or `connection_string` must be set
+   - fields with defaults/factories are optional in payload
+4. Runtime endpoint resolution:
+   - `port` fields are resolved at build time through the Studio factory when
+     possible (including nested bimanual arm configs)
+   - payload schema itself does not add Studio-specific connection fields
 
 ### Common payload fields
 
-| Field                        | Type   | Required | Default | Description                                            |
-| ---------------------------- | ------ | -------- | ------- | ------------------------------------------------------ |
-| `connection_string`          | `str`  | No       | `""`    | Serial device path (for example, `"/dev/ttyACM0"`)     |
-| `serial_number`              | `str`  | No       | `""`    | USB serial number for device discovery                 |
-| Robot-specific config fields | varies | varies   | varies  | Scalar fields derived from the selected LeRobot config |
-
-Either `serial_number` or `connection_string` must be provided.
+There is no fixed cross-robot payload contract anymore. Fields come from the
+selected LeRobot config type.
 
 ### Payload examples
 
-#### 1) `LeRobot_so100_follower` (serial-number lookup)
+#### 1) `LeRobot_so100_follower`
 
 ```json
 {
-  "serial_number": "SO100-ABC123",
-  "id": "so100-main",
+  "port": "/dev/ttyACM0",
   "disable_torque_on_disconnect": true,
-  "use_degrees": true
+  "use_degrees": true,
+  "id": "so100-main"
 }
 ```
 
-#### 2) `LeRobot_hope_jr_hand` (manual port + side)
+#### 2) `LeRobot_hope_jr_hand`
 
 ```json
 {
-  "connection_string": "/dev/ttyACM1",
-  "id": "hope-left-hand",
   "port": "/dev/ttyACM1",
   "side": "left",
-  "disable_torque_on_disconnect": true
+  "disable_torque_on_disconnect": true,
+  "id": "hope-left-hand"
 }
 ```
 
-#### 3) `LeRobot_reachy2` (network-style options)
+#### 3) `LeRobot_bi_so_follower` (nested bimanual config)
 
 ```json
 {
-  "serial_number": "REACHY2-USB-01",
-  "id": "reachy2-lab",
-  "ip_address": "192.168.1.40",
-  "with_mobile_base": true,
-  "with_l_arm": true,
-  "with_r_arm": true,
-  "with_neck": true,
-  "disable_torque_on_disconnect": false
+  "left_arm_config": {
+    "port": "/dev/ttyACM0",
+    "disable_torque_on_disconnect": true
+  },
+  "right_arm_config": {
+    "port": "/dev/ttyACM1",
+    "disable_torque_on_disconnect": true
+  },
+  "id": "bi-so-main"
 }
 ```
 
