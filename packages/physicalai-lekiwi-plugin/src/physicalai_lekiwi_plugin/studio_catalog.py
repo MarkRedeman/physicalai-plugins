@@ -67,7 +67,7 @@ class LeKiwiPayload(BaseModel):
     serial_number: str = Field(...)
     calibration: dict[str, LeKiwiJointCalibrationPayload] | None = None
     baudrate: int = 1_000_000
-    disable_torque_on_disconnect: bool = False
+    disable_torque_on_disconnect: bool = True
 
 
 class LeKiwiJointCalibrationPayload(BaseModel):
@@ -133,6 +133,8 @@ def _payload_calibration_to_lekiwi(
 
 async def _build_lekiwi_driver(robot: PayloadContainer[LeKiwiPayload], factory: CatalogRobotFactory) -> PhysicalAIRobot:
     raw = robot.payload
+    if isinstance(raw, BaseModel) and type(raw) is not LeKiwiPayload:
+        raw = raw.model_dump()
     validated = raw if isinstance(raw, LeKiwiPayload) else LeKiwiPayload.model_validate(raw)
 
     serial_number = validated.serial_number
@@ -152,6 +154,7 @@ async def _build_lekiwi_driver(robot: PayloadContainer[LeKiwiPayload], factory: 
             role="follower",
             calibration=calibration,
             unit="normalized",
+            disable_torque_on_disconnect=validated.disable_torque_on_disconnect,
         )
     else:
         driver = LeKiwi.uncalibrated(
@@ -159,13 +162,15 @@ async def _build_lekiwi_driver(robot: PayloadContainer[LeKiwiPayload], factory: 
             baudrate=validated.baudrate,
             role="follower",
             unit="ticks",
+            disable_torque_on_disconnect=validated.disable_torque_on_disconnect,
         )
-    driver.torque_on_disconnect = not validated.disable_torque_on_disconnect
     return driver
 
 
 async def _build_lekiwi_leader(robot: PayloadContainer[LeKiwiPayload], factory: CatalogRobotFactory) -> PhysicalAIRobot:
     raw = robot.payload
+    if isinstance(raw, BaseModel) and type(raw) is not LeKiwiPayload:
+        raw = raw.model_dump()
     validated = raw if isinstance(raw, LeKiwiPayload) else LeKiwiPayload.model_validate(raw)
 
     serial_number = validated.serial_number
@@ -178,6 +183,7 @@ async def _build_lekiwi_leader(robot: PayloadContainer[LeKiwiPayload], factory: 
         port=port,
         baudrate=validated.baudrate,
         role="leader",
+        disable_torque_on_disconnect=validated.disable_torque_on_disconnect,
     )
 
 
