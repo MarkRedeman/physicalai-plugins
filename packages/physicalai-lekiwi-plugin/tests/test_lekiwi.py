@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, call, patch
 
 import numpy as np
 import pytest
+from physicalai.config import to_config
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -118,6 +119,39 @@ class TestLeKiwiConstruction:
     def test_custom_port(self, mock_scservo_sdk: MagicMock) -> None:
         robot = _create_robot(mock_scservo_sdk, port="/dev/ttyACM1")
         assert robot.port == "/dev/ttyACM1"
+
+    def test_exports_json_safe_constructor_recipe_and_device_identity(self, mock_scservo_sdk: MagicMock) -> None:
+        from physicalai_lekiwi_plugin.calibration import LeKiwiCalibration
+        from physicalai_lekiwi_plugin.constants import LEKIWI_JOINT_ORDER
+        from physicalai_lekiwi_plugin.lekiwi import LeKiwi
+
+        calibration = LeKiwiCalibration.from_dict({
+            name: {
+                "id": index,
+                "drive_mode": 0,
+                "homing_offset": 2048,
+                "range_min": 100,
+                "range_max": 4000,
+            }
+            for index, name in enumerate(LEKIWI_JOINT_ORDER, start=1)
+        })
+        robot = LeKiwi(
+            port="/dev/ttyACM1",
+            baudrate=115_200,
+            calibration=calibration,
+            disable_torque_on_disconnect=True,
+        )
+
+        assert robot.device_ids == ("lekiwi:/dev/ttyACM1",)
+        assert to_config(robot) == {
+            "class_path": "physicalai_lekiwi_plugin.lekiwi.LeKiwi",
+            "init_args": {
+                "port": "/dev/ttyACM1",
+                "baudrate": 115_200,
+                "calibration": calibration.to_dict(),
+                "disable_torque_on_disconnect": True,
+            },
+        }
 
 
 class TestLeKiwiLifecycle:

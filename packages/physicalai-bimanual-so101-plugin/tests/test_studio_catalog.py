@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 
 class _FakeRegistry:
@@ -192,6 +192,37 @@ class TestBuilder:
         factory = _StubFactory(port="/dev/ttyACM1")
         driver = await _build_bimanual_driver(robot, factory)
         assert driver is not None
+
+    @pytest.mark.anyio
+    async def test_build_from_foreign_pydantic_model(self) -> None:
+        from physicalai_bimanual_so101_plugin.studio_catalog import _build_bimanual_driver
+
+        class _ForeignPayload(BaseModel):
+            left_serial_number: str
+            right_serial_number: str
+
+        robot = _StubRobot(_ForeignPayload(left_serial_number="SN-L", right_serial_number="SN-R"))
+        driver = await _build_bimanual_driver(robot, _StubFactory())
+        assert driver.role == "follower"
+
+    @pytest.mark.anyio
+    async def test_catalog_builders_enforce_definition_roles(self) -> None:
+        from physicalai_bimanual_so101_plugin.studio_catalog import BimanualSO101Payload, _definitions
+
+        payload = BimanualSO101Payload(
+            left_serial_number="SN-L",
+            right_serial_number="SN-R",
+            role="leader",
+        )
+        robot = _StubRobot(payload)
+        factory = _StubFactory()
+        definitions = {definition.role: definition for definition in _definitions()}
+
+        follower = await definitions["follower"].robot_builder(robot, factory)
+        leader = await definitions["leader"].robot_builder(robot, factory)
+
+        assert follower.role == "follower"
+        assert leader.role == "leader"
 
     @pytest.mark.anyio
     async def test_build_left_port_not_found(self) -> None:

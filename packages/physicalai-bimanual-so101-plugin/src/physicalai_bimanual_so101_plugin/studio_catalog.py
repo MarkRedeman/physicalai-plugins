@@ -125,11 +125,15 @@ _BIMANUAL_PROBE = BimanualSO101Probe()
 async def _build_bimanual_driver(
     robot: PayloadContainer[BimanualSO101Payload],
     factory: CatalogRobotFactory,
+    *,
+    role: Literal["follower", "leader"] | None = None,
 ) -> PhysicalAIRobot:
     raw = robot.payload
+    if isinstance(raw, BaseModel) and type(raw) is not BimanualSO101Payload:
+        raw = raw.model_dump()
     validated = raw if isinstance(raw, BimanualSO101Payload) else BimanualSO101Payload.model_validate(raw)
 
-    role = validated.role
+    driver_role = validated.role if role is None else role
     baudrate = validated.baudrate
 
     left_port = await factory.find_port(
@@ -167,22 +171,36 @@ async def _build_bimanual_driver(
         left_arm = SO101(
             port=left_port,
             baudrate=baudrate,
-            role=role,
+            role=driver_role,
             calibration=SO101Calibration(joints=left_calibration),
             unit="normalized",
         )
         right_arm = SO101(
             port=right_port,
             baudrate=baudrate,
-            role=role,
+            role=driver_role,
             calibration=SO101Calibration(joints=right_calibration),
             unit="normalized",
         )
     else:
-        left_arm = SO101.uncalibrated(port=left_port, baudrate=baudrate, role=role, unit="ticks")
-        right_arm = SO101.uncalibrated(port=right_port, baudrate=baudrate, role=role, unit="ticks")
+        left_arm = SO101.uncalibrated(port=left_port, baudrate=baudrate, role=driver_role, unit="ticks")
+        right_arm = SO101.uncalibrated(port=right_port, baudrate=baudrate, role=driver_role, unit="ticks")
 
     return BimanualSO101(left=left_arm, right=right_arm)
+
+
+async def _build_bimanual_follower(
+    robot: PayloadContainer[BimanualSO101Payload],
+    factory: CatalogRobotFactory,
+) -> PhysicalAIRobot:
+    return await _build_bimanual_driver(robot, factory, role="follower")
+
+
+async def _build_bimanual_leader(
+    robot: PayloadContainer[BimanualSO101Payload],
+    factory: CatalogRobotFactory,
+) -> PhysicalAIRobot:
+    return await _build_bimanual_driver(robot, factory, role="leader")
 
 
 def _definitions() -> list[RobotCatalogDefinition]:
@@ -191,7 +209,7 @@ def _definitions() -> list[RobotCatalogDefinition]:
             type="BimanualSO101_Follower",
             display_name="Bimanual SO-101 Follower",
             role="follower",
-            robot_builder=_build_bimanual_driver,
+            robot_builder=_build_bimanual_follower,
             robot_payload=BimanualSO101Payload,
             asset=_BIMANUAL_SO101_ASSET,
             adapter_options=RobotAdapterOptions(include_velocities=False, external_effort_gain=None),
@@ -201,7 +219,7 @@ def _definitions() -> list[RobotCatalogDefinition]:
             type="BimanualSO101_Leader",
             display_name="Bimanual SO-101 Leader",
             role="leader",
-            robot_builder=_build_bimanual_driver,
+            robot_builder=_build_bimanual_leader,
             robot_payload=BimanualSO101Payload,
             asset=_BIMANUAL_SO101_ASSET,
             adapter_options=RobotAdapterOptions(include_velocities=False, external_effort_gain=None),

@@ -28,12 +28,42 @@ class LeKiwiJointCalibration:
         """Direction multiplier derived from drive mode."""
         return -1 if self.drive_mode == 1 else 1
 
+    def to_dict(self) -> dict[str, int]:
+        """Serialize this joint calibration to the LeRobot JSON format.
+
+        Returns:
+            JSON-compatible joint calibration fields.
+        """
+        return {
+            "id": self.id,
+            "drive_mode": self.drive_mode,
+            "homing_offset": self.homing_offset,
+            "range_min": self.range_min,
+            "range_max": self.range_max,
+        }
+
 
 @dataclass(frozen=True)
 class LeKiwiCalibration:
     """Calibration data for all LeKiwi joints."""
 
     joints: dict[str, LeKiwiJointCalibration]
+
+    def to_dict(self) -> dict[str, dict[str, int]]:
+        """Serialize calibration to a JSON-compatible mapping.
+
+        Returns:
+            Joint names mapped to JSON-compatible calibration fields.
+        """
+        return {name: joint.to_dict() for name, joint in self.joints.items()}
+
+    def to_config_value(self) -> dict[str, dict[str, int]]:
+        """Encode calibration for JSON-safe constructor replay.
+
+        Returns:
+            The constructor-compatible calibration mapping.
+        """
+        return self.to_dict()
 
     @classmethod
     def from_path(cls, path: str | Path) -> LeKiwiCalibration:

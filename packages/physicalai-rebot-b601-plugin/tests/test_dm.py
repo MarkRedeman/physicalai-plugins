@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, call, patch
 
 import numpy as np
 import pytest
+from physicalai.config import to_config
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -82,6 +83,15 @@ class TestReBotB601DMConstruction:
             "wrist_roll",
             "gripper",
         ]
+
+    def test_exports_recipe_and_device_identity(self, mock_motorbridge: MagicMock) -> None:
+        robot = _create_robot(mock_motorbridge, port="/dev/ttyACM1", can_adapter="socketcan")
+
+        assert robot.device_ids == ("rebot-dm:socketcan:/dev/ttyACM1",)
+        assert to_config(robot)["init_args"] == {
+            "port": "/dev/ttyACM1",
+            "can_adapter": "socketcan",
+        }
 
     def test_invalid_adapter_raises(self, mock_motorbridge: MagicMock) -> None:
         from physicalai_rebot_b601_plugin import ReBotB601DM

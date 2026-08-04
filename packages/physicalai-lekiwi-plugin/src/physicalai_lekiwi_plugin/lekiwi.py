@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 import numpy as np
 from loguru import logger
+from physicalai.config import export_config
 from scservo_sdk import GroupSyncRead, GroupSyncWrite, PacketHandler, PortHandler
 
 from physicalai_lekiwi_plugin.calibration import LeKiwiCalibration
@@ -82,6 +83,7 @@ class LeKiwiObservation:
         return self.joint_positions
 
 
+@export_config
 class LeKiwi:
     """Driver for the LeKiwi robot (6-DOF arm + 3-wheel holonomic base).
 
@@ -102,9 +104,10 @@ class LeKiwi:
         port: str = "/dev/ttyACM0",
         baudrate: int = 1_000_000,
         role: Literal["leader", "follower"] = "follower",
-        calibration: LeKiwiCalibration | str | Path | None = None,
+        calibration: LeKiwiCalibration | dict[str, dict[str, int]] | str | Path | None = None,
         unit: LeKiwiUnit = "normalized",
         *,
+        disable_torque_on_disconnect: bool | None = None,
         _allow_uncalibrated: bool = False,
     ) -> None:
         """Initialize the LeKiwi driver (does not open the connection).
@@ -115,6 +118,8 @@ class LeKiwi:
             role: ``"follower"`` or ``"leader"``.
             calibration: Calibration object or path.
             unit: ``"normalized"`` or ``"ticks"``.
+            disable_torque_on_disconnect: Disable torque rather than holding position when disconnecting.
+                Defaults to ``False`` for followers and ``True`` for leaders.
             _allow_uncalibrated: Skip calibration requirement (for testing).
 
         Raises:
@@ -137,7 +142,9 @@ class LeKiwi:
             )
             raise ValueError(msg)
 
-        if isinstance(calibration, (str, Path)):
+        if isinstance(calibration, dict):
+            calibration = LeKiwiCalibration.from_dict(calibration)
+        elif isinstance(calibration, (str, Path)):
             calibration = LeKiwiCalibration.from_path(calibration)
 
         self._calibration: LeKiwiCalibration | None = calibration
@@ -151,7 +158,9 @@ class LeKiwi:
             self.servo_ids = LEKIWI_MOTOR_IDS.copy()
 
         self._connection: _LeKiwiConnection | None = None
-        self._torque_on_disconnect: bool = role == "follower"
+        self._disable_torque_on_disconnect = (
+            role != "follower" if disable_torque_on_disconnect is None else disable_torque_on_disconnect
+        )
 
     @classmethod
     def uncalibrated(
@@ -160,6 +169,8 @@ class LeKiwi:
         baudrate: int = 1_000_000,
         role: Literal["leader", "follower"] = "follower",
         unit: LeKiwiUnit = "ticks",
+        *,
+        disable_torque_on_disconnect: bool | None = None,
     ) -> LeKiwi:
         """Create an uncalibrated LeKiwi instance in raw-ticks mode.
 
@@ -174,6 +185,7 @@ class LeKiwi:
             baudrate=baudrate,
             role=role,
             unit=unit,
+            disable_torque_on_disconnect=disable_torque_on_disconnect,
             _allow_uncalibrated=True,
         )
 
@@ -181,6 +193,11 @@ class LeKiwi:
     def joint_names(self) -> list[str]:
         """Ordered list of joint names (6 arm + 3 base)."""
         return self.JOINT_ORDER
+
+    @property
+    def device_ids(self) -> tuple[str, ...]:
+        """Configured serial transport identity without opening it."""
+        return (f"lekiwi:{self._port}",)
 
     @property
     def port(self) -> str:
@@ -233,18 +250,27 @@ class LeKiwi:
     @property
     def torque_on_disconnect(self) -> bool:
         """Whether to keep torque enabled and hold position on disconnect."""
-        return self._torque_on_disconnect
+        return not self._disable_torque_on_disconnect
 
     @torque_on_disconnect.setter
     def torque_on_disconnect(self, value: bool) -> None:
         if self.role != "follower" and value:
             msg = "Torque on disconnect can only be enabled for follower arms."
             raise ValueError(msg)
-        if not value and self._torque_on_disconnect:
+        if not value and not self._disable_torque_on_disconnect:
             logger.warning(
                 "Disabling torque on disconnect will cause the arm to drop under gravity. Ensure this is intentional.",
             )
-        self._torque_on_disconnect = value
+        self._disable_torque_on_disconnect = not value
+
+    @property
+    def disable_torque_on_disconnect(self) -> bool:
+        """Whether torque is disabled rather than holding position on disconnect."""
+        return self._disable_torque_on_disconnect
+
+    @disable_torque_on_disconnect.setter
+    def disable_torque_on_disconnect(self, value: bool) -> None:
+        self.torque_on_disconnect = not value
 
     def _validate_unit(self) -> None:
         valid_units = {"ticks", "normalized"}
@@ -390,7 +416,7 @@ class LeKiwi:
 
         try:
             self._stop_base()
-            if self._torque_on_disconnect:
+            if not self._disable_torque_on_disconnect:
                 self._hold_position()
             else:
                 self._set_torque(enabled=False)
