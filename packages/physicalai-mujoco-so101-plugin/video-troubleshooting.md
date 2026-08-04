@@ -33,8 +33,8 @@ Symptoms:
 1. Stop MuJoCo publishers and confirm no process has loopback devices open:
 
 ```bash
-fuser -v /dev/video61 /dev/video62
-sudo lsof /dev/video61 /dev/video62
+fuser -v /dev/video60 /dev/video61
+sudo lsof /dev/video60 /dev/video61
 ```
 
 2. Stop the IPU7 relay:
@@ -93,11 +93,11 @@ The requested minor numbers were already occupied, so Linux assigned the next av
 
 ```text
 Hardware ISP Camera: /dev/video51
-MuJoCo Wrist:        /dev/video61
-MuJoCo Overview:     /dev/video62
+MuJoCo Wrist:        /dev/video60
+MuJoCo Overview:     /dev/video61
 ```
 
-The IPU relay finds its output by the `Hardware ISP Camera` label, so `/dev/video51` is valid. Configure MuJoCo for `/dev/video61` and `/dev/video62` in this session.
+The IPU relay finds its output by the `Hardware ISP Camera` label, so `/dev/video51` is valid. Configure MuJoCo for `/dev/video60` and `/dev/video61` in this session.
 
 ## Safe operating rules
 

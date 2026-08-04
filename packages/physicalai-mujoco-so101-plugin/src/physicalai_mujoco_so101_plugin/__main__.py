@@ -90,14 +90,14 @@ def _build_parser() -> argparse.ArgumentParser:
     start.add_argument(
         "--wrist-video-id",
         type=int,
-        default=61,
-        help="v4l2loopback video ID for the wrist camera (default: 61)",
+        default=60,
+        help="v4l2loopback video ID for the wrist camera (default: 60)",
     )
     start.add_argument(
         "--overview-video-id",
         type=int,
-        default=62,
-        help="v4l2loopback video ID for the overview camera (default: 62)",
+        default=61,
+        help="v4l2loopback video ID for the overview camera (default: 61)",
     )
     return parser
 
