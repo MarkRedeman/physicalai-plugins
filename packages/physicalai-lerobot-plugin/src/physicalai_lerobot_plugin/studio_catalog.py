@@ -16,6 +16,7 @@ import types
 from itertools import starmap
 from typing import TYPE_CHECKING, Any, Literal, Union, get_args, get_origin
 
+from loguru import logger
 from physicalai_studio_plugin import (
     CatalogRobotFactory,
     PayloadContainer,
@@ -565,6 +566,11 @@ def register_physicalai_studio_plugin(registry: _RobotCatalogRegistry) -> None:
     """Register LeRobot catalog entries with the Physical AI Studio registry."""
     for definition in _definitions():
         payload_model = definition.robot_payload
-        if isinstance(payload_model, type) and issubclass(payload_model, BaseModel):
-            _assert_payload_model_resolvable(payload_model)
-        registry.register_robot(definition)
+        try:
+            if isinstance(payload_model, type) and issubclass(payload_model, BaseModel):
+                _assert_payload_model_resolvable(payload_model)
+            registry.register_robot(definition)
+        except Exception:  # noqa: BLE001
+            # Third-party config schemas can contain annotations that cannot be
+            # represented in Studio. Do not let one extension hide all later types.
+            logger.exception("Skipping LeRobot catalog type '{}' because its schema is incompatible", definition.type)

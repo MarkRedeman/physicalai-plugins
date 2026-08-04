@@ -97,6 +97,38 @@ def test_uses_lerobot_native_third_party_plugin_discovery(monkeypatch: pytest.Mo
     assert discovered == [True]
 
 
+def test_register_plugin_skips_invalid_schema_and_registers_later_definitions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from physicalai_lerobot_plugin.studio_catalog import (
+        _definitions,
+        register_physicalai_studio_plugin,
+    )
+
+    definitions = _definitions()
+    assert len(definitions) >= 2
+    invalid_definition, valid_definition = definitions[:2]
+
+    def reject_invalid_schema(model: type[BaseModel]) -> None:
+        if model is invalid_definition.robot_payload:
+            msg = "invalid third-party schema"
+            raise ValueError(msg)
+
+    monkeypatch.setattr(
+        "physicalai_lerobot_plugin.studio_catalog._definitions",
+        lambda: [invalid_definition, valid_definition],
+    )
+    monkeypatch.setattr(
+        "physicalai_lerobot_plugin.studio_catalog._assert_payload_model_resolvable",
+        reject_invalid_schema,
+    )
+
+    registry = _FakeRegistry()
+    register_physicalai_studio_plugin(registry)
+
+    assert registry.definitions == [valid_definition]
+
+
 def test_each_definition_has_correct_role() -> None:
     from physicalai_lerobot_plugin.studio_catalog import register_physicalai_studio_plugin
 
