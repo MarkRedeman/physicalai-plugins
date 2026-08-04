@@ -25,10 +25,27 @@ class _FakeRegistry:
         self.definitions.extend(definitions)
 
 
+class _StubFactory:
+    def __init__(self) -> None:
+        self.calls: list[object] = []
+
+    async def find_port(self, serial_info: object) -> str | None:
+        self.calls.append(serial_info)
+        return getattr(serial_info, "connection_string", None)
+
+
+class _StubRobot:
+    def __init__(self, payload: object) -> None:
+        self.payload = payload
+
+
 # ── Registration tests ─────────────────────────────────────────────────────
 
 
 _LEROBOT_ROBOT_TYPES: list[str] = [
+    "bi_so_follower",
+    "bi_rebot_b601_follower",
+    "bi_openarm_follower",
     "so100_follower",
     "so101_follower",
     "koch_follower",
@@ -39,6 +56,9 @@ _LEROBOT_ROBOT_TYPES: list[str] = [
     "rebot_b601_follower",
     "reachy2",
     "earthrover_mini_plus",
+    "unitree_g1",
+    "lekiwi",
+    "lekiwi_client",
 ]
 
 # Robot types that have a corresponding leader teleoperator.
@@ -63,8 +83,8 @@ def test_register_plugin() -> None:
     register_physicalai_studio_plugin(registry)
 
     assert registry.definitions is not None
-    # 10 followers + 7 leaders = 17
-    assert len(registry.definitions) == 17
+    # 16 followers + 7 leaders = 23
+    assert len(registry.definitions) == 23
 
     types = {d.type for d in registry.definitions}
     for robot_type in _LEROBOT_ROBOT_TYPES:
@@ -77,7 +97,7 @@ def test_register_plugin() -> None:
             assert f"LeRobot_{robot_type}_Leader" not in types
 
 
-def test_skip_list_excludes_bimanual_and_deferred() -> None:
+def test_skip_list_excludes_deferred_and_external_plugins() -> None:
     from physicalai_lerobot_plugin.studio_catalog import register_physicalai_studio_plugin
 
     registry = _FakeRegistry()
@@ -85,15 +105,7 @@ def test_skip_list_excludes_bimanual_and_deferred() -> None:
 
     assert registry.definitions is not None
     types = {d.type for d in registry.definitions}
-    for skipped in (
-        "LeRobot_bi_so_follower",
-        "LeRobot_bi_rebot_b601_follower",
-        "LeRobot_bi_openarm_follower",
-        "LeRobot_lekiwi",
-        "LeRobot_lekiwi_client",
-        "LeRobot_unitree_g1",
-        "LeRobot_mock_robot",
-    ):
+    for skipped in ("LeRobot_mock_robot",):
         assert skipped not in types
 
 
@@ -127,8 +139,7 @@ def test_make_payload_model_for_so100() -> None:
     assert issubclass(model, BaseModel)
     assert model.__name__ == "SOFollowerRobotConfigPayload"
 
-    payload = model(id="", serial_number="SN-001", port="/dev/ttyACM0")
-    assert payload.serial_number == "SN-001"
+    payload = model(port="/dev/ttyACM0")
     assert payload.port == "/dev/ttyACM0"
     assert payload.disable_torque_on_disconnect is True
     assert payload.use_degrees is True
@@ -143,12 +154,12 @@ def test_make_payload_model_for_hope_jr_hand() -> None:
     config_cls = RobotConfig.get_known_choices()["hope_jr_hand"]
     model = _make_payload_model(config_cls)
 
-    payload = model(id="", serial_number="SN-002", port="/dev/ttyACM1", side="left")
+    payload = model(port="/dev/ttyACM1", side="left")
     assert payload.port == "/dev/ttyACM1"
     assert payload.side == "left"
 
 
-def test_make_payload_model_requires_serial_or_connection_string() -> None:
+def test_make_payload_model_requires_native_required_fields() -> None:
     from lerobot.robots import so_follower  # noqa: F401
     from lerobot.robots.config import RobotConfig
 
@@ -161,38 +172,35 @@ def test_make_payload_model_requires_serial_or_connection_string() -> None:
         model()
 
 
-def test_make_payload_model_skips_complex_fields() -> None:
-    from lerobot.robots import hope_jr  # noqa: F401
+def test_make_payload_model_includes_complex_fields_for_bimanual() -> None:
+    from lerobot.robots import bi_so_follower  # noqa: F401
     from lerobot.robots.config import RobotConfig
 
     from physicalai_lerobot_plugin.studio_catalog import _make_payload_model
 
-    config_cls = RobotConfig.get_known_choices()["hope_jr_hand"]
+    config_cls = RobotConfig.get_known_choices()["bi_so_follower"]
     model = _make_payload_model(config_cls)
 
-    assert "cameras" not in model.model_fields
-    assert "calibration_dir" not in model.model_fields
+    assert "left_arm_config" in model.model_fields
+    assert "right_arm_config" in model.model_fields
+    assert "cameras" in model.model_fields
 
 
-def test_make_payload_model_json_schema_has_ui_metadata() -> None:
-    from lerobot.robots import so_follower  # noqa: F401
+def test_make_payload_model_for_bimanual_so100() -> None:
+    from lerobot.robots import bi_so_follower  # noqa: F401
     from lerobot.robots.config import RobotConfig
 
     from physicalai_lerobot_plugin.studio_catalog import _make_payload_model
 
-    config_cls = RobotConfig.get_known_choices()["so100_follower"]
+    config_cls = RobotConfig.get_known_choices()["bi_so_follower"]
     model = _make_payload_model(config_cls)
-    schema = model.model_json_schema()
 
-    assert "x-physicalai-ui" in schema
-    ui = schema["x-physicalai-ui"]
-    assert "groups" in ui
-    assert "connection" in ui["groups"]
-    assert ui["groups"]["connection"]["device_discovery"] is True
-
-    conn_string_field = schema["properties"]["connection_string"]
-    assert "x-physicalai-ui" in conn_string_field
-    assert conn_string_field["x-physicalai-ui"]["widget"] == "device-selector"
+    payload = model(
+        left_arm_config={"port": "/dev/ttyACM0"},
+        right_arm_config={"port": "/dev/ttyACM1"},
+    )
+    assert payload.left_arm_config.port == "/dev/ttyACM0"
+    assert payload.right_arm_config.port == "/dev/ttyACM1"
 
 
 def test_make_payload_model_for_reachy2() -> None:
@@ -204,9 +212,38 @@ def test_make_payload_model_for_reachy2() -> None:
     config_cls = RobotConfig.get_known_choices()["reachy2"]
     model = _make_payload_model(config_cls)
 
-    assert "port" in model.model_fields
+    assert "ip_address" in model.model_fields
     assert "with_mobile_base" in model.model_fields
-    assert "cameras" not in model.model_fields
+    assert "cameras" in model.model_fields
+
+
+@pytest.mark.anyio
+async def test_builder_resolves_nested_ports_for_bimanual_config() -> None:
+    from unittest.mock import MagicMock, patch
+
+    from lerobot.robots import bi_so_follower  # noqa: F401
+    from lerobot.robots.config import RobotConfig
+
+    from physicalai_lerobot_plugin.studio_catalog import _make_builder, _make_payload_model
+
+    config_cls = RobotConfig.get_known_choices()["bi_so_follower"]
+    payload_cls = _make_payload_model(config_cls)
+    builder = _make_builder(config_cls, payload_cls, role="follower")
+
+    payload = payload_cls(
+        left_arm_config={"port": "/dev/ttyACM0"},
+        right_arm_config={"port": "/dev/ttyACM1"},
+    )
+
+    factory = _StubFactory()
+    robot = _StubRobot(payload)
+    fake_lerobot = MagicMock()
+    with patch("lerobot.robots.make_robot_from_config", return_value=fake_lerobot):
+        built = await builder(robot, factory)
+
+    assert callable(builder)
+    assert len(factory.calls) == 2
+    assert built is not None
 
 
 # ── Builder tests ──────────────────────────────────────────────────────────
