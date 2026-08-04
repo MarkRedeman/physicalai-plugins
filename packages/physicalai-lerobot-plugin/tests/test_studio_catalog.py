@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+from unittest.mock import AsyncMock, MagicMock
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -53,7 +55,7 @@ _HAS_LEADER: set[str] = {
 }
 
 # Reuse the source mapping so tests stay in sync.
-from physicalai_lerobot_plugin.studio_catalog import _FOLLOWER_TO_LEADER as _FOLLOWER_TO_LEADER  # noqa: E402
+from physicalai_lerobot_plugin.studio_catalog import _FOLLOWER_TO_LEADER  # noqa: E402
 
 
 def test_register_plugin() -> None:
@@ -224,6 +226,49 @@ def test_make_builder_config_kwargs() -> None:
     assert callable(follower_builder)
 
 
+def test_builder_validates_cross_identity_payload_and_stays_lazy() -> None:
+    from lerobot.robots import so_follower  # noqa: F401
+    from lerobot.robots.config import RobotConfig
+
+    from physicalai_lerobot_plugin.studio_catalog import _make_builder, _make_payload_model
+
+    config_cls = RobotConfig.get_known_choices()["so100_follower"]
+    payload_cls = _make_payload_model(config_cls)
+    payload = payload_cls(id="", connection_string="/dev/ttyACM0", port="")
+    foreign_payload = _make_payload_model(config_cls)(**payload.model_dump())
+    factory = MagicMock()
+    factory.find_port = AsyncMock(return_value="/dev/ttyUSB0")
+
+    adapter = asyncio.run(
+        _make_builder(config_cls, payload_cls, "follower")(
+            type("Container", (), {"payload": foreign_payload})(), factory,
+        ),
+    )
+
+    assert adapter.robot is None
+    assert adapter.device_ids == ("serial:ttyUSB0",)
+
+
+def test_builder_raises_when_port_is_not_found() -> None:
+    from lerobot.robots import so_follower  # noqa: F401
+    from lerobot.robots.config import RobotConfig
+
+    from physicalai_lerobot_plugin.studio_catalog import _make_builder, _make_payload_model
+
+    config_cls = RobotConfig.get_known_choices()["so100_follower"]
+    payload_cls = _make_payload_model(config_cls)
+    factory = MagicMock()
+    factory.find_port = AsyncMock(return_value=None)
+
+    with pytest.raises(RuntimeError, match="Robot not found"):
+        asyncio.run(
+            _make_builder(config_cls, payload_cls, "follower")(
+                type("Container", (), {"payload": payload_cls(id="", connection_string="/dev/ttyACM0", port="")})(),
+                factory,
+            ),
+        )
+
+
 def test_make_teleop_builder_config_kwargs() -> None:
     import importlib
     import pkgutil
@@ -245,6 +290,38 @@ def test_make_teleop_builder_config_kwargs() -> None:
     payload_cls = _make_payload_model(teleop_config_cls)
     builder = _make_teleop_builder(teleop_config_cls, payload_cls, role="leader")
     assert callable(builder)
+
+
+def test_teleop_builder_stays_lazy() -> None:
+    from lerobot.teleoperators import so_leader  # noqa: F401
+    from lerobot.teleoperators.config import TeleoperatorConfig
+
+    from physicalai_lerobot_plugin.studio_catalog import _make_payload_model, _make_teleop_builder
+
+    config_cls = TeleoperatorConfig.get_known_choices()["so100_leader"]
+    payload_cls = _make_payload_model(config_cls)
+    factory = MagicMock()
+    factory.find_port = AsyncMock(return_value="/dev/ttyUSB1")
+
+    adapter = asyncio.run(
+        _make_teleop_builder(config_cls, payload_cls, "leader")(
+            type("Container", (), {"payload": payload_cls(id="", connection_string="/dev/ttyACM1", port="")})(),
+            factory,
+        ),
+    )
+
+    assert adapter.robot is None
+    assert adapter.device_ids == ("serial:ttyUSB1",)
+
+
+def test_probe_uses_manual_connection_string() -> None:
+    from physicalai_lerobot_plugin.studio_catalog import LeRobotProbe
+
+    payload = type("Payload", (), {"serial_number": "", "connection_string": "/dev/ttyUSB0"})()
+    port = type("Port", (), {"connection_string": "/dev/ttyUSB0"})()
+    manager = type("Manager", (), {"robots": [port]})()
+
+    assert asyncio.run(LeRobotProbe().is_online(payload, manager))
 
 
 # ── URDF path test ─────────────────────────────────────────────────────────

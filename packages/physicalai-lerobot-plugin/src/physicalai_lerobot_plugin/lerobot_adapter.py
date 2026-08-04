@@ -1,3 +1,5 @@
+# ruff: noqa: ANN401, D105, PLC0415
+
 """Adapter that wraps a lerobot.robots.robot.Robot into PhysicalAI's Robot protocol.
 
 Joint order, observation keys, and action keys are auto-detected from the
@@ -13,12 +15,12 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 import numpy as np
 from loguru import logger
+from physicalai.config import export_config, import_dotted_path
+from physicalai.robot.device_ids import device_id_from_serial_port
 
 from physicalai_lerobot_plugin.constants import VALID_ROLES
 
 if TYPE_CHECKING:
-    from lerobot.robots.robot import Robot as LeRobotRobot
-    from lerobot.teleoperators.teleoperator import Teleoperator
     from physicalai.capture.frame import Frame
     from physicalai.robot.interface import RobotObservation
 
@@ -50,6 +52,7 @@ _DIM_THRESHOLD_IMAGE: int = 2
 _POSITION_KEY_SUFFIX: str = ".pos"
 
 
+@export_config
 class LeRobotAdapter:
     """Wraps a lerobot Robot into PhysicalAI's Robot protocol.
 
@@ -66,7 +69,7 @@ class LeRobotAdapter:
 
     def __init__(
         self,
-        config_cls: type,
+        config_cls_path: str,
         config_kwargs: dict[str, Any],
         *,
         role: Literal["leader", "follower"] = "follower",
@@ -75,7 +78,7 @@ class LeRobotAdapter:
         """Initialize the adapter.
 
         Args:
-            config_cls: A lerobot ``RobotConfig`` subclass.
+            config_cls_path: Importable dotted path to a lerobot ``RobotConfig`` subclass.
             config_kwargs: Resolved keyword-args for the config dataclass.
             role: ``"follower"`` (full control) or ``"leader"`` (read-only).
 
@@ -86,7 +89,7 @@ class LeRobotAdapter:
             msg = f"Invalid role {role!r}. Must be one of {sorted(VALID_ROLES)}."
             raise ValueError(msg)
 
-        self._config_cls = config_cls
+        self._config_cls_path = config_cls_path
         self._config_kwargs = config_kwargs
         self._role = role
         self._robot: Any = _robot
@@ -102,13 +105,13 @@ class LeRobotAdapter:
 
     def __getstate__(self) -> dict[str, object]:
         return {
-            "_config_cls": self._config_cls,
+            "_config_cls_path": self._config_cls_path,
             "_config_kwargs": self._config_kwargs,
             "_role": self._role,
         }
 
     def __setstate__(self, state: dict[str, object]) -> None:
-        self._config_cls = state["_config_cls"]
+        self._config_cls_path = state["_config_cls_path"]
         self._config_kwargs = state["_config_kwargs"]
         self._role = state["_role"]
         self._robot = None
@@ -121,9 +124,8 @@ class LeRobotAdapter:
         if self._robot is not None:
             return
         from lerobot.robots import make_robot_from_config
-        from lerobot.robots.config import RobotConfig
-
-        lerobot_config = self._config_cls(**self._config_kwargs)
+        config_cls = import_dotted_path(self._config_cls_path)
+        lerobot_config = config_cls(**self._config_kwargs)
         self._robot = make_robot_from_config(lerobot_config)
 
     def _ensure_joint_order(self, obs: dict[str, Any]) -> None:
@@ -171,6 +173,12 @@ class LeRobotAdapter:
         """Ordered joint names matching the position/action array."""
         self._require_joint_order()
         return self._joint_order  # type: ignore[return-value]
+
+    @property
+    def device_ids(self) -> tuple[str, ...]:
+        """Configured serial device identity without opening it."""
+        port = self._config_kwargs.get("port")
+        return (device_id_from_serial_port(port),) if isinstance(port, str) and port else ()
 
     @property
     def robot(self) -> Any:
@@ -282,6 +290,7 @@ class LeRobotAdapter:
         self._robot.send_action(action_dict)  # type: ignore[union-attr]
 
 
+@export_config
 class LeRobotTeleoperatorAdapter:
     """Wraps a lerobot ``Teleoperator`` into PhysicalAI's ``Robot`` protocol.
 
@@ -300,7 +309,7 @@ class LeRobotTeleoperatorAdapter:
 
     def __init__(
         self,
-        config_cls: type,
+        config_cls_path: str,
         config_kwargs: dict[str, Any],
         *,
         role: Literal["leader", "follower"] = "leader",
@@ -309,7 +318,7 @@ class LeRobotTeleoperatorAdapter:
         """Initialize the teleoperator adapter.
 
         Args:
-            config_cls: A lerobot ``TeleoperatorConfig`` subclass.
+            config_cls_path: Importable dotted path to a lerobot ``TeleoperatorConfig`` subclass.
             config_kwargs: Resolved keyword-args for the config dataclass.
             role: ``"leader"`` (read-only, default) or ``"follower"`` (full).
 
@@ -320,7 +329,7 @@ class LeRobotTeleoperatorAdapter:
             msg = f"Invalid role {role!r}. Must be one of {sorted(VALID_ROLES)}."
             raise ValueError(msg)
 
-        self._config_cls = config_cls
+        self._config_cls_path = config_cls_path
         self._config_kwargs = config_kwargs
         self._role = role
         self._teleoperator: Any = _teleoperator
@@ -335,13 +344,13 @@ class LeRobotTeleoperatorAdapter:
 
     def __getstate__(self) -> dict[str, object]:
         return {
-            "_config_cls": self._config_cls,
+            "_config_cls_path": self._config_cls_path,
             "_config_kwargs": self._config_kwargs,
             "_role": self._role,
         }
 
     def __setstate__(self, state: dict[str, object]) -> None:
-        self._config_cls = state["_config_cls"]
+        self._config_cls_path = state["_config_cls_path"]
         self._config_kwargs = state["_config_kwargs"]
         self._role = state["_role"]
         self._teleoperator = None
@@ -354,7 +363,8 @@ class LeRobotTeleoperatorAdapter:
             return
         from lerobot.teleoperators import make_teleoperator_from_config
 
-        teleop_config = self._config_cls(**self._config_kwargs)
+        config_cls = import_dotted_path(self._config_cls_path)
+        teleop_config = config_cls(**self._config_kwargs)
         self._teleoperator = make_teleoperator_from_config(teleop_config)
 
     def _ensure_joint_order(self, action: dict[str, Any]) -> None:
@@ -381,6 +391,12 @@ class LeRobotTeleoperatorAdapter:
         """Ordered joint names matching the position/action array."""
         self._require_joint_order()
         return self._joint_order  # type: ignore[return-value]
+
+    @property
+    def device_ids(self) -> tuple[str, ...]:
+        """Configured serial device identity without opening it."""
+        port = self._config_kwargs.get("port")
+        return (device_id_from_serial_port(port),) if isinstance(port, str) and port else ()
 
     @property
     def robot(self) -> Any:

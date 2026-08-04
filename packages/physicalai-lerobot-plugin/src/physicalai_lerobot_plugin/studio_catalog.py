@@ -249,6 +249,11 @@ def _make_payload_model(config_cls: type) -> type[BaseModel]:
     )
 
 
+def _config_class_path(config_cls: type) -> str:
+    """Return the importable dotted path stored in adapter configuration."""
+    return f"{config_cls.__module__}.{config_cls.__qualname__}"
+
+
 _LEROBOT_TELEOPERATORS_IMPORTED: bool = False
 
 
@@ -302,14 +307,12 @@ def _make_builder(
         robot: PayloadContainer[Any],
         factory: CatalogRobotFactory,
     ) -> PhysicalAIRobot:
-        from lerobot.robots import make_robot_from_config
-
         from physicalai_lerobot_plugin.lerobot_adapter import LeRobotAdapter
 
         raw = robot.payload
         if isinstance(raw, BaseModel) and type(raw) is not payload_cls:
             raw = raw.model_dump()
-        validated = raw if isinstance(raw, payload_cls) else payload_cls.model_validate(raw)
+        validated = raw if type(raw) is payload_cls else payload_cls.model_validate(raw)
 
         serial_number = validated.serial_number
         port = await factory.find_port(
@@ -327,10 +330,8 @@ def _make_builder(
         if has_str_port:
             config_kwargs["port"] = port
 
-        lerobot_config = config_cls(**config_kwargs)
-        lerobot_robot = make_robot_from_config(lerobot_config)
         return LeRobotAdapter(
-            config_cls, config_kwargs, role=role, _robot=lerobot_robot,
+            _config_class_path(config_cls), config_kwargs, role=role,
         )
 
     return _build
@@ -360,8 +361,6 @@ def _make_teleop_builder(
         robot: PayloadContainer[Any],
         factory: CatalogRobotFactory,
     ) -> PhysicalAIRobot:
-        from lerobot.teleoperators import make_teleoperator_from_config
-
         from physicalai_lerobot_plugin.lerobot_adapter import (
             LeRobotTeleoperatorAdapter,
         )
@@ -369,7 +368,7 @@ def _make_teleop_builder(
         raw = robot.payload
         if isinstance(raw, BaseModel) and type(raw) is not payload_cls:
             raw = raw.model_dump()
-        validated = raw if isinstance(raw, payload_cls) else payload_cls.model_validate(raw)
+        validated = raw if type(raw) is payload_cls else payload_cls.model_validate(raw)
 
         serial_number = validated.serial_number
         port = await factory.find_port(
@@ -387,10 +386,8 @@ def _make_teleop_builder(
         if has_str_port:
             config_kwargs["port"] = port
 
-        teleop_config = config_cls(**config_kwargs)
-        teleoperator = make_teleoperator_from_config(teleop_config)
         return LeRobotTeleoperatorAdapter(
-            config_cls, config_kwargs, role=role, _teleoperator=teleoperator,
+            _config_class_path(config_cls), config_kwargs, role=role,
         )
 
     return _build
@@ -433,19 +430,15 @@ class LeRobotProbe(RobotProbe[BaseModel]):
             serial_number = getattr(payload, "serial_number", None)
             if serial_number:
                 return any(p.serial_number == serial_number for p in ports_list)
-            port = getattr(payload, "port", None)
-            if port:
-                return port in {p.connection_string for p in ports_list}
-            return False
+            return getattr(payload, "connection_string", "") in {
+                p.connection_string for p in ports_list
+            }
 
         all_ports = list_ports.comports()
         serial_number = getattr(payload, "serial_number", None)
         if serial_number:
             return any(p.serial_number == serial_number for p in all_ports)
-        port = getattr(payload, "port", None)
-        if port:
-            return port in {p.device for p in all_ports}
-        return False
+        return getattr(payload, "connection_string", "") in {p.device for p in all_ports}
 
 
 _LEROBOT_PROBE = LeRobotProbe()
