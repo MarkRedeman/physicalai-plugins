@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, call, patch
 
 import numpy as np
 import pytest
+from physicalai.config import to_config
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -69,6 +70,12 @@ class TestReBotArm102LeaderConstruction:
             "wrist_roll",
             "gripper",
         ]
+
+    def test_exports_recipe_and_device_identity(self, mock_smart_servo: MagicMock) -> None:
+        robot = _create_robot(mock_smart_servo, port="/dev/ttyUSB1", baudrate=115200)
+
+        assert robot.device_ids == ("rebot-arm102:/dev/ttyUSB1",)
+        assert to_config(robot)["init_args"] == {"port": "/dev/ttyUSB1", "baudrate": 115200}
 
     def test_invalid_baudrate_raises(self, mock_smart_servo: MagicMock) -> None:
         from physicalai_rebot_b601_plugin import ReBotArm102Leader

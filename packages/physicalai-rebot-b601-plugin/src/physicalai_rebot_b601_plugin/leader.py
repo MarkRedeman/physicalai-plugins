@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, ClassVar, Protocol
 
 import numpy as np
 from loguru import logger
+from physicalai.config import export_config
 
 from physicalai_rebot_b601_plugin.constants import (
     REBOT_ARM_102_JOINT_IDS,
@@ -69,6 +70,7 @@ class ReBotArm102LeaderObservation:
         return self.joint_positions
 
 
+@export_config
 class ReBotArm102Leader:
     """FashionStar UART leader arm driver (read-only teleoperation).
 
@@ -119,6 +121,11 @@ class ReBotArm102Leader:
     def joint_names(self) -> list[str]:
         """Ordered list of joint names matching the expected observation layout."""
         return self.JOINT_ORDER
+
+    @property
+    def device_ids(self) -> tuple[str, ...]:
+        """Configured UART transport identity without opening it."""
+        return (f"rebot-arm102:{self._port}",)
 
     @property
     def port(self) -> str:
