@@ -42,62 +42,35 @@ class _StubRobot:
 # ── Registration tests ─────────────────────────────────────────────────────
 
 
-_LEROBOT_ROBOT_TYPES: list[str] = [
-    "bi_so_follower",
-    "bi_rebot_b601_follower",
-    "bi_openarm_follower",
-    "so100_follower",
-    "so101_follower",
-    "koch_follower",
-    "omx_follower",
-    "hope_jr_hand",
-    "hope_jr_arm",
-    "openarm_follower",
-    "rebot_b601_follower",
-    "reachy2",
-    "earthrover_mini_plus",
-    "unitree_g1",
-    "lekiwi",
-    "lekiwi_client",
-]
+def test_register_plugin_includes_all_registered_robot_and_teleoperator_types() -> None:
+    from lerobot.robots.config import RobotConfig
+    from lerobot.teleoperators.config import TeleoperatorConfig
 
-# Robot types that have a corresponding leader teleoperator.
-_HAS_LEADER: set[str] = {
-    "so100_follower",
-    "so101_follower",
-    "koch_follower",
-    "omx_follower",
-    "openarm_follower",
-    "rebot_b601_follower",
-    "reachy2",
-}
-
-# Reuse the source mapping so tests stay in sync.
-from physicalai_lerobot_plugin.studio_catalog import _FOLLOWER_TO_LEADER  # noqa: E402
-
-
-def test_register_plugin() -> None:
     from physicalai_lerobot_plugin.studio_catalog import register_physicalai_studio_plugin
 
     registry = _FakeRegistry()
     register_physicalai_studio_plugin(registry)
 
     assert registry.definitions is not None
-    # 16 followers + 7 leaders = 23
-    assert len(registry.definitions) == 23
+    definitions_by_type = {definition.type: definition for definition in registry.definitions}
+    expected_follower_types = {
+        f"LeRobot_{type_str}_Follower"
+        for type_str in RobotConfig.get_known_choices()
+        if type_str != "mock_robot"
+    }
+    expected_leader_types = {
+        f"LeRobot_{type_str}_Leader" for type_str in TeleoperatorConfig.get_known_choices()
+    }
 
-    types = {d.type for d in registry.definitions}
-    for robot_type in _LEROBOT_ROBOT_TYPES:
-        assert f"LeRobot_{robot_type}" in types
-        if robot_type in _HAS_LEADER:
-            # Leader type uses the teleoperator name
-            leader_type = _FOLLOWER_TO_LEADER[robot_type]
-            assert f"LeRobot_{leader_type}" in types
-        else:
-            assert f"LeRobot_{robot_type}_Leader" not in types
+    assert set(definitions_by_type) == expected_follower_types | expected_leader_types
+    assert len(definitions_by_type) == len(registry.definitions)
+    for type_str in expected_follower_types:
+        assert definitions_by_type[type_str].role == "follower"
+    for type_str in expected_leader_types:
+        assert definitions_by_type[type_str].role == "leader"
 
 
-def test_skip_list_excludes_deferred_and_external_plugins() -> None:
+def test_skip_list_excludes_test_only_robots() -> None:
     from physicalai_lerobot_plugin.studio_catalog import register_physicalai_studio_plugin
 
     registry = _FakeRegistry()
@@ -105,8 +78,23 @@ def test_skip_list_excludes_deferred_and_external_plugins() -> None:
 
     assert registry.definitions is not None
     types = {d.type for d in registry.definitions}
-    for skipped in ("LeRobot_mock_robot",):
+    for skipped in ("LeRobot_mock_robot_Follower",):
         assert skipped not in types
+
+
+def test_uses_lerobot_native_third_party_plugin_discovery(monkeypatch: pytest.MonkeyPatch) -> None:
+    from lerobot.utils import import_utils
+
+    import physicalai_lerobot_plugin.studio_catalog as catalog
+
+    discovered: list[bool] = []
+    monkeypatch.setattr(import_utils, "register_third_party_plugins", lambda: discovered.append(True))
+    monkeypatch.setattr(catalog, "_LEROBOT_THIRD_PARTY_PLUGINS_IMPORTED", False)
+
+    catalog._ensure_lerobot_third_party_plugins_imported()  # noqa: SLF001
+    catalog._ensure_lerobot_third_party_plugins_imported()  # noqa: SLF001
+
+    assert discovered == [True]
 
 
 def test_each_definition_has_correct_role() -> None:
@@ -119,9 +107,8 @@ def test_each_definition_has_correct_role() -> None:
     for d in registry.definitions:
         role = d.role
         assert role in {"follower", "leader"}
-        # Followers: type is LeRobot_{follower_name}
-        # Leaders: type is LeRobot_{teleop_name}
         assert d.type.startswith("LeRobot_")
+        assert d.type.endswith("_Follower" if role == "follower" else "_Leader")
 
 
 # ── Dynamic payload model tests ────────────────────────────────────────────

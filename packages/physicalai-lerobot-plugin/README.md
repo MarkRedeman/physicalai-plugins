@@ -18,16 +18,29 @@ uv add physicalai-lerobot-plugin
 
 ## Usage
 
-The plugin registers one catalog entry per supported LeRobot follower robot,
-plus leader entries for follower types that have a matching LeRobot
-teleoperator.
+The plugin registers one catalog entry for every installed LeRobot follower
+robot and teleoperator. This includes first-party LeRobot types and compatible
+third-party extensions.
 
 Each entry is exposed as:
 
-- follower type: `LeRobot_<follower_type>`
-- leader type: `LeRobot_<leader_teleoperator_type>`
+- follower type: `LeRobot_<follower_type>_Follower`
+- leader type: `LeRobot_<teleoperator_type>_Leader`
 
-### Supported followers
+### Third-party LeRobot extensions
+
+Install this package first, then install a LeRobot extension into the same
+Python environment. On Studio startup, the catalog invokes LeRobot's native
+third-party discovery and imports installed extension packages with names that
+start with `lerobot_robot_` or `lerobot_teleoperator_`.
+
+For example, after installing a compatible LeSlider package, its registered
+follower and leader types appear automatically in the Studio catalog. An
+extension must import its config registration code from its package root and
+use LeRobot's `register_subclass(...)` mechanism. Hardware SDK dependencies
+remain the responsibility of the extension package.
+
+### Bundled LeRobot followers
 
 - `bi_so_follower`
 - `bi_rebot_b601_follower`
@@ -46,7 +59,7 @@ Each entry is exposed as:
 - `lekiwi`
 - `lekiwi_client`
 
-### Supported leader teleoperators
+### Bundled LeRobot leader teleoperators
 
 - `so100_leader` (for `so100_follower`)
 - `so101_leader` (for `so101_follower`)
@@ -84,7 +97,7 @@ selected LeRobot config type.
 
 ### Payload examples
 
-#### 1) `LeRobot_so100_follower`
+#### 1) `LeRobot_so100_follower_Follower`
 
 ```json
 {
@@ -95,7 +108,7 @@ selected LeRobot config type.
 }
 ```
 
-#### 2) `LeRobot_hope_jr_hand`
+#### 2) `LeRobot_hope_jr_hand_Follower`
 
 ```json
 {
@@ -106,7 +119,7 @@ selected LeRobot config type.
 }
 ```
 
-#### 3) `LeRobot_bi_so_follower` (nested bimanual config)
+#### 3) `LeRobot_bi_so_follower_Follower` (nested bimanual config)
 
 ```json
 {

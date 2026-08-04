@@ -45,22 +45,10 @@ _ROBOTS_TO_SKIP: frozenset[str] = frozenset({
 })
 
 
-# ── Follower → Leader teleoperator mapping ──────────────────────────────────
-
-_FOLLOWER_TO_LEADER: dict[str, str] = {
-    "so100_follower": "so100_leader",
-    "so101_follower": "so101_leader",
-    "koch_follower": "koch_leader",
-    "omx_follower": "omx_leader",
-    "openarm_follower": "openarm_leader",
-    "rebot_b601_follower": "rebot_102_leader",
-    "reachy2": "reachy2_teleoperator",
-}
-
-
 # ── Lerobot config importing ───────────────────────────────────────────────
 
 _LEROBOT_CONFIGS_IMPORTED: bool = False
+_LEROBOT_THIRD_PARTY_PLUGINS_IMPORTED: bool = False
 
 
 def _ensure_optional_dependency_module_specs() -> None:
@@ -100,6 +88,25 @@ def _ensure_lerobot_configs_imported() -> None:
         if "config" in modname and not is_pkg:
             importlib.import_module(modname)
     _LEROBOT_CONFIGS_IMPORTED = True
+
+
+def _ensure_lerobot_third_party_plugins_imported() -> None:
+    """Load installed third-party extensions through LeRobot's native discovery.
+
+    LeRobot scans installed distributions whose import names begin with
+    ``lerobot_robot_`` or ``lerobot_teleoperator_`` and imports their package
+    roots. Compatible extensions register config subclasses during that import.
+    LeRobot handles individual optional-plugin import failures without
+    preventing other installed extensions from loading.
+    """
+    global _LEROBOT_THIRD_PARTY_PLUGINS_IMPORTED  # noqa: PLW0603
+    if _LEROBOT_THIRD_PARTY_PLUGINS_IMPORTED:
+        return
+
+    from lerobot.utils.import_utils import register_third_party_plugins
+
+    register_third_party_plugins()
+    _LEROBOT_THIRD_PARTY_PLUGINS_IMPORTED = True
 
 
 # ── Payload model factory ──────────────────────────────────────────────────
@@ -493,21 +500,21 @@ _LEROBOT_PROBE = LeRobotProbe()
 
 
 def _definitions() -> list[RobotCatalogDefinition]:
-    """Build catalog definitions for every supported lerobot robot type.
+    """Build catalog definitions for every registered LeRobot endpoint type.
 
     Followers are built from ``RobotConfig`` + ``make_robot_from_config``.
-    Leaders (when a matching teleoperator exists) are built from
-    ``TeleoperatorConfig`` + ``make_teleoperator_from_config``.
+    Leaders are built from ``TeleoperatorConfig`` +
+    ``make_teleoperator_from_config``. Every type has a role suffix in its
+    Studio ID so robot and teleoperator choice names cannot collide.
 
     Returns:
         A list of ``RobotCatalogDefinition`` instances.
     """
     _ensure_lerobot_configs_imported()
     _ensure_lerobot_teleoperators_imported()
+    _ensure_lerobot_third_party_plugins_imported()
     from lerobot.robots.config import RobotConfig
     from lerobot.teleoperators.config import TeleoperatorConfig
-
-    teleop_choices = TeleoperatorConfig.get_known_choices()
 
     defs: list[RobotCatalogDefinition] = []
     for type_str, config_cls in RobotConfig.get_known_choices().items():
@@ -517,11 +524,10 @@ def _definitions() -> list[RobotCatalogDefinition]:
         display_name = f"LeRobot {type_str}"
         payload_cls = _make_payload_model(config_cls)
 
-        # Follower — type = LeRobot_{follower_name}
         follower_builder = _make_builder(config_cls, payload_cls, "follower")
         defs.append(
             RobotCatalogDefinition(
-                type=f"LeRobot_{type_str}",
+                type=f"LeRobot_{type_str}_Follower",
                 display_name=f"{display_name} Follower",
                 role="follower",
                 robot_builder=follower_builder,
@@ -532,24 +538,22 @@ def _definitions() -> list[RobotCatalogDefinition]:
             ),
         )
 
-        # Leader (via teleoperator config) — type = LeRobot_{teleop_name}
-        leader_teleop_type = _FOLLOWER_TO_LEADER.get(type_str)
-        if leader_teleop_type is not None and leader_teleop_type in teleop_choices:
-            teleop_config_cls = teleop_choices[leader_teleop_type]
-            leader_payload_cls = _make_payload_model(teleop_config_cls)
-            leader_builder = _make_teleop_builder(teleop_config_cls, leader_payload_cls, "leader")
-            defs.append(
-                RobotCatalogDefinition(
-                    type=f"LeRobot_{leader_teleop_type}",
-                    display_name=f"{display_name} Leader",
-                    role="leader",
-                    robot_builder=leader_builder,
-                    robot_payload=leader_payload_cls,
-                    asset=None,
-                    adapter_options=RobotAdapterOptions(include_velocities=False, external_effort_gain=None),
-                    probe=_LEROBOT_PROBE,
-                ),
-            )
+    for type_str, config_cls in TeleoperatorConfig.get_known_choices().items():
+        display_name = f"LeRobot {type_str}"
+        payload_cls = _make_payload_model(config_cls)
+        leader_builder = _make_teleop_builder(config_cls, payload_cls, "leader")
+        defs.append(
+            RobotCatalogDefinition(
+                type=f"LeRobot_{type_str}_Leader",
+                display_name=f"{display_name} Leader",
+                role="leader",
+                robot_builder=leader_builder,
+                robot_payload=payload_cls,
+                asset=None,
+                adapter_options=RobotAdapterOptions(include_velocities=False, external_effort_gain=None),
+                probe=_LEROBOT_PROBE,
+            ),
+        )
     return defs
 
 
