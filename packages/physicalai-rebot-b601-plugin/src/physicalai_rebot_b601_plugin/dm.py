@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, ClassVar, Literal
 
 import numpy as np
 from loguru import logger
+from physicalai.config import export_config
 
 from physicalai_rebot_b601_plugin.constants import (
     REBOT_B601_DM_JOINT_DIRECTIONS,
@@ -60,6 +61,7 @@ class ReBotB601DMObservation:
         return self.joint_positions
 
 
+@export_config
 class ReBotB601DM:
     """Damiao motor driver for the reBot B601 robot arm.
 
@@ -119,6 +121,11 @@ class ReBotB601DM:
     def joint_names(self) -> list[str]:
         """Ordered list of joint names matching the expected action/observation layout."""
         return self.JOINT_ORDER
+
+    @property
+    def device_ids(self) -> tuple[str, ...]:
+        """Configured CAN transport identity without opening it."""
+        return (f"rebot-dm:{self._can_adapter}:{self._port}",)
 
     @property
     def port(self) -> str:

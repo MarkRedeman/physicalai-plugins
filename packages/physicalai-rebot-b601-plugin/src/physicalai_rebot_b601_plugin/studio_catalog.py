@@ -276,6 +276,8 @@ async def _build_rebot_b601_dm_driver(
     factory: CatalogRobotFactory,
 ) -> PhysicalAIRobot:
     raw = robot.payload
+    if isinstance(raw, BaseModel) and type(raw) is not ReBotB601DMPayload:
+        raw = raw.model_dump()
     validated = raw if isinstance(raw, ReBotB601DMPayload) else ReBotB601DMPayload.model_validate(raw)
     serial_number = validated.serial_number
     port = await factory.find_port(
@@ -303,6 +305,8 @@ async def _build_rebot_arm102_driver(
     factory: CatalogRobotFactory,
 ) -> PhysicalAIRobot:
     raw = robot.payload
+    if isinstance(raw, BaseModel) and type(raw) is not ReBotArm102Payload:
+        raw = raw.model_dump()
     validated = raw if isinstance(raw, ReBotArm102Payload) else ReBotArm102Payload.model_validate(raw)
     serial_number = validated.serial_number
     serial = SerialPortInfo(
