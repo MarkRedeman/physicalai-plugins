@@ -3,11 +3,14 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from physicalai.config import to_config
+from physicalai.robot.transport import SharedRobot
 
 from physicalai_mujoco_so101_plugin.studio_catalog import (
     MuJoCoSO101Payload,
     MuJoCoSO101Probe,
     _definitions,
+    _SharedSO101Robot,
     register_physicalai_studio_plugin,
 )
 
@@ -73,6 +76,29 @@ class TestDefinitions:
         assert "so101" in definition.asset.packages
         assert "shoulder_pan.pos" in definition.asset.joint_map
         assert definition.asset.root_resolver is not None
+
+
+class TestSharedRobotAdapter:
+    def test_has_no_owned_devices(self) -> None:
+        robot = _SharedSO101Robot(SharedRobot.attach("mujoco-so101"))
+        assert robot.device_ids == ()
+
+    def test_exports_attach_only_shared_robot_recipe(self) -> None:
+        robot = _SharedSO101Robot(SharedRobot.attach("mujoco-so101", connect_timeout=5.0))
+
+        assert to_config(robot) == {
+            "class_path": "physicalai_mujoco_so101_plugin.studio_catalog._SharedSO101Robot",
+            "init_args": {
+                "shared_robot": {
+                    "class_path": "physicalai.robot.SharedRobot",
+                    "init_args": {
+                        "name": "mujoco-so101",
+                        "allow_remote": False,
+                        "connect_timeout": 5.0,
+                    },
+                },
+            },
+        }
 
 
 class TestProbe:

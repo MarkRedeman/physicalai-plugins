@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from loguru import logger
+from physicalai.config import export_config
 from physicalai_studio_plugin import (
     CatalogRobotFactory,
     PayloadContainer,
@@ -121,10 +122,16 @@ def _check_zenoh_robot_online(name: str) -> bool:
 _MUJOCO_PROBE = MuJoCoSO101Probe()
 
 
+@export_config(class_path="physicalai_mujoco_so101_plugin.studio_catalog._SharedSO101Robot")
 class _SharedSO101Robot:
     def __init__(self, shared_robot: object) -> None:
         self._shared_robot = shared_robot
         self.joint_names = list(SO101_JOINT_ORDER)
+
+    @property
+    def device_ids(self) -> tuple[str, ...]:
+        """The attached MuJoCo owner, not this wrapper, owns the simulation."""
+        return ()
 
     def connect(self) -> None:
         self._shared_robot.connect()

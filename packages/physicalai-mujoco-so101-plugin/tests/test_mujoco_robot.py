@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
+from physicalai.config import to_config
 
 from physicalai_mujoco_so101_plugin.mujoco_robot import MuJoCoSO101, MuJoCoSO101Observation
 
@@ -81,6 +82,18 @@ class TestMuJoCoSO101Construction:
     def test_device_ids(self) -> None:
         robot = MuJoCoSO101(model_path="/path/to/so101.xml")
         assert robot.device_ids == ("mujoco:so101",)
+
+    def test_exports_owner_construction_recipe(self) -> None:
+        robot = MuJoCoSO101(model_path="/fake/model.xml", substeps=3, enable_viewer=True)
+
+        assert to_config(robot) == {
+            "class_path": "physicalai_mujoco_so101_plugin.mujoco_robot.MuJoCoSO101",
+            "init_args": {
+                "model_path": "/fake/model.xml",
+                "substeps": 3,
+                "enable_viewer": True,
+            },
+        }
 
 
 class TestMuJoCoSO101Connect:

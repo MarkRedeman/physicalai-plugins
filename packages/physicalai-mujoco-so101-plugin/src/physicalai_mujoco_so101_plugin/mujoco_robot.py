@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
 from loguru import logger
+from physicalai.config import export_config
 
 from physicalai_mujoco_so101_plugin.constants import NUM_JOINTS, SO101_JOINT_ORDER
 
@@ -39,7 +40,7 @@ class CameraConfig:
     fps: int = 30
     mirror_horizontal: bool = False
 
-
+@export_config(class_path="physicalai_mujoco_so101_plugin.mujoco_robot.MuJoCoSO101")
 class MuJoCoSO101:
     JOINT_ORDER: ClassVar[tuple[str, ...]] = SO101_JOINT_ORDER
     NUM_JOINTS: ClassVar[int] = NUM_JOINTS

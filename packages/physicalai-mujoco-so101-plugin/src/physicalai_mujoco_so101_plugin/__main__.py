@@ -19,6 +19,10 @@ from dataclasses import asdict
 from pathlib import Path
 
 from loguru import logger
+from physicalai.config import to_config
+from physicalai.robot.transport import SharedRobot
+
+from physicalai_mujoco_so101_plugin.mujoco_robot import MuJoCoSO101
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -157,12 +161,9 @@ def _start(args: argparse.Namespace) -> None:
     if scene_config is not None:
         robot_kwargs["scene_config"] = asdict(scene_config)
 
-    from physicalai.robot.transport import SharedRobot
-
-    robot = SharedRobot(
+    robot = SharedRobot.from_config(
+        to_config(MuJoCoSO101(**robot_kwargs)),
         name=args.name,
-        robot_class="physicalai_mujoco_so101_plugin.mujoco_robot.MuJoCoSO101",
-        robot_kwargs=robot_kwargs,
         allow_remote=args.allow_remote,
         rate_hz=args.rate_hz,
         idle_timeout=args.idle_timeout,

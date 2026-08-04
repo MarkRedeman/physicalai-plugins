@@ -16,6 +16,10 @@ import time
 from pathlib import Path
 
 from loguru import logger
+from physicalai.config import to_config
+from physicalai.robot.transport import SharedRobot
+
+from physicalai_mujoco_so101_plugin.mujoco_robot import MuJoCoSO101
 
 
 def main() -> None:
@@ -37,13 +41,10 @@ def main() -> None:
             logger.error("Bundled model not found at {}", model_path)
             sys.exit(1)
 
-    from physicalai.robot.transport import SharedRobot
-
     robot_kwargs = {"model_path": model_path, "substeps": args.substeps}
-    robot = SharedRobot(
+    robot = SharedRobot.from_config(
+        to_config(MuJoCoSO101(**robot_kwargs)),
         name=args.name,
-        robot_class="physicalai_mujoco_so101_plugin.mujoco_robot.MuJoCoSO101",
-        robot_kwargs=robot_kwargs,
         allow_remote=args.allow_remote,
         rate_hz=args.rate_hz,
     )
