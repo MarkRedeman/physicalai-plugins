@@ -2,7 +2,7 @@
 members = ["packages/*"]
 
 [tool.uv.sources]
-physicalai-studio-plugin = { path = "../physical-ai-studio/application/plugin", editable = true }
+#physicalai-studio-plugin = { path = "../physical-ai-studio/application/plugin", editable = true }
 physicalai = { git = "https://github.com/openvinotoolkit/physicalai.git", rev = "3e163cfebc5f0fe6d97a6e792b4b0a55614d9a44" }
 
 [dependency-groups]
