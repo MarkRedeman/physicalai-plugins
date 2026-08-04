@@ -1,8 +1,8 @@
-# ruff: file-ignore[undocumented-public-module, undocumented-public-class, undocumented-public-method, undocumented-magic-method, undocumented-public-init, import-outside-top-level]
+"""MuJoCo-backed SO-101 robot implementation."""
+
 from __future__ import annotations
 
 import contextlib
-import os
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -21,6 +21,8 @@ if TYPE_CHECKING:
 
 @dataclass
 class MuJoCoSO101Observation:
+    """Observation returned by the MuJoCo SO-101 robot."""
+
     joint_positions: np.ndarray
     timestamp: float
     sensor_data: dict[str, np.ndarray] | None = None
@@ -28,11 +30,14 @@ class MuJoCoSO101Observation:
 
     @property
     def state(self) -> np.ndarray:
+        """Joint positions represented as the robot state."""
         return self.joint_positions
 
 
 @dataclass(frozen=True)
 class CameraConfig:
+    """Output configuration for a virtual camera."""
+
     name: str
     device: str
     width: int = 640
@@ -40,8 +45,11 @@ class CameraConfig:
     fps: int = 30
     mirror_horizontal: bool = False
 
+
 @export_config(class_path="physicalai_mujoco_so101_plugin.mujoco_robot.MuJoCoSO101")
 class MuJoCoSO101:
+    """SO-101 robot simulated with MuJoCo."""
+
     JOINT_ORDER: ClassVar[tuple[str, ...]] = SO101_JOINT_ORDER
     NUM_JOINTS: ClassVar[int] = NUM_JOINTS
     DEFAULT_BLOCK_FREEJOINTS: ClassVar[tuple[str, ...]] = ("block1:joint", "block2:joint", "block3:joint")
@@ -64,6 +72,7 @@ class MuJoCoSO101:
         data: object = None,
         scene_config: dict | None = None,
     ) -> None:
+        """Initialize a disconnected simulation robot."""
         self._model_path = model_path
         self._substeps = substeps
         self._enable_viewer = enable_viewer
@@ -94,7 +103,8 @@ class MuJoCoSO101:
             self._target_min_sep: float = scene_config["target_min_sep"]
             self._current_scene_id = scene_config.get("scene_id")
             if self._current_scene_id:
-                from physicalai_mujoco_so101_plugin.scene_registry import get_reset_fn
+                from physicalai_mujoco_so101_plugin.scene_registry import get_reset_fn  # noqa: PLC0415
+
                 self._scene_on_reset = get_reset_fn(self._current_scene_id)
         else:
             self._free_joints: tuple[str, ...] = self.DEFAULT_BLOCK_FREEJOINTS
@@ -108,17 +118,20 @@ class MuJoCoSO101:
 
     @property
     def joint_names(self) -> list[str]:
+        """Ordered joint names."""
         return list(self.JOINT_ORDER)
 
     @property
     def device_ids(self) -> tuple[str, ...]:
+        """This simulation's device identifier."""
         stem = Path(self._model_path).stem
         return (f"mujoco:{stem}",)
 
     def connect(self) -> None:
+        """Load the model and initialize simulation resources."""
         if self.is_connected():
             return
-        import mujoco
+        import mujoco  # noqa: PLC0415
 
         logger.info("Loading MuJoCo model from {}", self._model_path)
         self._model = mujoco.MjModel.from_xml_path(self._model_path)
@@ -127,7 +140,7 @@ class MuJoCoSO101:
         self._last_sim_time = float(self._data.time)
         self._init_block_joint_addrs()
         try:
-            self._scene_xml_mtime = os.path.getmtime(self._model_path)
+            self._scene_xml_mtime = Path(self._model_path).stat().st_mtime
         except OSError:
             self._scene_xml_mtime = 0.0
         logger.info(
@@ -138,20 +151,22 @@ class MuJoCoSO101:
 
         if self._enable_viewer:
             try:
-                import mujoco.viewer
+                import mujoco.viewer  # noqa: PLC0415
 
                 self._viewer = mujoco.viewer.launch_passive(
-                    self._model, self._data,
+                    self._model,
+                    self._data,
                     key_callback=self._key_callback,
                 )
                 logger.info("MuJoCo viewer opened")
-            except Exception as exc:  # ruff: ignore[blind-except]
+            except Exception as exc:  # noqa: BLE001
                 logger.warning("Failed to open MuJoCo viewer: {}", exc)
                 self._enable_viewer = False
 
         self._init_cameras()
 
     def disconnect(self) -> None:
+        """Release simulation resources."""
         for renderer in self._camera_renderers.values():
             with contextlib.suppress(Exception):
                 renderer.close()
@@ -170,10 +185,11 @@ class MuJoCoSO101:
         logger.info("MuJoCo SO101 disconnected")
 
     def is_connected(self) -> bool:
+        """Return whether the simulation model is loaded."""
         return self._model is not None
 
     def _step_and_sync(self) -> None:
-        import mujoco
+        import mujoco  # noqa: PLC0415
 
         self._check_scene_xml_camera()
 
@@ -195,10 +211,10 @@ class MuJoCoSO101:
         if not self._cameras:
             return
 
-        import mujoco
+        import mujoco  # noqa: PLC0415
 
         try:
-            import pyfakewebcam
+            import pyfakewebcam  # noqa: PLC0415
         except ImportError as exc:
             logger.warning("pyfakewebcam unavailable, disabling cameras: {}", exc)
             return
@@ -215,11 +231,15 @@ class MuJoCoSO101:
             self._camera_last_frame_ts[config.name] = 0.0
             logger.info(
                 "Camera started: {} -> {} ({}x{}@{} fps)",
-                config.name, config.device, config.width, config.height, config.fps,
+                config.name,
+                config.device,
+                config.width,
+                config.height,
+                config.fps,
             )
 
     def _init_block_joint_addrs(self) -> None:
-        import mujoco
+        import mujoco  # noqa: PLC0415
 
         self._block_joint_addrs.clear()
         for joint_name in self._free_joints:
@@ -239,7 +259,7 @@ class MuJoCoSO101:
 
     def _check_scene_xml_camera(self) -> None:
         try:
-            mtime = os.path.getmtime(self._model_path)
+            mtime = Path(self._model_path).stat().st_mtime
         except OSError:
             return
         if mtime <= self._scene_xml_mtime:
@@ -248,14 +268,13 @@ class MuJoCoSO101:
         self._scene_xml_mtime = mtime
         self._update_camera_from_xml()
 
-    def _update_camera_from_xml(self) -> None:
-        import xml.etree.ElementTree as ET
-
-        import mujoco
+    def _update_camera_from_xml(self) -> None:  # noqa: PLR0912, PLR0915
+        import mujoco  # noqa: PLC0415
+        from defusedxml import ElementTree  # noqa: PLC0415
 
         try:
-            tree = ET.parse(self._model_path)
-        except ET.ParseError:
+            tree = ElementTree.parse(self._model_path)
+        except ElementTree.ParseError:
             logger.warning("XML parse error")
             return
         cam = tree.find(".//camera[@name='overview']")
@@ -275,7 +294,7 @@ class MuJoCoSO101:
             euler_str = body_elem.get("euler")
             if euler_str:
                 euler_vals = [float(x) for x in euler_str.split()]
-                if len(euler_vals) == 3:
+                if len(euler_vals) == 3:  # noqa: PLR2004
                     quat = np.zeros(4, dtype=np.float64)
                     mujoco.mju_euler2Quat(quat, euler_vals, "xyz")
                     self._model.body_quat[body_id] = quat
@@ -300,7 +319,7 @@ class MuJoCoSO101:
 
         if xyaxes_str:
             vals = [float(x) for x in xyaxes_str.split()]
-            if len(vals) == 6:
+            if len(vals) == 6:  # noqa: PLR2004
                 mat = np.empty(9, dtype=np.float64)
                 mat[:3] = vals[:3]
                 mat[3:6] = vals[3:]
@@ -313,7 +332,7 @@ class MuJoCoSO101:
                 logger.warning("Invalid xyaxes values: {}", xyaxes_str)
         elif euler_str:
             euler_vals = [float(x) for x in euler_str.split()]
-            if len(euler_vals) == 3:
+            if len(euler_vals) == 3:  # noqa: PLR2004
                 quat = np.zeros(4, dtype=np.float64)
                 mujoco.mju_euler2Quat(quat, euler_vals, "xyz")
                 self._model.cam_quat[overview_id] = quat
@@ -326,9 +345,9 @@ class MuJoCoSO101:
         mujoco.mj_forward(self._model, self._data)
 
     def _switch_to_scene(self, scene_id: str) -> None:
-        from physicalai_mujoco_so101_plugin.scene_registry import get_scene
+        import mujoco  # noqa: PLC0415
 
-        import mujoco
+        from physicalai_mujoco_so101_plugin.scene_registry import get_scene  # noqa: PLC0415
 
         scene = get_scene(scene_id)
         xml_path = scene.scene_xml_path
@@ -352,7 +371,7 @@ class MuJoCoSO101:
 
         if self._viewer is not None and self._viewer.is_running():
             with self._viewer.lock():
-                sim = self._viewer._get_sim()
+                sim = self._viewer._get_sim()  # noqa: SLF001
                 if sim is not None:
                     sim.m = new_model
                     sim.d = new_data
@@ -371,16 +390,20 @@ class MuJoCoSO101:
         self._init_cameras()
 
         try:
-            self._scene_xml_mtime = os.path.getmtime(self._model_path)
+            self._scene_xml_mtime = Path(self._model_path).stat().st_mtime
         except OSError:
             self._scene_xml_mtime = 0.0
 
         self._current_scene_id = scene_id
-        from physicalai_mujoco_so101_plugin.scene_registry import get_reset_fn
+        from physicalai_mujoco_so101_plugin.scene_registry import get_reset_fn  # noqa: PLC0415
+
         self._scene_on_reset = get_reset_fn(scene_id)
         logger.info(
             "Switched to scene '{}' ({} bodies, {} geoms, {} joints)",
-            scene_id, new_model.nbody, new_model.ngeom, new_model.njnt,
+            scene_id,
+            new_model.nbody,
+            new_model.ngeom,
+            new_model.njnt,
         )
 
     def _close_viewer(self) -> None:
@@ -394,22 +417,19 @@ class MuJoCoSO101:
             return
         self._pending_scene_switch = False
 
-        from physicalai_mujoco_so101_plugin.scene_registry import list_scenes
+        from physicalai_mujoco_so101_plugin.scene_registry import list_scenes  # noqa: PLC0415
 
-        try:
+        try:  # noqa: PLW0717
             scene_ids = list(list_scenes().keys())
             if not scene_ids:
                 logger.warning("No scenes available for switching")
                 return
 
             current = self._current_scene_id
-            if current is None or current not in scene_ids:
-                idx = 0
-            else:
-                idx = scene_ids.index(current)
+            idx = 0 if current is None or current not in scene_ids else scene_ids.index(current)
             next_idx = (idx + 1) % len(scene_ids)
             self._switch_to_scene(scene_ids[next_idx])
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             logger.warning("Failed to switch scene: {}", exc)
 
     def _handle_viewer_reset(self) -> None:
@@ -430,7 +450,9 @@ class MuJoCoSO101:
 
     def _sample_spawn_xy(self) -> tuple[float, float]:
         r = float(self._rng.uniform(self._spawn_min_r, self._spawn_max_r))
-        theta = float(self._rng.uniform(-np.radians(self._spawn_angle_half_deg), np.radians(self._spawn_angle_half_deg)))
+        theta = float(
+            self._rng.uniform(-np.radians(self._spawn_angle_half_deg), np.radians(self._spawn_angle_half_deg)),
+        )
         return (
             self._spawn_center[0] + r * float(np.cos(theta)),
             self._spawn_center[1] + r * float(np.sin(theta)),
@@ -457,7 +479,7 @@ class MuJoCoSO101:
         return target_xy, positions
 
     def _randomize_blocks(self) -> None:
-        import mujoco
+        import mujoco  # noqa: PLC0415
 
         if not self._block_joint_addrs:
             return
@@ -504,6 +526,11 @@ class MuJoCoSO101:
             self._camera_last_frame_ts[config.name] = now
 
     def get_observation(self) -> RobotObservation:
+        """Return the current simulated joint observation.
+
+        Raises:
+            ConnectionError: If the robot is not connected.
+        """
         if not self.is_connected():
             msg = "Robot is not connected. Call connect() first."
             raise ConnectionError(msg)
@@ -525,7 +552,13 @@ class MuJoCoSO101:
             sensor_data={"velocities": velocities.astype(np.float32)},
         )
 
-    def send_action(self, action: np.ndarray, *, goal_time: float = 0.1) -> None:  # ruff: ignore[unused-method-argument]
+    def send_action(self, action: np.ndarray, *, goal_time: float = 0.1) -> None:  # noqa: ARG002
+        """Apply joint-angle targets to the simulation actuators.
+
+        Raises:
+            ConnectionError: If the robot is not connected.
+            ValueError: If `action` does not match the robot joint count.
+        """
         if not self.is_connected():
             msg = "Robot is not connected. Call connect() first."
             raise ConnectionError(msg)
@@ -538,7 +571,15 @@ class MuJoCoSO101:
             self._data.ctrl[i] = float(np.radians(action[i]))
 
     def render_camera(self, camera_name: str, width: int, height: int) -> np.ndarray:
-        import mujoco
+        """Render an RGB image from a named camera.
+
+        Returns:
+            The rendered RGB image.
+
+        Raises:
+            ConnectionError: If the robot is not connected.
+        """
+        import mujoco  # noqa: PLC0415
 
         if not self.is_connected():
             msg = "Robot is not connected."
@@ -551,7 +592,7 @@ class MuJoCoSO101:
         return rgb
 
     def _read_joint_state(self, name: str) -> tuple[float, float]:
-        import mujoco
+        import mujoco  # noqa: PLC0415
 
         jnt_id = mujoco.mj_name2id(self._model, mujoco.mjtObj.mjOBJ_JOINT, name)
         if jnt_id < 0:
@@ -562,6 +603,7 @@ class MuJoCoSO101:
         return float(self._data.qpos[qpos_adr]), float(self._data.qvel[dof_adr])
 
     def __getstate__(self) -> dict:
+        """Return serializable construction state."""
         return {
             "_model_path": self._model_path,
             "_substeps": self._substeps,
@@ -579,6 +621,7 @@ class MuJoCoSO101:
         }
 
     def __setstate__(self, state: dict) -> None:
+        """Restore serializable construction state."""
         self._model_path = state["_model_path"]
         self._substeps = state["_substeps"]
         self._enable_viewer = state.get("_enable_viewer", False)
@@ -593,7 +636,8 @@ class MuJoCoSO101:
         self._target_min_sep = state.get("_target_min_sep", self.DEFAULT_TARGET_MIN_SEP)
         self._current_scene_id = state.get("_current_scene_id")
         if self._current_scene_id:
-            from physicalai_mujoco_so101_plugin.scene_registry import get_reset_fn
+            from physicalai_mujoco_so101_plugin.scene_registry import get_reset_fn  # noqa: PLC0415
+
             self._scene_on_reset = get_reset_fn(self._current_scene_id)
         else:
             self._scene_on_reset = None

@@ -1,5 +1,3 @@
-# ruff: file-ignore[private-member-access]
-
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -65,14 +63,14 @@ class TestMuJoCoSO101ObservationRead:
 class TestMuJoCoSO101Construction:
     def test_default_construction(self) -> None:
         robot = MuJoCoSO101(model_path="/fake/model.xml")
-        assert robot._model_path == "/fake/model.xml"
-        assert robot._substeps == 1
-        assert robot._model is None
-        assert robot._data is None
+        assert robot._model_path == "/fake/model.xml"  # noqa: SLF001
+        assert robot._substeps == 1  # noqa: SLF001
+        assert robot._model is None  # noqa: SLF001
+        assert robot._data is None  # noqa: SLF001
 
     def test_custom_substeps(self) -> None:
         robot = MuJoCoSO101(model_path="/fake/model.xml", substeps=5)
-        assert robot._substeps == 5
+        assert robot._substeps == 5  # noqa: SLF001
 
     def test_joint_names(self) -> None:
         robot = MuJoCoSO101(model_path="/fake/model.xml")
@@ -203,9 +201,9 @@ class TestMuJoCoSO101Pickling:
         state = {"_model_path": "/fake/model.xml", "_substeps": 2, "_enable_viewer": True, "_cameras": []}
         robot = MuJoCoSO101.__new__(MuJoCoSO101)
         robot.__setstate__(state)
-        assert robot._model_path == "/fake/model.xml"
-        assert robot._substeps == 2
-        assert robot._enable_viewer is True
-        assert robot._model is None
-        assert robot._data is None
-        assert robot._viewer is None
+        assert robot._model_path == "/fake/model.xml"  # noqa: SLF001
+        assert robot._substeps == 2  # noqa: SLF001
+        assert robot._enable_viewer is True  # noqa: SLF001
+        assert robot._model is None  # noqa: SLF001
+        assert robot._data is None  # noqa: SLF001
+        assert robot._viewer is None  # noqa: SLF001

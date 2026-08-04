@@ -24,11 +24,6 @@ fixable = ["ALL"]
 unfixable = []
 
 [tool.ruff.lint.per-file-ignores]
-"scripts/*.py" = [
-    "D",
-    "INP001",
-    "T201",
-]
 "packages/*/tests/**/*.py" = [
     "ARG001",
     "ARG002",

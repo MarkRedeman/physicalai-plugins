@@ -30,6 +30,8 @@ Symptoms:
 
 ## Recovery procedure
 
+<!-- markdownlint-disable MD029 -->
+
 1. Stop MuJoCo publishers and confirm no process has loopback devices open:
 
 ```bash
@@ -78,6 +80,8 @@ systemctl status v4l2-relayd@ipu7.service
 v4l2-ctl --list-devices
 wpctl status
 ```
+
+<!-- markdownlint-enable MD029 -->
 
 The relay must have a real running PID, and PipeWire should list `Hardware ISP Camera` as a video source.
 

@@ -1,4 +1,3 @@
-# ruff: file-ignore[undocumented-public-function, import-outside-top-level]
 """CLI entrypoint for the MuJoCo SO-101 simulation.
 
 Usage:
@@ -110,7 +109,7 @@ def _resolve_model_and_scene(model_arg: str | None, scene_arg: str) -> tuple[str
             sys.exit(1)
         return str(path), None
 
-    from physicalai_mujoco_so101_plugin.scene_registry import get_scene
+    from physicalai_mujoco_so101_plugin.scene_registry import get_scene  # noqa: PLC0415
 
     scene = get_scene(scene_arg)
     xml_path = scene.scene_xml_path
@@ -198,6 +197,7 @@ def _start(args: argparse.Namespace) -> None:
 
 
 def main() -> None:
+    """Parse command-line arguments and run the requested command."""
     parser = _build_parser()
     args = parser.parse_args()
 

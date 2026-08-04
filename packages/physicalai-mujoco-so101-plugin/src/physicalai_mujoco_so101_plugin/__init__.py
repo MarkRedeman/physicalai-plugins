@@ -1,4 +1,5 @@
-# ruff: file-ignore[undocumented-public-package, import-outside-top-level]
+"""MuJoCo SO-101 simulation plugin."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -17,11 +18,11 @@ __all__ = [
 
 def __getattr__(name: str) -> object:
     if name == "MuJoCoSO101":
-        from physicalai_mujoco_so101_plugin.mujoco_robot import MuJoCoSO101
+        from physicalai_mujoco_so101_plugin.mujoco_robot import MuJoCoSO101  # noqa: PLC0415
 
         return MuJoCoSO101
     if name == "MuJoCoSO101Observation":
-        from physicalai_mujoco_so101_plugin.mujoco_robot import MuJoCoSO101Observation
+        from physicalai_mujoco_so101_plugin.mujoco_robot import MuJoCoSO101Observation  # noqa: PLC0415
 
         return MuJoCoSO101Observation
     msg = f"module {__name__!r} has no attribute {name!r}"

@@ -1,4 +1,5 @@
-# ruff: file-ignore[undocumented-public-module, undocumented-public-class, undocumented-public-method, undocumented-public-function, import-outside-top-level]
+"""PhysicalAI Studio catalog registration for the MuJoCo SO-101 robot."""
+
 from __future__ import annotations
 
 import asyncio
@@ -69,6 +70,8 @@ _MUJOCO_SO101_ASSET = RobotAsset(
 
 
 class MuJoCoSO101Payload(BaseModel):
+    """Connection settings for a MuJoCo SO-101 simulation owner."""
+
     name: str = Field(
         default="mujoco-so101",
         description="Zenoh logical robot name of the running MuJoCo simulation",
@@ -84,7 +87,10 @@ class MuJoCoSO101Payload(BaseModel):
 
 
 class MuJoCoSO101Probe(RobotProbe[MuJoCoSO101Payload]):
+    """Discover and query MuJoCo SO-101 simulation owners."""
+
     async def discover(self, manager: PortScanner) -> list[SerialPortInfo]:
+        """Return robots found by the port scanner."""
         _ = self
         await manager.find_robots()
         return manager.robots
@@ -95,6 +101,7 @@ class MuJoCoSO101Probe(RobotProbe[MuJoCoSO101Payload]):
         manager: PortScanner | None = None,
         joint: str | None = None,
     ) -> None:
+        """Perform no visual identification for the simulated robot."""
         _ = self, payload, manager, joint
 
     async def is_online(
@@ -102,12 +109,13 @@ class MuJoCoSO101Probe(RobotProbe[MuJoCoSO101Payload]):
         payload: MuJoCoSO101Payload,
         manager: PortScanner | None = None,
     ) -> bool:
+        """Return whether the configured simulation owner is reachable."""
         _ = self, manager
         return await asyncio.to_thread(_check_zenoh_robot_online, payload.name)
 
 
 def _check_zenoh_robot_online(name: str) -> bool:
-    from physicalai.robot.transport import SharedRobot
+    from physicalai.robot.transport import SharedRobot  # noqa: PLC0415
 
     try:
         robot = SharedRobot.attach(name=name, connect_timeout=2.0)
@@ -158,7 +166,7 @@ async def _build_mujoco_robot(
     raw = robot.payload
     validated = raw if isinstance(raw, MuJoCoSO101Payload) else MuJoCoSO101Payload.model_validate(raw)
 
-    from physicalai.robot.transport import SharedRobot
+    from physicalai.robot.transport import SharedRobot  # noqa: PLC0415
 
     shared = SharedRobot.attach(
         name=validated.name,
@@ -191,6 +199,7 @@ def _assert_payload_model_resolvable(model: type[BaseModel]) -> None:
 
 
 def register_physicalai_studio_plugin(registry: _RobotCatalogRegistry) -> None:
+    """Register the MuJoCo SO-101 catalog definition."""
     for definition in _definitions():
         payload_model = definition.robot_payload
         if isinstance(payload_model, type) and issubclass(payload_model, BaseModel):

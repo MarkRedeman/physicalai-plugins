@@ -124,11 +124,11 @@ Because this uses PhysicalAI transport + Studio catalog integration, you can ite
 
 The plugin ships with built-in scenes that provide different environments for the robot:
 
-| Scene ID | Description | Free objects | Target |
-|----------|-------------|--------------|--------|
-| `single_pick_place` (default) | One block and a target disc | 1 cube | target disc |
-| `pick_lift` | Three colored cubes and a target disc | 3 cubes | target disc |
-| `pick_place` | A cube, a cylinder, and a target zone | cube + cylinder | target zone |
+| Scene ID                      | Description                           | Free objects    | Target      |
+| ----------------------------- | ------------------------------------- | --------------- | ----------- |
+| `single_pick_place` (default) | One block and a target disc           | 1 cube          | target disc |
+| `pick_lift`                   | Three colored cubes and a target disc | 3 cubes         | target disc |
+| `pick_place`                  | A cube, a cylinder, and a target zone | cube + cylinder | target zone |
 
 Start with a specific scene:
 
@@ -139,6 +139,7 @@ uv run --no-sync physicalai-mujoco-so101 start --scene pick_place
 ### Keyboard shortcut: cycle scenes
 
 When the MuJoCo viewer is open, press **`n`** (next scene) to cycle through available scenes. The scene switches at the next control cycle:
+
 - Closes the current viewer
 - Loads the new scene XML
 - Re-launches the viewer with the new environment

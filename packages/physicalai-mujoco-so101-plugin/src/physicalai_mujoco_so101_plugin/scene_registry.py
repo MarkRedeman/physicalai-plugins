@@ -1,18 +1,25 @@
+"""Scene definitions and reset behavior for the MuJoCo SO-101 simulation."""
+
 from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from physicalai_mujoco_so101_plugin._urdf import get_urdf_path
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 ResetFn = Callable[[object, object, np.random.Generator], None]
 
 
 @dataclass(frozen=True)
 class SceneConfig:
+    """Metadata and reset configuration for a simulation scene."""
+
     scene_id: str
     display_name: str
     description: str
@@ -28,6 +35,7 @@ class SceneConfig:
 
     @property
     def scene_xml_path(self) -> Path:
+        """Absolute path to this scene's XML model."""
         return get_urdf_path() / self.scene_xml_relpath
 
 
@@ -35,8 +43,9 @@ class SceneConfig:
 # Scene reset functions
 # ---------------------------------------------------------------------------
 
-def _pick_lift_reset(model: object, data: object, rng: np.random.Generator) -> None:
-    import mujoco
+
+def _pick_lift_reset(model: object, data: object, rng: np.random.Generator) -> None:  # noqa: PLR0914
+    import mujoco  # noqa: PLC0415
 
     block_joints = [f"block{i}:joint" for i in range(1, 4)]
     target_body = "target"
@@ -45,7 +54,7 @@ def _pick_lift_reset(model: object, data: object, rng: np.random.Generator) -> N
     angle_half_deg = 125.0
     block_min_sep, target_min_sep = 0.09, 0.11
 
-    def sample_xy():
+    def sample_xy() -> tuple[float, float]:
         r = float(rng.uniform(min_r, max_r))
         theta = float(rng.uniform(-np.radians(angle_half_deg), np.radians(angle_half_deg)))
         return (center[0] + r * np.cos(theta), center[1] + r * np.sin(theta))
@@ -83,8 +92,8 @@ def _pick_lift_reset(model: object, data: object, rng: np.random.Generator) -> N
     mujoco.mj_forward(model, data)
 
 
-def _pick_place_reset(model: object, data: object, rng: np.random.Generator) -> None:
-    import mujoco
+def _pick_place_reset(model: object, data: object, rng: np.random.Generator) -> None:  # noqa: PLR0914
+    import mujoco  # noqa: PLC0415
 
     block_joints = ("obj1:joint", "obj2:joint")
     target_body = "target_zone"
@@ -93,7 +102,7 @@ def _pick_place_reset(model: object, data: object, rng: np.random.Generator) -> 
     angle_half_deg = 135.0
     block_min_sep, target_min_sep = 0.10, 0.08
 
-    def sample_xy():
+    def sample_xy() -> tuple[float, float]:
         r = float(rng.uniform(min_r, max_r))
         theta = float(rng.uniform(-np.radians(angle_half_deg), np.radians(angle_half_deg)))
         return (center[0] + r * np.cos(theta), center[1] + r * np.sin(theta))
@@ -131,17 +140,17 @@ def _pick_place_reset(model: object, data: object, rng: np.random.Generator) -> 
     mujoco.mj_forward(model, data)
 
 
-def _single_pick_place_reset(model: object, data: object, rng: np.random.Generator) -> None:
-    import mujoco
+def _single_pick_place_reset(model: object, data: object, rng: np.random.Generator) -> None:  # noqa: PLR0914
+    import mujoco  # noqa: PLC0415
 
     block_joints = ("block1:joint",)
     target_body = "target"
     center = (0.24, 0.0)
     min_r, max_r = 0.08, 0.30
     angle_half_deg = 125.0
-    block_min_sep, target_min_sep = 0.09, 0.11
+    _block_min_sep, target_min_sep = 0.09, 0.11
 
-    def sample_xy():
+    def sample_xy() -> tuple[float, float]:
         r = float(rng.uniform(min_r, max_r))
         theta = float(rng.uniform(-np.radians(angle_half_deg), np.radians(angle_half_deg)))
         return (center[0] + r * np.cos(theta), center[1] + r * np.sin(theta))
@@ -179,15 +188,15 @@ def _single_pick_place_reset(model: object, data: object, rng: np.random.Generat
     mujoco.mj_forward(model, data)
 
 
-def _yahtzee_reset(model: object, data: object, rng: np.random.Generator) -> None:
-    import mujoco
+def _yahtzee_reset(model: object, data: object, rng: np.random.Generator) -> None:  # noqa: PLR0914
+    import mujoco  # noqa: PLC0415
 
     die_joints = [f"die{i}:joint" for i in range(1, 7)]
 
     cx, cy = 0.30, 0.0
     cup_jitter = 0.005
 
-    for idx, joint_name in enumerate(die_joints):
+    for joint_name in die_joints:
         jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, joint_name)
         if jid < 0:
             continue
@@ -205,7 +214,12 @@ def _yahtzee_reset(model: object, data: object, rng: np.random.Generator) -> Non
         s = np.sin(yaw / 2.0)
         drop_z = float(rng.uniform(0.12, 0.18))
         data.qpos[qpos_adr : qpos_adr + 3] = [x, y, drop_z]
-        data.qpos[qpos_adr + 3 : qpos_adr + 7] = [c * np.sin(tilt / 2.0), s * np.sin(tilt / 2.0), s * np.cos(tilt / 2.0), c * np.cos(tilt / 2.0)]
+        data.qpos[qpos_adr + 3 : qpos_adr + 7] = [
+            c * np.sin(tilt / 2.0),
+            s * np.sin(tilt / 2.0),
+            s * np.cos(tilt / 2.0),
+            c * np.cos(tilt / 2.0),
+        ]
 
         vx = float(rng.uniform(-0.5, 0.5))
         vy = float(rng.uniform(-0.5, 0.5))
@@ -258,8 +272,7 @@ _SCENES: dict[str, SceneConfig] = {
         display_name="Yahtzee",
         description="Pick up 6 dice and place them in the cup",
         scene_xml_relpath="scenes/yahtzee/scene.xml",
-        free_joints=("die1:joint", "die2:joint", "die3:joint",
-                      "die4:joint", "die5:joint", "die6:joint"),
+        free_joints=("die1:joint", "die2:joint", "die3:joint", "die4:joint", "die5:joint", "die6:joint"),
         target_bodies=(),
         spawn_center=(0.30, 0.0),
         spawn_min_r=0.06,
@@ -279,6 +292,11 @@ _RESET_FUNCTIONS: dict[str, ResetFn] = {
 
 
 def get_scene(scene_id: str) -> SceneConfig:
+    """Return the scene configuration identified by `scene_id`.
+
+    Raises:
+        KeyError: If `scene_id` is not registered.
+    """
     if scene_id not in _SCENES:
         msg = f"Unknown scene {scene_id!r}. Available: {list(_SCENES)}"
         raise KeyError(msg)
@@ -286,8 +304,10 @@ def get_scene(scene_id: str) -> SceneConfig:
 
 
 def list_scenes() -> dict[str, SceneConfig]:
+    """Return all scene configurations by ID."""
     return dict(_SCENES)
 
 
 def get_reset_fn(scene_id: str) -> ResetFn | None:
+    """Return the reset callback for `scene_id`, if one is registered."""
     return _RESET_FUNCTIONS.get(scene_id)

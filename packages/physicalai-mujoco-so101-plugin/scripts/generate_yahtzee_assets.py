@@ -1,3 +1,5 @@
+"""Generate the Yahtzee scene texture assets."""  # noqa: INP001
+
 from __future__ import annotations
 
 import struct
@@ -19,8 +21,9 @@ OUT.mkdir(parents=True, exist_ok=True)
 # Minimal PNG writer (no external dependencies)
 # ---------------------------------------------------------------------------
 
+
 def _write_png(path: Path, data: np.ndarray) -> None:
-    h, w, channels = data.shape
+    h, w, _channels = data.shape
     raw = b""
     for y in range(h):
         raw += b"\x00"
@@ -41,6 +44,7 @@ def _write_png(path: Path, data: np.ndarray) -> None:
 # Dot drawing helpers
 # ---------------------------------------------------------------------------
 
+
 def _draw_dot(arr: np.ndarray, cx: float, cy: float, r: float, color: tuple[int, ...]) -> None:
     h, w = arr.shape[:2]
     ys, xs = np.ogrid[:h, :w]
@@ -51,13 +55,19 @@ def _draw_dot(arr: np.ndarray, cx: float, cy: float, r: float, color: tuple[int,
 
 
 _DIE_FACES: list[list[tuple[float, float]]] = [
-    [(0.5, 0.5)],                                    # 1: centre
-    [(0.25, 0.75), (0.75, 0.25)],                    # 2: diagonal
-    [(0.25, 0.75), (0.5, 0.5), (0.75, 0.25)],       # 3: diagonal
-    [(0.25, 0.25), (0.75, 0.25), (0.25, 0.75), (0.75, 0.75)],           # 4: corners
+    [(0.5, 0.5)],  # 1: centre
+    [(0.25, 0.75), (0.75, 0.25)],  # 2: diagonal
+    [(0.25, 0.75), (0.5, 0.5), (0.75, 0.25)],  # 3: diagonal
+    [(0.25, 0.25), (0.75, 0.25), (0.25, 0.75), (0.75, 0.75)],  # 4: corners
     [(0.25, 0.25), (0.75, 0.25), (0.5, 0.5), (0.25, 0.75), (0.75, 0.75)],  # 5: corners+centre
-    [(0.25, 0.1667), (0.25, 0.5), (0.25, 0.8333),
-     (0.75, 0.1667), (0.75, 0.5), (0.75, 0.8333)],  # 6: two columns of three
+    [
+        (0.25, 0.1667),
+        (0.25, 0.5),
+        (0.25, 0.8333),
+        (0.75, 0.1667),
+        (0.75, 0.5),
+        (0.75, 0.8333),
+    ],  # 6: two columns of three
 ]
 
 CELL = 128
@@ -79,11 +89,10 @@ def _make_face(dots: list[tuple[float, float]]) -> np.ndarray:
 #         [bottom:5]
 # ---------------------------------------------------------------------------
 
-print("Generating die texture atlas ...")
 ATLAS_W, ATLAS_H = CELL * 4, CELL * 3
 atlas = np.full((ATLAS_H, ATLAS_W, 3), 255, dtype=np.uint8)
 
-# cell positions (col, row) in 4×3 grid
+# cell positions (col, row) in 4x3 grid
 _cells = {
     1: (1, 1),  # front
     2: (1, 0),  # top
@@ -100,12 +109,10 @@ for face_id, dots in enumerate(_DIE_FACES, 1):
     atlas[y0 : y0 + CELL, x0 : x0 + CELL] = face_img
 
 _write_png(OUT / "die_atlas.png", atlas)
-print("  die_atlas.png (512×384)")
 
 # Also save individual face PNGs (useful for reference)
 for face_id, dots in enumerate(_DIE_FACES, 1):
     _write_png(OUT / f"die_face_{face_id}.png", _make_face(dots))
-print("  die_face_{1..6}.png done")
 
 
 # ---------------------------------------------------------------------------
@@ -115,7 +122,6 @@ print("  die_face_{1..6}.png done")
 # UV coordinates are projected per-face (24 unshared vertices, 12 triangles).
 # ---------------------------------------------------------------------------
 
-print("Generating die_cube.obj ...")
 
 S = 0.01  # half-size
 
@@ -178,17 +184,12 @@ for face_id in range(1, 7):
     for tri in [(0, 1, 2), (2, 3, 0)]:
         for ci in tri:
             x, y, z, u, vt = corners[ci]
-            lines.append(f"v {x} {y} {z}\n")
-            lines.append(f"vt {u} {1.0 - vt}\n")
+            lines.extend((f"v {x} {y} {z}\n", f"vt {u} {1.0 - vt}\n"))
             idx += 2  # we just wrote 2 lines
 lines.append("usemtl die_visual\ns off\n")
 
 for fi in range(12):
     base = 1 + fi * 3
-    lines.append(f"f {base}/{base} {base+1}/{base+1} {base+2}/{base+2}\n")
+    lines.append(f"f {base}/{base} {base + 1}/{base + 1} {base + 2}/{base + 2}\n")
 
 (OUT / "die_cube.obj").write_text("".join(lines))
-print("  die_cube.obj done")
-
-
-print(f"\nAll assets written to {OUT}")

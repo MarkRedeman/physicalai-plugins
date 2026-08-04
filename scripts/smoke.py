@@ -3,7 +3,7 @@
 Usage:
     python scripts/smoke.py [package-name ...]
     python scripts/smoke.py   # reads all packages from release-please-config.json
-"""
+"""  # noqa: INP001
 
 import importlib
 import importlib.metadata
@@ -13,17 +13,18 @@ import sys
 
 
 def main() -> None:
+    """Import each requested package and report its installed version."""
     pkg_names = _get_package_names()
 
     for pkg_name in pkg_names:
-        print(f"{pkg_name}: ", end="", flush=True)
+        print(f"{pkg_name}: ", end="", flush=True)  # noqa: T201
         try:
             import_name = pkg_name.replace("-", "_")
             importlib.import_module(import_name)
             v = importlib.metadata.version(pkg_name)
-            print(f"{v} OK")
+            print(f"{v} OK")  # noqa: T201
         except (ImportError, importlib.metadata.PackageNotFoundError) as exc:
-            print(f"FAIL ({exc})")
+            print(f"FAIL ({exc})")  # noqa: T201
             sys.exit(1)
 
 
