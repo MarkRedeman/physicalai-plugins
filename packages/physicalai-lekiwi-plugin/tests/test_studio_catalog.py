@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -8,7 +9,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 import pytest
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 
 @dataclass
@@ -24,6 +25,17 @@ class _FakeRegistry:
         if self.definitions is None:
             self.definitions = []
         self.definitions.extend(definitions)
+
+
+@dataclass
+class _PayloadContainer:
+    payload: object
+
+
+class _FakeFactory:
+    async def find_port(self, port: object) -> str:
+        _ = port
+        return "/dev/ttyACM9"
 
 
 def test_register_plugin() -> None:
@@ -54,7 +66,7 @@ def test_payload_model() -> None:
     payload = LeKiwiPayload(serial_number="12345")
     assert payload.serial_number == "12345"
     assert payload.baudrate == 1_000_000
-    assert payload.disable_torque_on_disconnect is False
+    assert payload.disable_torque_on_disconnect is True
     assert payload.connection_string == ""
 
 
@@ -154,6 +166,27 @@ def test_payload_model_rebuild() -> None:
     from physicalai_lekiwi_plugin.studio_catalog import LeKiwiPayload
 
     LeKiwiPayload.model_rebuild(raise_errors=True)
+
+
+def test_follower_builder_validates_cross_identity_payload() -> None:
+    from physicalai_lekiwi_plugin.studio_catalog import _build_lekiwi_driver
+
+    class OtherPayload(BaseModel):
+        connection_string: str
+        serial_number: str
+        disable_torque_on_disconnect: bool
+
+    driver = asyncio.run(_build_lekiwi_driver(
+        _PayloadContainer(OtherPayload(
+            connection_string="/dev/ttyACM0",
+            serial_number="12345",
+            disable_torque_on_disconnect=True,
+        )),
+        _FakeFactory(),
+    ))
+
+    assert driver.port == "/dev/ttyACM9"
+    assert driver.disable_torque_on_disconnect is True
 
 
 def test_urdf_path_exists() -> None:
