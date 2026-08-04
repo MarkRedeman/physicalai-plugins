@@ -33,9 +33,6 @@ mujoco-so101 = "physicalai_mujoco_so101_plugin.studio_catalog:register_physicala
 [project.scripts]
 physicalai-mujoco-so101 = "physicalai_mujoco_so101_plugin.__main__:main"
 
-[tool.uv.sources]
-physicalai = { git = "https://github.com/openvinotoolkit/physicalai.git", rev = "d4af359eb63cfac258f44564eb44aae6f5333fbd" }
-
 [tool.hatch.version]
 source = "vcs"
 raw-options = { search_parent_directories = true }
