@@ -530,6 +530,8 @@ def _definitions() -> list[RobotCatalogDefinition]:
             RobotCatalogDefinition(
                 type=f"LeRobot_{type_str}_Follower",
                 display_name=f"{display_name} Follower",
+                category="LeRobot",
+                source="first_party",
                 role="follower",
                 robot_builder=follower_builder,
                 robot_payload=payload_cls,
@@ -547,6 +549,8 @@ def _definitions() -> list[RobotCatalogDefinition]:
             RobotCatalogDefinition(
                 type=f"LeRobot_{type_str}_Leader",
                 display_name=f"{display_name} Leader",
+                category="LeRobot",
+                source="first_party",
                 role="leader",
                 robot_builder=leader_builder,
                 robot_payload=payload_cls,

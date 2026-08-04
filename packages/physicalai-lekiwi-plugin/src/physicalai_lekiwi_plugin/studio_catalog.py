@@ -192,6 +192,8 @@ def _definitions() -> list[RobotCatalogDefinition]:
         RobotCatalogDefinition(
             type="LeKiwi_Follower",
             display_name="LeKiwi Follower",
+            category="LeKiwi",
+            source="first_party",
             role="follower",
             robot_builder=_build_lekiwi_driver,
             robot_payload=LeKiwiPayload,
@@ -202,6 +204,8 @@ def _definitions() -> list[RobotCatalogDefinition]:
         RobotCatalogDefinition(
             type="LeKiwi_Leader",
             display_name="LeKiwi Leader",
+            category="LeKiwi",
+            source="first_party",
             role="leader",
             robot_builder=_build_lekiwi_leader,
             robot_payload=LeKiwiPayload,

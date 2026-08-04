@@ -214,6 +214,8 @@ def _definitions() -> list[RobotCatalogDefinition]:
         RobotCatalogDefinition(
             type="ReBot_B601_DM_Follower",
             display_name="ReBot B601 DM Follower",
+            category="ReBot",
+            source="first_party",
             role="follower",
             robot_builder=_build_rebot_b601_dm_driver,
             robot_payload=ReBotB601DMPayload,
@@ -224,6 +226,8 @@ def _definitions() -> list[RobotCatalogDefinition]:
         RobotCatalogDefinition(
             type="ReBot_Arm102_Leader",
             display_name="ReBot Arm102 Leader",
+            category="ReBot",
+            source="first_party",
             role="leader",
             robot_builder=_build_rebot_arm102_driver,
             robot_payload=ReBotArm102Payload,

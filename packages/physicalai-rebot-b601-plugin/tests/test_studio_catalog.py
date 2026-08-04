@@ -41,6 +41,14 @@ def test_definitions_have_expected_types() -> None:
     assert types == {"ReBot_B601_DM_Follower", "ReBot_Arm102_Leader"}
 
 
+def test_definitions_have_catalog_metadata() -> None:
+    from physicalai_rebot_b601_plugin.studio_catalog import _definitions
+
+    for definition in _definitions():
+        assert definition.category == "ReBot"
+        assert definition.source == "first_party"
+
+
 def test_register_physicalai_studio_plugin() -> None:
     from physicalai_rebot_b601_plugin.studio_catalog import register_physicalai_studio_plugin
 

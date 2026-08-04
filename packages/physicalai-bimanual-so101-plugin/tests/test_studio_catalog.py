@@ -47,6 +47,13 @@ class TestRegistration:
         types = {d.type for d in _definitions()}
         assert types == {"BimanualSO101_Follower", "BimanualSO101_Leader"}
 
+    def test_definitions_have_catalog_metadata(self) -> None:
+        from physicalai_bimanual_so101_plugin.studio_catalog import _definitions
+
+        for definition in _definitions():
+            assert definition.category == "SO101"
+            assert definition.source == "first_party"
+
     def test_follower_structure(self) -> None:
         from physicalai_bimanual_so101_plugin.studio_catalog import BimanualSO101Payload, _definitions
 

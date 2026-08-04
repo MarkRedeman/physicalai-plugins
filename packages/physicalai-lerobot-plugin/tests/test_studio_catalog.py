@@ -68,6 +68,9 @@ def test_register_plugin_includes_all_registered_robot_and_teleoperator_types() 
         assert definitions_by_type[type_str].role == "follower"
     for type_str in expected_leader_types:
         assert definitions_by_type[type_str].role == "leader"
+    for definition in registry.definitions:
+        assert definition.category == "LeRobot"
+        assert definition.source == "first_party"
 
 
 def test_skip_list_excludes_test_only_robots() -> None:

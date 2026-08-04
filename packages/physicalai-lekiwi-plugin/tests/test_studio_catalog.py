@@ -50,6 +50,8 @@ def test_register_plugin() -> None:
     types = [(d.type, d.role) for d in registry.definitions]
     assert ("LeKiwi_Follower", "follower") in types
     assert ("LeKiwi_Leader", "leader") in types
+    assert all(definition.category == "LeKiwi" for definition in registry.definitions)
+    assert all(definition.source == "first_party" for definition in registry.definitions)
 
     defn = registry.definitions[0]
     assert defn.asset is not None
