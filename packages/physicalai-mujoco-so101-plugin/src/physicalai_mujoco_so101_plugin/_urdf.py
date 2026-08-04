@@ -14,4 +14,8 @@ def get_urdf_path() -> Path:
     """Return the path to bundled MuJoCo scene assets."""
     traversal = ir.files("physicalai_mujoco_so101_plugin")
     with ir.as_file(traversal) as p:
-        return p.parent.parent.joinpath("urdf")
+        candidates = (p.parent / "urdf", p.parent.parent / "urdf")
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+        return candidates[1]

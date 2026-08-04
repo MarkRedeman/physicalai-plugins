@@ -39,7 +39,7 @@ Common options:
 
 - `--name <robot-name>`: transport name (must match Studio payload)
 - `--model <path>`: custom XML/URDF path (bypasses scene resolution)
-- `--scene <name>`: scene name (`single_pick_place`, `pick_lift`, or `pick_place`, default `single_pick_place`)
+- `--scene <name>`: scene name (`single_pick_place`, `pick_lift`, `pick_place`, or `yahtzee`, default `single_pick_place`)
 - `--no-gui`: disable MuJoCo interactive viewer
 - `--no-cameras`: disable v4l2loopback camera output
 - `--wrist-video-id <int>`: video ID for wrist stream (default `60`)
@@ -129,6 +129,7 @@ The plugin ships with built-in scenes that provide different environments for th
 | `single_pick_place` (default) | One block and a target disc           | 1 cube          | target disc |
 | `pick_lift`                   | Three colored cubes and a target disc | 3 cubes         | target disc |
 | `pick_place`                  | A cube, a cylinder, and a target zone | cube + cylinder | target zone |
+| `yahtzee`                     | Six dice and a cup                    | 6 dice          | cup         |
 
 Start with a specific scene:
 
@@ -140,9 +141,8 @@ uv run --no-sync physicalai-mujoco-so101 start --scene pick_place
 
 When the MuJoCo viewer is open, press **`n`** (next scene) to cycle through available scenes. The scene switches at the next control cycle:
 
-- Closes the current viewer
 - Loads the new scene XML
-- Re-launches the viewer with the new environment
+- Updates the existing viewer with the new environment
 - Resets block joints, target bodies, and spawn parameters
 
 `--model` bypasses scene resolution entirely; only the exported scene XML path is loaded, and scene cycling is unavailable.

@@ -181,6 +181,7 @@ class MuJoCoSO101:
         self._model = None
         self._data = None
         self._current_scene_id = None
+        self._scene_on_reset = None
         self._pending_scene_switch = False
         logger.info("MuJoCo SO101 disconnected")
 
@@ -254,7 +255,7 @@ class MuJoCoSO101:
         self._target_body_id = int(target_id) if target_id >= 0 else None
 
     def _key_callback(self, key: int) -> None:
-        if key == ord("N") and not self._pending_scene_switch:
+        if key in {ord("n"), ord("N")} and not self._pending_scene_switch:
             self._pending_scene_switch = True
 
     def _check_scene_xml_camera(self) -> None:
@@ -274,8 +275,8 @@ class MuJoCoSO101:
 
         try:
             tree = ElementTree.parse(self._model_path)
-        except ElementTree.ParseError:
-            logger.warning("XML parse error")
+        except ElementTree.ParseError as exc:
+            logger.warning("Failed to parse scene XML {}: {}", self._model_path, exc)
             return
         cam = tree.find(".//camera[@name='overview']")
         if cam is None:

@@ -114,12 +114,19 @@ class TestMuJoCoSO101Connect:
         robot.connect()
         robot.disconnect()
         assert not robot.is_connected()
+        assert robot._scene_on_reset is None  # noqa: SLF001
 
     def test_disconnect_idempotent(self, mock_mujoco: MagicMock) -> None:
         _ = mock_mujoco
         robot = MuJoCoSO101(model_path="/fake/model.xml")
         robot.disconnect()
         robot.disconnect()
+
+    @pytest.mark.parametrize("key", [ord("n"), ord("N")])
+    def test_scene_switch_key(self, key: int) -> None:
+        robot = MuJoCoSO101(model_path="/fake/model.xml")
+        robot._key_callback(key)  # noqa: SLF001
+        assert robot._pending_scene_switch is True  # noqa: SLF001
 
 
 class TestMuJoCoSO101ObservationReadBack:
