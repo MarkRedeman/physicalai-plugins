@@ -10,6 +10,7 @@ creating a typed Pydantic payload model for each from the lerobot
 from __future__ import annotations
 
 import dataclasses
+import importlib
 import importlib.machinery
 import sys
 import types
@@ -119,6 +120,33 @@ _PAIR_LEN: int = 2
 
 def _is_dataclass_type(annotation: object) -> bool:
     return isinstance(annotation, type) and dataclasses.is_dataclass(annotation)
+
+
+def _payload_types_namespace(config_cls: type, visited: set[type] | None = None) -> dict[str, object]:
+    """Collect namespaces needed by dataclasses nested in a config schema.
+
+    Returns:
+        Combined module namespaces for the config and nested dataclasses.
+    """
+    visited = set() if visited is None else visited
+    if config_cls in visited:
+        return {}
+    visited.add(config_cls)
+
+    namespace = vars(importlib.import_module(config_cls.__module__)).copy()
+    for field in dataclasses.fields(config_cls):
+        namespace.update(_annotation_types_namespace(field.type, visited))
+    return namespace
+
+
+def _annotation_types_namespace(annotation: object, visited: set[type]) -> dict[str, object]:
+    if _is_dataclass_type(annotation):
+        return _payload_types_namespace(annotation, visited)
+
+    namespace: dict[str, object] = {}
+    for argument in get_args(annotation):
+        namespace.update(_annotation_types_namespace(argument, visited))
+    return namespace
 
 
 def _annotation_has_str(annotation: object) -> bool:
@@ -325,6 +353,7 @@ def _make_payload_model(config_cls: type) -> type[BaseModel]:
             field_defs[f.name] = (pydantic_type, Field(default=default_val, description=f.name))
 
     payload_model = create_model(f"{config_cls.__name__}Payload", **field_defs)
+    payload_model.__pydantic_parent_namespace__ = _payload_types_namespace(config_cls)
     _PAYLOAD_MODEL_CACHE[config_cls] = payload_model
     return payload_model
 
@@ -563,7 +592,10 @@ def _definitions() -> list[RobotCatalogDefinition]:
 
 
 def _assert_payload_model_resolvable(model: type[BaseModel]) -> None:
-    model.model_rebuild(_types_namespace=globals(), raise_errors=True)
+    model.model_rebuild(
+        _types_namespace={**globals(), **model.__pydantic_parent_namespace__},
+        raise_errors=True,
+    )
 
 
 def register_physicalai_studio_plugin(registry: _RobotCatalogRegistry) -> None:

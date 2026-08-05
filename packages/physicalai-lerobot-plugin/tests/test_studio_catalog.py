@@ -181,6 +181,17 @@ def test_make_payload_model_for_hope_jr_hand() -> None:
     assert payload.side == "left"
 
 
+def test_make_payload_model_resolves_nested_dataclass_forward_references() -> None:
+    from lerobot.motors.motors_bus import Motor
+
+    from physicalai_lerobot_plugin.studio_catalog import _assert_payload_model_resolvable, _make_payload_model
+
+    model = _make_payload_model(Motor)
+
+    _assert_payload_model_resolvable(model)
+    assert model.model_fields["norm_mode"].annotation is not None
+
+
 def test_make_payload_model_requires_native_required_fields() -> None:
     from lerobot.robots import so_follower  # noqa: F401
     from lerobot.robots.config import RobotConfig
