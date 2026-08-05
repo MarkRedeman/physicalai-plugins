@@ -308,20 +308,23 @@ class ReBotB601DM:
         """Send a target position command to each joint.
 
         The gripper uses FORCE_POS mode; all other joints use POS_VEL mode
-        with a fixed velocity limit.
+        with a velocity limit calculated to reach the target within ``goal_time``.
+        The limit is capped by ``REBOT_B601_DM_POS_VEL_DEG_S``.
 
         Args:
             action: Array of 7 joint position targets in degrees.
-            goal_time: Ignored; present for protocol compatibility.
+            goal_time: Requested time to reach each target in seconds.
 
         Raises:
             ConnectionError: If the robot is not connected.
             ValueError: If the action shape does not match ``NUM_JOINTS``.
         """
-        _ = goal_time
         if not self.is_connected():
             msg = "Robot is not connected. Call connect() first."
             raise ConnectionError(msg)
+        if not math.isfinite(goal_time) or goal_time <= 0.0:
+            msg = f"goal_time must be a finite positive value, got {goal_time!r}"
+            raise ValueError(msg)
         self._require_controller()
         expected_shape = (self.NUM_JOINTS,)
         if action.shape != expected_shape:
@@ -331,8 +334,12 @@ class ReBotB601DM:
         for i, name in enumerate(self.JOINT_ORDER):
             target_deg = self._map_and_clip_action(name, float(action[i]))
             target_rad = math.radians(target_deg)
-            velocity_rad_s = math.radians(REBOT_B601_DM_POS_VEL_DEG_S[i])
             motor = self._motors[name]
+            state = motor.get_state()
+            max_velocity_rad_s = math.radians(REBOT_B601_DM_POS_VEL_DEG_S[i])
+            velocity_rad_s = max_velocity_rad_s
+            if state is not None:
+                velocity_rad_s = min(max_velocity_rad_s, abs(target_rad - float(state.pos)) / goal_time)
 
             if name == "gripper":
                 motor.send_force_pos(target_rad, velocity_rad_s, self._force_pos_torque_ratio)
