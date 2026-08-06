@@ -6,6 +6,7 @@ import pytest
 from physicalai.config import to_config
 from physicalai.robot.transport import SharedRobot
 
+from physicalai_mujoco_so101_plugin.constants import BIMANUAL_SO101_JOINT_ORDER, SO101_JOINT_ORDER
 from physicalai_mujoco_so101_plugin.studio_catalog import (
     MuJoCoSO101Payload,
     MuJoCoSO101Probe,
@@ -39,13 +40,25 @@ class TestMuJoCoSO101Payload:
 class TestDefinitions:
     def test_definitions_return_list(self) -> None:
         defs = _definitions()
-        assert len(defs) == 1
+        assert len(defs) == 2
 
     def test_definition_contents(self) -> None:
         defs = _definitions()
         definition = defs[0]
         assert definition.type == "MuJoCo_SO101_Follower"
         assert definition.display_name == "MuJoCo SO-101 Follower"
+        assert definition.category == "MuJoCo"
+        assert definition.source == "first_party"
+        assert definition.role == "follower"
+        assert definition.asset is not None
+        assert definition.robot_payload is MuJoCoSO101Payload
+        assert definition.probe is not None
+
+    def test_bimanual_definition_contents(self) -> None:
+        defs = _definitions()
+        definition = defs[1]
+        assert definition.type == "MuJoCo_SO101_Bimanual_Follower"
+        assert definition.display_name == "MuJoCo SO-101 Bimanual Follower"
         assert definition.category == "MuJoCo"
         assert definition.source == "first_party"
         assert definition.role == "follower"
@@ -79,14 +92,29 @@ class TestDefinitions:
         assert "shoulder_pan.pos" in definition.asset.joint_map
         assert definition.asset.root_resolver is not None
 
+    def test_bimanual_urdf_asset(self) -> None:
+        defs = _definitions()
+        definition = defs[1]
+        assert definition.asset is not None
+        assert str(definition.asset.urdf_relative_path) == "so101/so101_dual.urdf"
+        assert "so101" in definition.asset.packages
+        assert "left_shoulder_pan.pos" in definition.asset.joint_map
+        assert "right_shoulder_pan.pos" in definition.asset.joint_map
+        assert definition.asset.root_resolver is not None
+
 
 class TestSharedRobotAdapter:
     def test_has_no_owned_devices(self) -> None:
-        robot = _SharedSO101Robot(SharedRobot.attach("mujoco-so101"))
+        robot = _SharedSO101Robot(SharedRobot.attach("mujoco-so101"), SO101_JOINT_ORDER)
         assert robot.device_ids == ()
+        assert robot.joint_names == list(SO101_JOINT_ORDER)
+
+    def test_bimanual_joint_names(self) -> None:
+        robot = _SharedSO101Robot(SharedRobot.attach("mujoco-so101"), BIMANUAL_SO101_JOINT_ORDER)
+        assert robot.joint_names == list(BIMANUAL_SO101_JOINT_ORDER)
 
     def test_exports_attach_only_shared_robot_recipe(self) -> None:
-        robot = _SharedSO101Robot(SharedRobot.attach("mujoco-so101", connect_timeout=5.0))
+        robot = _SharedSO101Robot(SharedRobot.attach("mujoco-so101", connect_timeout=5.0), SO101_JOINT_ORDER)
 
         assert to_config(robot) == {
             "class_path": "physicalai_mujoco_so101_plugin.studio_catalog._SharedSO101Robot",
@@ -99,6 +127,7 @@ class TestSharedRobotAdapter:
                         "connect_timeout": 5.0,
                     },
                 },
+                "joint_names": list(SO101_JOINT_ORDER),
             },
         }
 
@@ -135,4 +164,4 @@ class TestRegistration:
     def test_register_called(self) -> None:
         registry = MagicMock()
         register_physicalai_studio_plugin(registry)
-        registry.register_robot.assert_called_once()
+        assert registry.register_robot.call_count == 2
