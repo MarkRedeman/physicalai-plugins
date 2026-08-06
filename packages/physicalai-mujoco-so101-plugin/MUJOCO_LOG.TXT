@@ -1,0 +1,2 @@
+WARNING Thu Aug  6 21:35:30 2026: Pre-allocated visual geom buffer is full. Increase maxgeom above 0.
+

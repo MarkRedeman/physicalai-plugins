@@ -21,7 +21,7 @@ from loguru import logger
 from physicalai.config import to_config
 from physicalai.robot.transport import SharedRobot
 
-from physicalai_mujoco_so101_plugin.mujoco_robot import MuJoCoSO101
+from physicalai_mujoco_so101_plugin.mujoco_robot import BiMuJoCoSO101, MuJoCoSO101
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -57,10 +57,16 @@ def _build_parser() -> argparse.ArgumentParser:
         help="MuJoCo simulation steps per control cycle (default: 10, real-time at 50 Hz with dt=0.002)",
     )
     start.add_argument(
+        "--bimanual",
+        action="store_true",
+        default=False,
+        help="Run the dual-arm SO101 (bimanual) model (default scene: garment_fold)",
+    )
+    start.add_argument(
         "--scene",
         type=str,
-        default="single_pick_place",
-        help="Scene name (default: single_pick_place)",
+        default=None,
+        help="Scene name (default: garment_fold for bimanual, single_pick_place otherwise)",
     )
     start.add_argument(
         "--allow-remote",
@@ -93,15 +99,26 @@ def _build_parser() -> argparse.ArgumentParser:
         help="v4l2loopback video ID for the wrist camera (default: 60)",
     )
     start.add_argument(
-        "--overview-video-id",
+        "--right-wrist-video-id",
         type=int,
         default=61,
-        help="v4l2loopback video ID for the overview camera (default: 61)",
+        help="v4l2loopback video ID for the right wrist camera (bimanual, default: 61)",
+    )
+    start.add_argument(
+        "--overview-video-id",
+        type=int,
+        default=62,
+        help="v4l2loopback video ID for the overview camera (default: 62)",
     )
     return parser
 
 
-def _resolve_model_and_scene(model_arg: str | None, scene_arg: str) -> tuple[str, object | None]:
+def _resolve_model_and_scene(
+    model_arg: str | None,
+    scene_arg: str | None,
+    *,
+    bimanual: bool,
+) -> tuple[str, object | None]:
     if model_arg is not None:
         path = Path(model_arg).resolve()
         if not path.exists():
@@ -111,7 +128,8 @@ def _resolve_model_and_scene(model_arg: str | None, scene_arg: str) -> tuple[str
 
     from physicalai_mujoco_so101_plugin.scene_registry import get_scene  # noqa: PLC0415
 
-    scene = get_scene(scene_arg)
+    scene_id = scene_arg or ("garment_fold" if bimanual else "single_pick_place")
+    scene = get_scene(scene_id)
     xml_path = scene.scene_xml_path
     if not xml_path.exists():
         logger.error("Scene XML not found: {}", xml_path)
@@ -120,21 +138,25 @@ def _resolve_model_and_scene(model_arg: str | None, scene_arg: str) -> tuple[str
 
 
 def _start(args: argparse.Namespace) -> None:
-    model_path, scene_config = _resolve_model_and_scene(args.model, args.scene)
+    model_path, scene_config = _resolve_model_and_scene(args.model, args.scene, bimanual=args.bimanual)
 
     cameras: list[dict[str, object]] = []
     if not args.no_cameras:
-        if args.wrist_video_id < 0 or args.overview_video_id < 0:
+        video_ids = [args.wrist_video_id, args.overview_video_id]
+        if args.bimanual:
+            video_ids.append(args.right_wrist_video_id)
+        if any(v < 0 for v in video_ids):
             msg = "Video IDs must be non-negative integers"
             raise ValueError(msg)
-        if args.wrist_video_id == args.overview_video_id:
+        if len(set(video_ids)) != len(video_ids):
             msg = "Wrist and overview video IDs must be different"
             raise ValueError(msg)
         wrist_device = f"/dev/video{args.wrist_video_id}"
         overview_device = f"/dev/video{args.overview_video_id}"
+        left_wrist_name = "left_wrist" if args.bimanual else "wrist"
         cameras = [
             {
-                "name": "wrist",
+                "name": left_wrist_name,
                 "device": wrist_device,
                 "width": 640,
                 "height": 480,
@@ -150,6 +172,17 @@ def _start(args: argparse.Namespace) -> None:
                 "mirror_horizontal": True,
             },
         ]
+        if args.bimanual:
+            cameras.append(
+                {
+                    "name": "right_wrist",
+                    "device": f"/dev/video{args.right_wrist_video_id}",
+                    "width": 640,
+                    "height": 480,
+                    "fps": 30,
+                    "mirror_horizontal": True,
+                },
+            )
 
     robot_kwargs = {
         "model_path": model_path,
@@ -160,8 +193,9 @@ def _start(args: argparse.Namespace) -> None:
     if scene_config is not None:
         robot_kwargs["scene_config"] = asdict(scene_config)
 
+    robot_cls = BiMuJoCoSO101 if args.bimanual else MuJoCoSO101
     robot = SharedRobot.from_config(
-        to_config(MuJoCoSO101(**robot_kwargs)),
+        to_config(robot_cls(**robot_kwargs)),
         name=args.name,
         allow_remote=args.allow_remote,
         rate_hz=args.rate_hz,
@@ -171,10 +205,11 @@ def _start(args: argparse.Namespace) -> None:
     logger.info("Connecting MuJoCo SO-101 as zenoh owner '{}' ...", args.name)
     robot.connect()
     logger.info(
-        "MuJoCo SO-101 running (model={}, rate={} Hz, substeps={})",
+        "MuJoCo SO-101 running (model={}, rate={} Hz, substeps={}, bimanual={})",
         model_path,
         args.rate_hz,
         args.substeps,
+        args.bimanual,
     )
 
     shutdown = threading.Event()
