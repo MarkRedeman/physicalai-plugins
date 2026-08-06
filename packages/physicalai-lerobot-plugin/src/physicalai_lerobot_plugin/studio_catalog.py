@@ -26,8 +26,10 @@ from physicalai_studio_plugin import (
     RobotCatalogDefinition,
     RobotProbe,
     SerialPortInfo,
+    robot_field_ui,
+    robot_payload_ui,
 )
-from pydantic import BaseModel, Field, create_model
+from pydantic import BaseModel, ConfigDict, Field, create_model
 from serial.tools import list_ports
 
 if TYPE_CHECKING:
@@ -116,6 +118,7 @@ def _ensure_lerobot_third_party_plugins_imported() -> None:
 _REQUIRED_SENTINEL: Any = object()
 _PAYLOAD_MODEL_CACHE: dict[type, type[BaseModel]] = {}
 _PAIR_LEN: int = 2
+_NON_SERIAL_PORT_MODULES: frozenset[str] = frozenset({"reachy2", "yam_follower"})
 
 
 def _is_dataclass_type(annotation: object) -> bool:
@@ -158,6 +161,15 @@ def _annotation_has_str(annotation: object) -> bool:
         return any(_annotation_has_str(arg) for arg in get_args(annotation) if arg is not type(None))
 
     return False
+
+
+def _is_serial_port_field(config_cls: type, field: dataclasses.Field[Any]) -> bool:
+    """Return whether a config field represents a discoverable serial path."""
+    return (
+        field.name == "port"
+        and not any(f".{name}." in config_cls.__module__ for name in _NON_SERIAL_PORT_MODULES)
+        and _annotation_has_str(field.type)
+    )
 
 
 def _to_payload_annotation(annotation: object) -> object:  # noqa: PLR0911
@@ -276,7 +288,7 @@ async def _resolve_ports_in_dataclass(config: object, factory: CatalogRobotFacto
             await _resolve_ports_in_dataclass(value, factory, field_path)
             continue
 
-        if field.name == "port" and _annotation_has_str(field.type) and isinstance(value, str):
+        if _is_serial_port_field(type(config), field) and isinstance(value, str):
             if not value:
                 msg = f"Missing required port at {field_path}."
                 raise ValueError(msg)
@@ -347,12 +359,38 @@ def _make_payload_model(config_cls: type) -> type[BaseModel]:
     field_defs: dict[str, tuple[type, Any]] = {}
     for f in dataclasses.fields(config_cls):
         pydantic_type, default_val = _resolve_field_type(f)
+        extra = (
+            robot_field_ui({"group": "connection", "widget": "device-selector"})
+            if _is_serial_port_field(config_cls, f)
+            else None
+        )
         if default_val is _REQUIRED_SENTINEL:
-            field_defs[f.name] = (pydantic_type, Field(..., description=f.name))
+            field_defs[f.name] = (pydantic_type, Field(..., description=f.name, json_schema_extra=extra))
         else:
-            field_defs[f.name] = (pydantic_type, Field(default=default_val, description=f.name))
+            field_defs[f.name] = (
+                pydantic_type,
+                Field(default=default_val, description=f.name, json_schema_extra=extra),
+            )
 
-    payload_model = create_model(f"{config_cls.__name__}Payload", **field_defs)
+    payload_model = create_model(
+        f"{config_cls.__name__}Payload",
+        __config__=ConfigDict(
+            json_schema_extra=robot_payload_ui(
+                {
+                    "groups": {
+                        "connection": {
+                            "title": "Select robot",
+                            "device_discovery": True,
+                            "connection_key": "port",
+                        },
+                    },
+                },
+            ),
+        )
+        if any(_is_serial_port_field(config_cls, f) for f in dataclasses.fields(config_cls))
+        else None,
+        **field_defs,
+    )
     payload_model.__pydantic_parent_namespace__ = _payload_types_namespace(config_cls)
     _PAYLOAD_MODEL_CACHE[config_cls] = payload_model
     return payload_model

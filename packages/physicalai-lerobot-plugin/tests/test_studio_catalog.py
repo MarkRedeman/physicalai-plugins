@@ -250,6 +250,31 @@ def test_make_payload_model_for_reachy2() -> None:
     assert "cameras" in model.model_fields
 
 
+def test_payload_schema_marks_only_serial_ports_as_connection_fields() -> None:
+    from lerobot.robots import bi_rebot_b601_follower, reachy2, rebot_b601_follower  # noqa: F401
+    from lerobot.robots.config import RobotConfig
+
+    from physicalai_lerobot_plugin.studio_catalog import _make_payload_model
+
+    serial_model = _make_payload_model(RobotConfig.get_known_choices()["rebot_b601_follower"])
+    serial_schema = serial_model.model_json_schema()
+    assert serial_schema["properties"]["port"]["x-physicalai-ui"] == {
+        "group": "connection",
+        "widget": "device-selector",
+    }
+    assert serial_schema["x-physicalai-ui"]["groups"]["connection"]["connection_key"] == "port"
+
+    bimanual_model = _make_payload_model(RobotConfig.get_known_choices()["bi_rebot_b601_follower"])
+    bimanual_schema = bimanual_model.model_json_schema()
+    for arm in ("left_arm_config", "right_arm_config"):
+        definition_name = bimanual_schema["properties"][arm]["$ref"].removeprefix("#/$defs/")
+        port_schema = bimanual_schema["$defs"][definition_name]["properties"]["port"]
+        assert port_schema["x-physicalai-ui"]["widget"] == "device-selector"
+
+    reachy_model = _make_payload_model(RobotConfig.get_known_choices()["reachy2"])
+    assert "x-physicalai-ui" not in reachy_model.model_json_schema()["properties"]["port"]
+
+
 @pytest.mark.anyio
 async def test_builder_resolves_nested_ports_for_bimanual_config() -> None:
     from unittest.mock import MagicMock, patch

@@ -146,6 +146,22 @@ def test_payload_models_rebuild() -> None:
     ReBotArm102Payload.model_rebuild(raise_errors=True)
 
 
+def test_payload_schemas_configure_serial_connection_picker() -> None:
+    from physicalai_rebot_b601_plugin.studio_catalog import ReBotArm102Payload, ReBotB601DMPayload
+
+    for payload_model in (ReBotB601DMPayload, ReBotArm102Payload):
+        schema = payload_model.model_json_schema()
+        connection = schema["x-physicalai-ui"]["groups"]["connection"]
+
+        assert connection["connection_key"] == "connection_string"
+        assert connection["serial_number_key"] == "serial_number"
+        for field_name in ("connection_string", "serial_number"):
+            assert schema["properties"][field_name]["x-physicalai-ui"] == {
+                "group": "connection",
+                "widget": "device-selector",
+            }
+
+
 @pytest.mark.anyio
 async def test_build_rebot_b601_dm_from_pydantic_payload() -> None:
     from physicalai_rebot_b601_plugin.studio_catalog import (

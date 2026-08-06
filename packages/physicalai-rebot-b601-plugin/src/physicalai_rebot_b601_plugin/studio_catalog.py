@@ -19,8 +19,10 @@ from physicalai_studio_plugin import (
     RobotCatalogDefinition,
     RobotProbe,
     SerialPortInfo,
+    robot_field_ui,
+    robot_payload_ui,
 )
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 import physicalai_rebot_b601_plugin
 from physicalai_rebot_b601_plugin import ReBotArm102Leader, ReBotB601DM, get_urdf_path
@@ -89,23 +91,65 @@ _REBOT_ARM102_ASSET = RobotAsset(
 class ReBotB601DMPayload(BaseModel):
     """Connection payload for a ReBot B601 DM follower arm."""
 
-    connection_string: str = ""
-    serial_number: str = Field(...)
+    connection_string: str = Field(
+        default="",
+        json_schema_extra=robot_field_ui({"group": "connection", "widget": "device-selector"}),
+    )
+    serial_number: str = Field(
+        default="",
+        json_schema_extra=robot_field_ui({"group": "connection", "widget": "device-selector"}),
+    )
     can_adapter: Literal["damiao", "socketcan"] = "damiao"
     dm_serial_baud: int = 921600
     disable_torque_on_disconnect: bool = True
     force_pos_torque_ratio: float = 0.1
 
+    model_config = ConfigDict(
+        json_schema_extra=robot_payload_ui(
+            {
+                "groups": {
+                    "connection": {
+                        "title": "Select robot",
+                        "device_discovery": True,
+                        "connection_key": "connection_string",
+                        "serial_number_key": "serial_number",
+                    },
+                },
+            },
+        ),
+    )
+
 
 class ReBotArm102Payload(BaseModel):
     """Connection payload for a ReBot Arm102 leader arm."""
 
-    connection_string: str = ""
-    serial_number: str = Field(...)
+    connection_string: str = Field(
+        default="",
+        json_schema_extra=robot_field_ui({"group": "connection", "widget": "device-selector"}),
+    )
+    serial_number: str = Field(
+        default="",
+        json_schema_extra=robot_field_ui({"group": "connection", "widget": "device-selector"}),
+    )
     baudrate: int = 1_000_000
     unlock_on_connect: bool = True
     reset_multi_turn_on_connect: bool = True
     zero_on_connect: bool = False
+
+    model_config = ConfigDict(
+        json_schema_extra=robot_payload_ui(
+            {
+                "groups": {
+                    "connection": {
+                        "title": "Select robot",
+                        "device_discovery": True,
+                        "connection_key": "connection_string",
+                        "serial_number_key": "serial_number",
+                    },
+                },
+            },
+        ),
+    )
 
 
 type ReBotPayload = ReBotB601DMPayload | ReBotArm102Payload

@@ -14,8 +14,10 @@ from physicalai_studio_plugin import (
     RobotCatalogDefinition,
     RobotProbe,
     SerialPortInfo,
+    robot_field_ui,
+    robot_payload_ui,
 )
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from serial.tools import list_ports
 
 import physicalai_lekiwi_plugin
@@ -63,11 +65,32 @@ _LEKIWI_ASSET = RobotAsset(
 class LeKiwiPayload(BaseModel):
     """Connection payload for a LeKiwi robot."""
 
-    connection_string: str = ""
-    serial_number: str = Field(...)
+    connection_string: str = Field(
+        default="",
+        json_schema_extra=robot_field_ui({"group": "connection", "widget": "device-selector"}),
+    )
+    serial_number: str = Field(
+        default="",
+        json_schema_extra=robot_field_ui({"group": "connection", "widget": "device-selector"}),
+    )
     calibration: dict[str, LeKiwiJointCalibrationPayload] | None = None
     baudrate: int = 1_000_000
     disable_torque_on_disconnect: bool = True
+
+    model_config = ConfigDict(
+        json_schema_extra=robot_payload_ui(
+            {
+                "groups": {
+                    "connection": {
+                        "title": "Select robot",
+                        "device_discovery": True,
+                        "connection_key": "connection_string",
+                        "serial_number_key": "serial_number",
+                    },
+                },
+            },
+        ),
+    )
 
 
 class LeKiwiJointCalibrationPayload(BaseModel):
@@ -138,7 +161,9 @@ async def _build_lekiwi_driver(robot: PayloadContainer[LeKiwiPayload], factory: 
     validated = raw if isinstance(raw, LeKiwiPayload) else LeKiwiPayload.model_validate(raw)
 
     serial_number = validated.serial_number
-    port = await factory.find_port(SerialPortInfo(connection_string=None, serial_number=serial_number))
+    port = await factory.find_port(
+        SerialPortInfo(connection_string=validated.connection_string, serial_number=serial_number),
+    )
     if port is None:
         msg = f"Robot not found: {serial_number}"
         raise RuntimeError(msg)
@@ -174,7 +199,9 @@ async def _build_lekiwi_leader(robot: PayloadContainer[LeKiwiPayload], factory: 
     validated = raw if isinstance(raw, LeKiwiPayload) else LeKiwiPayload.model_validate(raw)
 
     serial_number = validated.serial_number
-    port = await factory.find_port(SerialPortInfo(connection_string=None, serial_number=serial_number))
+    port = await factory.find_port(
+        SerialPortInfo(connection_string=validated.connection_string, serial_number=serial_number),
+    )
     if port is None:
         msg = f"Robot not found: {serial_number}"
         raise RuntimeError(msg)
