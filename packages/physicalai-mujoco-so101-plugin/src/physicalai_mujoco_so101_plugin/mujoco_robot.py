@@ -12,7 +12,12 @@ import numpy as np
 from loguru import logger
 from physicalai.config import export_config
 
-from physicalai_mujoco_so101_plugin.constants import NUM_JOINTS, SO101_JOINT_ORDER
+from physicalai_mujoco_so101_plugin.constants import (
+    BIMANUAL_NUM_JOINTS,
+    BIMANUAL_SO101_JOINT_ORDER,
+    NUM_JOINTS,
+    SO101_JOINT_ORDER,
+)
 
 if TYPE_CHECKING:
     from physicalai.capture.frame import Frame
@@ -511,7 +516,7 @@ class MuJoCoSO101:
             try:
                 renderer.update_scene(self._data, camera=config.name)
                 frame = renderer.render()[:, :, :3][::-1, :, :]
-            except RuntimeError as exc:
+            except (RuntimeError, ValueError) as exc:
                 logger.debug("Camera render error for '{}': {}", config.name, exc)
                 continue
 
@@ -654,3 +659,15 @@ class MuJoCoSO101:
         self._rng = np.random.default_rng()
         self._pending_scene_switch = False
         self._scene_xml_mtime = 0.0
+
+
+class BiMuJoCoSO101(MuJoCoSO101):
+    """Bimanual SO-101 simulated with a single MuJoCo model.
+
+    Runs both arms in one model with ``left_*`` then ``right_*`` joints
+    (12 total). ``send_action`` writes into the model actuator array, so the
+    dual-arm XML must declare its actuators in ``BIMANUAL_SO101_JOINT_ORDER``.
+    """
+
+    JOINT_ORDER: ClassVar[tuple[str, ...]] = BIMANUAL_SO101_JOINT_ORDER
+    NUM_JOINTS: ClassVar[int] = BIMANUAL_NUM_JOINTS
