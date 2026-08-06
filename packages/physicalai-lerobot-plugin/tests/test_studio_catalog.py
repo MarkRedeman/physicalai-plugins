@@ -192,6 +192,22 @@ def test_make_payload_model_resolves_nested_dataclass_forward_references() -> No
     assert model.model_fields["norm_mode"].annotation is not None
 
 
+def test_nested_payload_models_are_rebuilt_with_their_own_namespace() -> None:
+    from lerobot.motors.motors_bus import Motor
+
+    from physicalai_lerobot_plugin.studio_catalog import (
+        _assert_payload_model_resolvable,
+        _make_payload_model,
+    )
+
+    motor_model = _make_payload_model(Motor)
+
+    _assert_payload_model_resolvable(motor_model)
+
+    assert motor_model.__pydantic_complete__
+    motor_model.model_json_schema()
+
+
 def test_make_payload_model_requires_native_required_fields() -> None:
     from lerobot.robots import so_follower  # noqa: F401
     from lerobot.robots.config import RobotConfig

@@ -629,11 +629,32 @@ def _definitions() -> list[RobotCatalogDefinition]:
     return defs
 
 
+def _rebuild_payload_models(annotation: object, visited: set[type[BaseModel]] | None = None) -> None:
+    """Rebuild generated nested payload models before their parent model.
+
+    Pydantic does not rebuild nested dynamically-created models when rebuilding
+    a parent. FastAPI later traverses those nested models while generating
+    OpenAPI, so they must be complete independently.
+    """
+    visited = set() if visited is None else visited
+    if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+        if annotation in visited:
+            return
+        visited.add(annotation)
+        for field in annotation.model_fields.values():
+            _rebuild_payload_models(field.annotation, visited)
+        annotation.model_rebuild(
+            _types_namespace={**globals(), **annotation.__pydantic_parent_namespace__},
+            raise_errors=True,
+        )
+        return
+
+    for argument in get_args(annotation):
+        _rebuild_payload_models(argument, visited)
+
+
 def _assert_payload_model_resolvable(model: type[BaseModel]) -> None:
-    model.model_rebuild(
-        _types_namespace={**globals(), **model.__pydantic_parent_namespace__},
-        raise_errors=True,
-    )
+    _rebuild_payload_models(model)
 
 
 def register_physicalai_studio_plugin(registry: _RobotCatalogRegistry) -> None:
