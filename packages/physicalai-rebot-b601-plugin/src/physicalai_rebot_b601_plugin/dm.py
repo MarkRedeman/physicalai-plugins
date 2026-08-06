@@ -336,13 +336,15 @@ class ReBotB601DM:
             target_rad = math.radians(target_deg)
             motor = self._motors[name]
             state = motor.get_state()
-            max_velocity_rad_s = math.radians(REBOT_B601_DM_POS_VEL_DEG_S[i])
+            max_velocity_rad_s = 2 * math.radians(REBOT_B601_DM_POS_VEL_DEG_S[i])
             velocity_rad_s = max_velocity_rad_s
             if state is not None:
                 velocity_rad_s = min(max_velocity_rad_s, abs(target_rad - float(state.pos)) / goal_time)
 
+            logger.info("Using goal time: {}, velocity_rad_s: {} for {}", goal_time, velocity_rad_s, name)
+
             if name == "gripper":
-                motor.send_force_pos(target_rad, velocity_rad_s, self._force_pos_torque_ratio)
+                motor.send_force_pos(target_rad, 10 * velocity_rad_s, self._force_pos_torque_ratio)
             else:
                 motor.send_pos_vel(target_rad, velocity_rad_s)
 
