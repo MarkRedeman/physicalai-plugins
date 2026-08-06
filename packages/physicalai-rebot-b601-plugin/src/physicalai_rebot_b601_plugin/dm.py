@@ -81,6 +81,7 @@ class ReBotB601DM:
         role: ReBotRole = "follower",
         disable_torque_on_disconnect: bool = True,
         force_pos_torque_ratio: float = 0.1,
+        max_velocity: float = 1.0,
     ) -> None:
         """Initialize the Damiao motor driver.
 
@@ -91,6 +92,7 @@ class ReBotB601DM:
             role: Currently only ``"follower"`` is supported.
             disable_torque_on_disconnect: Whether to disable all motors on disconnect.
             force_pos_torque_ratio: FORCE_POS torque ratio in ``[0, 1]`` for gripper.
+            max_velocity: Multiplier applied to every joint's maximum velocity.
 
         Raises:
             ValueError: If any parameter has an invalid value.
@@ -107,6 +109,9 @@ class ReBotB601DM:
         if not (0.0 <= force_pos_torque_ratio <= 1.0):
             msg = f"force_pos_torque_ratio must be in [0, 1], got {force_pos_torque_ratio!r}"
             raise ValueError(msg)
+        if not math.isfinite(max_velocity) or max_velocity <= 0.0:
+            msg = f"max_velocity must be a finite positive value, got {max_velocity!r}"
+            raise ValueError(msg)
 
         self._port = port
         self._can_adapter = can_adapter
@@ -114,6 +119,7 @@ class ReBotB601DM:
         self._role = role
         self._disable_torque_on_disconnect = disable_torque_on_disconnect
         self._force_pos_torque_ratio = force_pos_torque_ratio
+        self._max_velocity = max_velocity
         self._controller: Controller | None = None
         self._motors: dict[str, Motor] = {}
 
@@ -150,6 +156,11 @@ class ReBotB601DM:
     @disable_torque_on_disconnect.setter
     def disable_torque_on_disconnect(self, value: bool) -> None:
         self._disable_torque_on_disconnect = value
+
+    @property
+    def max_velocity(self) -> float:
+        """Multiplier applied to every joint's maximum velocity."""
+        return self._max_velocity
 
     def _require_controller(self) -> Controller:
         controller = self._controller
@@ -309,7 +320,8 @@ class ReBotB601DM:
 
         The gripper uses FORCE_POS mode; all other joints use POS_VEL mode
         with a velocity limit calculated to reach the target within ``goal_time``.
-        The limit is capped by ``REBOT_B601_DM_POS_VEL_DEG_S``.
+        The limit is capped by ``REBOT_B601_DM_POS_VEL_DEG_S`` multiplied by
+        the configured ``max_velocity``.
 
         Args:
             action: Array of 7 joint position targets in degrees.
@@ -336,7 +348,7 @@ class ReBotB601DM:
             target_rad = math.radians(target_deg)
             motor = self._motors[name]
             state = motor.get_state()
-            max_velocity_rad_s = math.radians(REBOT_B601_DM_POS_VEL_DEG_S[i])
+            max_velocity_rad_s = math.radians(REBOT_B601_DM_POS_VEL_DEG_S[i] * self.max_velocity)
             velocity_rad_s = max_velocity_rad_s
             if state is not None:
                 velocity_rad_s = min(max_velocity_rad_s, abs(target_rad - float(state.pos)) / goal_time)

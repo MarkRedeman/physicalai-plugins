@@ -76,6 +76,7 @@ class TestReBotB601DMConstruction:
         assert robot.port == "/dev/ttyACM0"
         assert robot.can_adapter == "damiao"
         assert robot.role == "follower"
+        assert robot.max_velocity == 1.0
         assert robot.joint_names == [
             "shoulder_pan",
             "shoulder_lift",
@@ -114,6 +115,11 @@ class TestReBotB601DMConstruction:
     def test_invalid_force_ratio_raises(self, mock_motorbridge: MagicMock) -> None:
         with pytest.raises(ValueError, match="force_pos_torque_ratio"):
             _create_robot(mock_motorbridge, force_pos_torque_ratio=1.5)
+
+    @pytest.mark.parametrize("max_velocity", [0.0, -0.1, math.inf, math.nan])
+    def test_invalid_max_velocity_raises(self, mock_motorbridge: MagicMock, max_velocity: float) -> None:
+        with pytest.raises(ValueError, match="max_velocity must be a finite positive value"):
+            _create_robot(mock_motorbridge, max_velocity=max_velocity)
 
 
 class TestReBotB601DMLifecycle:
@@ -247,6 +253,22 @@ class TestReBotB601DMAction:
             motor.send_pos_vel.assert_called_once()
             assert motor.send_pos_vel.call_args.args[1] == pytest.approx(velocity)
         assert motors[6].send_force_pos.call_args.args[1] == pytest.approx(velocity)
+
+    def test_send_action_scales_max_velocity(self, mock_motorbridge: MagicMock) -> None:
+        robot = _create_robot(mock_motorbridge, max_velocity=0.5)
+        robot.connect()
+        controller = mock_motorbridge.Controller.from_dm_serial.return_value
+        motors = list(controller.mock_motors)
+
+        for motor in motors:
+            motor.get_state.return_value = None
+        robot.send_action(np.zeros(7, dtype=np.float32))
+
+        for motor, velocity in zip(motors[:6], REBOT_B601_DM_POS_VEL_DEG_S[:6], strict=True):
+            assert motor.send_pos_vel.call_args.args[1] == pytest.approx(math.radians(velocity * 0.5))
+        assert motors[6].send_force_pos.call_args.args[1] == pytest.approx(
+            math.radians(REBOT_B601_DM_POS_VEL_DEG_S[6] * 0.5),
+        )
 
     @pytest.mark.parametrize("goal_time", [0.0, -0.1, math.inf, math.nan])
     def test_send_action_rejects_non_positive_goal_time(

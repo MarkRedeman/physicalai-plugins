@@ -125,6 +125,7 @@ def test_rebot_b601_dm_payload_defaults() -> None:
     assert payload.dm_serial_baud == 921600
     assert payload.disable_torque_on_disconnect is True
     assert payload.force_pos_torque_ratio == 0.1
+    assert payload.max_velocity == 1.0
 
 
 def test_rebot_arm102_payload_defaults() -> None:
@@ -186,11 +187,13 @@ async def test_build_rebot_b601_dm_from_dict_payload() -> None:
         "serial_number": "DM-002",
         "can_adapter": "damiao",
         "force_pos_torque_ratio": 0.2,
+        "max_velocity": 0.5,
     }
     robot = _StubRobot(payload)
     factory = _StubFactory(port="/dev/ttyACM1")
     driver = await _build_rebot_b601_dm_driver(robot, factory)
     assert driver is not None
+    assert driver.max_velocity == 0.5
 
 
 @pytest.mark.anyio

@@ -103,6 +103,7 @@ class ReBotB601DMPayload(BaseModel):
     dm_serial_baud: int = 921600
     disable_torque_on_disconnect: bool = True
     force_pos_torque_ratio: float = 0.1
+    max_velocity: float = 1.0
 
     model_config = ConfigDict(
         json_schema_extra=robot_payload_ui(
@@ -223,6 +224,7 @@ async def _build_rebot_b601_dm_driver(
         role="follower",
         disable_torque_on_disconnect=validated.disable_torque_on_disconnect,
         force_pos_torque_ratio=validated.force_pos_torque_ratio,
+        max_velocity=validated.max_velocity,
     )
 
 
