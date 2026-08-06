@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field
 
 import physicalai_mujoco_so101_plugin
 from physicalai_mujoco_so101_plugin._urdf import get_urdf_path
-from physicalai_mujoco_so101_plugin.constants import SO101_JOINT_ORDER
+from physicalai_mujoco_so101_plugin.constants import BIMANUAL_SO101_JOINT_ORDER, SO101_JOINT_ORDER
 
 if TYPE_CHECKING:
     from typing import Protocol
@@ -42,6 +42,21 @@ _MUJOCO_SO101_TO_URDF: dict[str, list[str]] = {
     "wrist_flex.pos": ["wrist_flex"],
     "wrist_roll.pos": ["wrist_roll"],
     "gripper.pos": ["gripper"],
+}
+
+_MUJOCO_SO101_BIMANUAL_TO_URDF: dict[str, list[str]] = {
+    "left_shoulder_pan.pos": ["left_shoulder_pan"],
+    "left_shoulder_lift.pos": ["left_shoulder_lift"],
+    "left_elbow_flex.pos": ["left_elbow_flex"],
+    "left_wrist_flex.pos": ["left_wrist_flex"],
+    "left_wrist_roll.pos": ["left_wrist_roll"],
+    "left_gripper.pos": ["left_gripper"],
+    "right_shoulder_pan.pos": ["right_shoulder_pan"],
+    "right_shoulder_lift.pos": ["right_shoulder_lift"],
+    "right_elbow_flex.pos": ["right_elbow_flex"],
+    "right_wrist_flex.pos": ["right_wrist_flex"],
+    "right_wrist_roll.pos": ["right_wrist_roll"],
+    "right_gripper.pos": ["right_gripper"],
 }
 
 
@@ -65,6 +80,13 @@ _MUJOCO_SO101_ASSET = RobotAsset(
     urdf_relative_path=Path("so101/so101_new_calib.urdf"),
     packages={"so101": Path("so101")},
     joint_map=_MUJOCO_SO101_TO_URDF,
+    root_resolver=_get_mujoco_urdf_root,
+)
+
+_MUJOCO_SO101_BIMANUAL_ASSET = RobotAsset(
+    urdf_relative_path=Path("so101/so101_dual.urdf"),
+    packages={"so101": Path("so101")},
+    joint_map=_MUJOCO_SO101_BIMANUAL_TO_URDF,
     root_resolver=_get_mujoco_urdf_root,
 )
 
@@ -132,9 +154,9 @@ _MUJOCO_PROBE = MuJoCoSO101Probe()
 
 @export_config(class_path="physicalai_mujoco_so101_plugin.studio_catalog._SharedSO101Robot")
 class _SharedSO101Robot:
-    def __init__(self, shared_robot: object) -> None:
+    def __init__(self, shared_robot: object, joint_names: list[str] | tuple[str, ...]) -> None:
         self._shared_robot = shared_robot
-        self.joint_names = list(SO101_JOINT_ORDER)
+        self.joint_names = list(joint_names)
 
     @property
     def device_ids(self) -> tuple[str, ...]:
@@ -173,7 +195,26 @@ async def _build_mujoco_robot(
         allow_remote=validated.allow_remote,
         connect_timeout=validated.connect_timeout,
     )
-    return _SharedSO101Robot(shared)
+    return _SharedSO101Robot(shared, SO101_JOINT_ORDER)
+
+
+async def _build_bimanual_mujoco_robot(
+    robot: PayloadContainer[MuJoCoSO101Payload],
+    factory: CatalogRobotFactory,
+) -> PhysicalAIRobot:
+    _ = factory
+    await asyncio.sleep(0)
+    raw = robot.payload
+    validated = raw if isinstance(raw, MuJoCoSO101Payload) else MuJoCoSO101Payload.model_validate(raw)
+
+    from physicalai.robot.transport import SharedRobot  # noqa: PLC0415
+
+    shared = SharedRobot.attach(
+        name=validated.name,
+        allow_remote=validated.allow_remote,
+        connect_timeout=validated.connect_timeout,
+    )
+    return _SharedSO101Robot(shared, BIMANUAL_SO101_JOINT_ORDER)
 
 
 def _definitions() -> list[RobotCatalogDefinition]:
@@ -187,6 +228,21 @@ def _definitions() -> list[RobotCatalogDefinition]:
             robot_builder=_build_mujoco_robot,
             robot_payload=MuJoCoSO101Payload,
             asset=_MUJOCO_SO101_ASSET,
+            adapter_options=RobotAdapterOptions(
+                include_velocities=False,
+                external_effort_gain=None,
+            ),
+            probe=_MUJOCO_PROBE,
+        ),
+        RobotCatalogDefinition(
+            type="MuJoCo_SO101_Bimanual_Follower",
+            display_name="MuJoCo SO-101 Bimanual Follower",
+            category="MuJoCo",
+            source="first_party",
+            role="follower",
+            robot_builder=_build_bimanual_mujoco_robot,
+            robot_payload=MuJoCoSO101Payload,
+            asset=_MUJOCO_SO101_BIMANUAL_ASSET,
             adapter_options=RobotAdapterOptions(
                 include_velocities=False,
                 external_effort_gain=None,
