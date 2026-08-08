@@ -167,6 +167,28 @@ def test_make_payload_model_for_so100() -> None:
     assert payload.use_degrees is True
 
 
+def test_payload_schema_marks_id_as_required() -> None:
+    import importlib
+    import pkgutil
+
+    import lerobot.teleoperators
+
+    for _importer, modname, is_pkg in pkgutil.walk_packages(
+        lerobot.teleoperators.__path__,
+        prefix="lerobot.teleoperators.",
+    ):
+        if "config" in modname and not is_pkg:
+            importlib.import_module(modname)
+
+    from lerobot.teleoperators.config import TeleoperatorConfig
+
+    from physicalai_lerobot_plugin.studio_catalog import _make_payload_model
+
+    model = _make_payload_model(TeleoperatorConfig.get_known_choices()["so101_leader"])
+
+    assert model.model_json_schema()["properties"]["id"]["x-physicalai-ui"] == {"required": True}
+
+
 def test_make_payload_model_for_hope_jr_hand() -> None:
     from lerobot.robots import hope_jr  # noqa: F401
     from lerobot.robots.config import RobotConfig
@@ -302,7 +324,7 @@ async def test_builder_resolves_nested_ports_for_bimanual_config() -> None:
 
     config_cls = RobotConfig.get_known_choices()["bi_so_follower"]
     payload_cls = _make_payload_model(config_cls)
-    builder = _make_builder(config_cls, payload_cls, role="follower")
+    builder = _make_builder("bi_so_follower", config_cls, payload_cls, role="follower")
 
     payload = payload_cls(
         left_arm_config={"port": "/dev/ttyACM0"},
@@ -331,7 +353,7 @@ def test_make_builder_config_kwargs() -> None:
 
     config_cls = RobotConfig.get_known_choices()["so100_follower"]
     payload_cls = _make_payload_model(config_cls)
-    follower_builder = _make_builder(config_cls, payload_cls, role="follower")
+    follower_builder = _make_builder("so100_follower", config_cls, payload_cls, role="follower")
     assert callable(follower_builder)
 
 
@@ -354,7 +376,7 @@ def test_make_teleop_builder_config_kwargs() -> None:
 
     teleop_config_cls = TeleoperatorConfig.get_known_choices()["so100_leader"]
     payload_cls = _make_payload_model(teleop_config_cls)
-    builder = _make_teleop_builder(teleop_config_cls, payload_cls, role="leader")
+    builder = _make_teleop_builder("so100_leader", teleop_config_cls, payload_cls, role="leader")
     assert callable(builder)
 
 

@@ -6,8 +6,25 @@ from unittest.mock import MagicMock, PropertyMock
 
 import numpy as np
 import pytest
+from physicalai.robot.interface import Robot
 
-_MOCK_CONFIG_CLS = type("MockRobotConfig", (), {})
+_MOCK_CONFIG_TYPE = "mock_robot"
+
+
+def test_adapters_are_config_exportable() -> None:
+    from physicalai.config import to_config
+    from physicalai_lerobot_plugin.lerobot_adapter import (
+        LeRobotAdapter,
+        LeRobotTeleoperatorAdapter,
+    )
+
+    adapter = LeRobotAdapter(_MOCK_CONFIG_TYPE, {}, _robot=MagicMock())
+    teleoperator = LeRobotTeleoperatorAdapter(_MOCK_CONFIG_TYPE, {}, _teleoperator=MagicMock())
+
+    assert to_config(adapter).init_args["config_type"] == _MOCK_CONFIG_TYPE
+    assert to_config(teleoperator).init_args["config_type"] == _MOCK_CONFIG_TYPE
+    assert isinstance(adapter, Robot)
+    assert isinstance(teleoperator, Robot)
 
 
 def _make_adapter(
@@ -17,7 +34,7 @@ def _make_adapter(
     from physicalai_lerobot_plugin.lerobot_adapter import LeRobotAdapter
 
     return LeRobotAdapter(
-        config_cls=_MOCK_CONFIG_CLS,
+        config_type=_MOCK_CONFIG_TYPE,
         config_kwargs={},
         role=role,
         _robot=mock_robot,
@@ -77,6 +94,16 @@ class TestLeRobotAdapterConstruction:
 
         with pytest.raises(ValueError, match="Invalid role"):
             _make_adapter(mock_lerobot_robot, role="invalid")
+
+    def test_satisfies_robot_protocol(self, mock_lerobot_robot: MagicMock) -> None:
+        assert isinstance(_make_adapter(mock_lerobot_robot), Robot)
+
+    def test_device_ids_include_configured_port(self, mock_lerobot_robot: MagicMock) -> None:
+        from physicalai_lerobot_plugin.lerobot_adapter import LeRobotAdapter
+
+        adapter = LeRobotAdapter(_MOCK_CONFIG_TYPE, {"port": "/dev/ttyACM0"}, _robot=mock_lerobot_robot)
+
+        assert adapter.device_ids == ("lerobot:mock_robot:/dev/ttyACM0",)
 
 
 class TestLeRobotAdapterLifecycle:

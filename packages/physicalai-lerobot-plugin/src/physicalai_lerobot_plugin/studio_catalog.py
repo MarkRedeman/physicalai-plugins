@@ -359,11 +359,12 @@ def _make_payload_model(config_cls: type) -> type[BaseModel]:
     field_defs: dict[str, tuple[type, Any]] = {}
     for f in dataclasses.fields(config_cls):
         pydantic_type, default_val = _resolve_field_type(f)
-        extra = (
-            robot_field_ui({"group": "connection", "widget": "device-selector"})
-            if _is_serial_port_field(config_cls, f)
-            else None
-        )
+        ui_options: dict[str, object] = {}
+        if _is_serial_port_field(config_cls, f):
+            ui_options.update({"group": "connection", "widget": "device-selector"})
+        if f.name == "id":
+            ui_options["required"] = True
+        extra = robot_field_ui(ui_options) if ui_options else None
         if default_val is _REQUIRED_SENTINEL:
             field_defs[f.name] = (pydantic_type, Field(..., description=f.name, json_schema_extra=extra))
         else:
@@ -427,6 +428,7 @@ def _ensure_lerobot_teleoperators_imported() -> None:
 
 
 def _make_builder(
+    config_type: str,
     config_cls: type,
     payload_cls: type[BaseModel],
     role: str,
@@ -461,7 +463,7 @@ def _make_builder(
         config_kwargs = _config_to_kwargs(lerobot_config)
         lerobot_robot = make_robot_from_config(lerobot_config)
         return LeRobotAdapter(
-            config_cls,
+            config_type,
             config_kwargs,
             role=role,
             _robot=lerobot_robot,
@@ -471,6 +473,7 @@ def _make_builder(
 
 
 def _make_teleop_builder(
+    config_type: str,
     config_cls: type,
     payload_cls: type[BaseModel],
     role: str,
@@ -507,7 +510,7 @@ def _make_teleop_builder(
         config_kwargs = _config_to_kwargs(teleop_config)
         teleoperator = make_teleoperator_from_config(teleop_config)
         return LeRobotTeleoperatorAdapter(
-            config_cls,
+            config_type,
             config_kwargs,
             role=role,
             _teleoperator=teleoperator,
@@ -592,7 +595,7 @@ def _definitions() -> list[RobotCatalogDefinition]:
         display_name = f"LeRobot {type_str}"
         payload_cls = _make_payload_model(config_cls)
 
-        follower_builder = _make_builder(config_cls, payload_cls, "follower")
+        follower_builder = _make_builder(type_str, config_cls, payload_cls, "follower")
         defs.append(
             RobotCatalogDefinition(
                 type=f"LeRobot_{type_str}_Follower",
@@ -611,7 +614,7 @@ def _definitions() -> list[RobotCatalogDefinition]:
     for type_str, config_cls in TeleoperatorConfig.get_known_choices().items():
         display_name = f"LeRobot {type_str}"
         payload_cls = _make_payload_model(config_cls)
-        leader_builder = _make_teleop_builder(config_cls, payload_cls, "leader")
+        leader_builder = _make_teleop_builder(type_str, config_cls, payload_cls, "leader")
         defs.append(
             RobotCatalogDefinition(
                 type=f"LeRobot_{type_str}_Leader",
