@@ -27,6 +27,12 @@ def test_adapters_are_config_exportable() -> None:
     assert isinstance(teleoperator, Robot)
 
 
+def test_teleoperator_config_lookup_imports_registered_types() -> None:
+    from physicalai_lerobot_plugin.lerobot_adapter import _teleoperator_config_class
+
+    assert _teleoperator_config_class("so101_leader") is not None
+
+
 def _make_adapter(
     mock_robot: MagicMock,
     role: str = "follower",

@@ -57,7 +57,26 @@ def _device_ids(config_type: str, config_kwargs: dict[str, Any]) -> tuple[str, .
     return ()
 
 
+def _import_config_modules(package_name: str) -> None:
+    """Import LeRobot config modules so their registered types are available after spawn."""
+    import importlib
+    import pkgutil
+
+    package = importlib.import_module(package_name)
+    for _importer, module_name, is_package in pkgutil.walk_packages(package.__path__, prefix=f"{package_name}."):
+        if "config" in module_name and not is_package:
+            importlib.import_module(module_name)
+
+
+def _register_third_party_plugins() -> None:
+    from lerobot.utils.import_utils import register_third_party_plugins  # noqa: PLC0415
+
+    register_third_party_plugins()
+
+
 def _robot_config_class(type_name: str) -> type:
+    _import_config_modules("lerobot.robots")
+    _register_third_party_plugins()
     from lerobot.robots.config import RobotConfig  # noqa: PLC0415
 
     choices = RobotConfig.get_known_choices()
@@ -66,6 +85,8 @@ def _robot_config_class(type_name: str) -> type:
 
 
 def _teleoperator_config_class(type_name: str) -> type:
+    _import_config_modules("lerobot.teleoperators")
+    _register_third_party_plugins()
     from lerobot.teleoperators.config import TeleoperatorConfig  # noqa: PLC0415
 
     choices = TeleoperatorConfig.get_known_choices()
