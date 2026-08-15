@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import http.client
 import json
 import queue
 import socket
 import time
+import urllib.error
 import urllib.request
 
 import numpy as np
@@ -186,7 +188,7 @@ class TestMjpegGenerator:
         buffer = FrameBuffer("overview")
         buffer.put(frame)
         stream = _mjpeg_stream(buffer, quality=85)
-        chunk = await stream.__anext__()
+        chunk = await anext(stream)
         await stream.aclose()
         assert chunk.startswith(b"--mujoco-frame\r\n")
         assert b"Content-Type: image/jpeg" in chunk
@@ -197,15 +199,11 @@ class TestMjpegGenerator:
     async def test_waits_for_first_frame(self, frame: np.ndarray) -> None:
         buffer = FrameBuffer("overview")
         stream = _mjpeg_stream(buffer, quality=85)
-        iterator = stream.__anext__()
+        iterator = anext(stream)
 
         async def publish_later() -> None:
-            import asyncio  # noqa: PLC0415
-
             await asyncio.sleep(0.05)
             buffer.put(frame)
-
-        import asyncio  # noqa: PLC0415
 
         chunk, _ = await asyncio.gather(iterator, publish_later())
         await stream.aclose()
@@ -225,7 +223,7 @@ class TestHttpServerLifecycle:
         server.start()
         try:
             assert server.url == f"http://127.0.0.1:{port}"
-            with urllib.request.urlopen(f"{server.url}/health", timeout=5) as response:  # noqa: S310
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=5) as response:
                 assert json.loads(response.read())["connected"] is True
         finally:
             server.stop()
@@ -235,9 +233,8 @@ class TestHttpServerLifecycle:
         server = HttpServer(app_context["app"], "127.0.0.1", port)
         server.start()
         server.stop()
-        with pytest.raises(OSError):
-            with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=2):  # noqa: S310
-                pass
+        with pytest.raises(urllib.error.URLError):
+            urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=2)
 
     def test_start_fails_on_used_port(self, app_context: dict) -> None:
         port = _free_port()
@@ -253,16 +250,16 @@ class TestHttpServerLifecycle:
     def test_mjpeg_over_http(self, app_context: dict) -> None:
         port = _free_port()
         server = HttpServer(app_context["app"], "127.0.0.1", port)
+        conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
         server.start()
         try:
-            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
             conn.request("GET", "/cameras/overview/mjpeg")
             response = conn.getresponse()
             assert response.status == 200
             assert "multipart/x-mixed-replace" in response.getheader("content-type", "")
             chunk = response.read1(65536)
-            conn.close()
-            assert b"--mujoco-frame" in chunk
-            assert b"\xff\xd8" in chunk
         finally:
+            conn.close()
             server.stop()
+        assert b"--mujoco-frame" in chunk
+        assert b"\xff\xd8" in chunk
