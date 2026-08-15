@@ -352,7 +352,7 @@ class TestHttpCommands:
         robot._scene_on_reset = None  # noqa: SLF001
         robot._commands.put(ResetCommand())  # noqa: SLF001
 
-        with patch.object(robot, "_randomize_blocks") as randomize:  # noqa: SLF001
+        with patch.object(robot, "_randomize_blocks") as randomize:
             robot.get_observation()
 
         randomize.assert_called_once()
@@ -363,7 +363,7 @@ class TestHttpCommands:
         robot.connect()
         robot._commands.put(SwitchSceneCommand(scene_id="pick_lift"))  # noqa: SLF001
 
-        with patch.object(robot, "_switch_to_scene") as switch:  # noqa: SLF001
+        with patch.object(robot, "_switch_to_scene") as switch:
             robot.get_observation()
 
         switch.assert_called_once_with("pick_lift")
@@ -374,7 +374,7 @@ class TestHttpCommands:
         robot.connect()
         robot._commands.put(SwitchSceneCommand(scene_id="nope"))  # noqa: SLF001
 
-        with patch.object(robot, "_switch_to_scene", side_effect=KeyError("nope")):  # noqa: SLF001
+        with patch.object(robot, "_switch_to_scene", side_effect=KeyError("nope")):
             robot.get_observation()
 
     def test_shutdown_command_sets_owner_event(self, mock_mujoco: MagicMock, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -423,36 +423,34 @@ class TestHttpCommands:
 class TestHttpServerIntegration:
     @staticmethod
     def _free_port() -> int:
-        import socket  # noqa: PLC0415
+        import socket
 
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             sock.bind(("127.0.0.1", 0))
             return int(sock.getsockname()[1])
 
     def test_connect_starts_server_disconnect_stops_it(self, mock_mujoco: MagicMock) -> None:
-        import http.client  # noqa: PLC0415
+        import http.client
 
         _ = mock_mujoco
         port = self._free_port()
         robot = MuJoCoSO101(model_path="/fake/model.xml", http_port=port)
         robot.connect()
+        conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
         try:
             assert robot._http_server is not None  # noqa: SLF001
-            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
             conn.request("GET", "/health")
-            response = conn.getresponse()
-            assert response.status == 200
-            conn.close()
+            assert conn.getresponse().status == 200
         finally:
+            conn.close()
             robot.disconnect()
         assert robot._http_server is None  # noqa: SLF001
-        with pytest.raises(OSError):
-            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=2)
+        conn = http.client.HTTPConnection("127.0.0.1", port, timeout=2)
+        with pytest.raises(ConnectionRefusedError):
             conn.request("GET", "/health")
-            conn.getresponse()
 
     def test_connect_with_busy_port_continues_without_http(self, mock_mujoco: MagicMock) -> None:
-        import socket  # noqa: PLC0415
+        import socket
 
         _ = mock_mujoco
         port = self._free_port()

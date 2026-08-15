@@ -408,7 +408,7 @@ class MuJoCoSO101:
                 else:
                     logger.warning("Invalid {} quat values: {}", body_name, quat_str)
 
-        def update_camera_pose(camera_name: str, camera_elem: object) -> None:
+        def update_camera_pose(camera_name: str, camera_elem: object) -> None:  # noqa: PLR0912
             camera_id = mujoco.mj_name2id(self._model, mujoco.mjtObj.mjOBJ_CAMERA, camera_name)
             if camera_id < 0:
                 return

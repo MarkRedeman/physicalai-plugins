@@ -267,8 +267,27 @@ def _start(args: argparse.Namespace) -> None:
     except KeyboardInterrupt:
         pass
     finally:
+        if http_enabled:
+            _stop_owner_over_http(args.http_host, args.http_port)
         robot.disconnect()
         logger.info("MuJoCo SO-101 stopped")
+
+
+def _stop_owner_over_http(host: str, port: int) -> None:
+    """Ask the detached owner to exit via its HTTP control endpoint.
+
+    The owner subprocess is detached from the CLI, so interrupting the CLI
+    does not stop it; when the HTTP server is enabled it runs with idle exit
+    disabled. Issue ``POST /shutdown`` so the simulation shuts down cleanly.
+    """
+    import urllib.error  # noqa: PLC0415
+    import urllib.request  # noqa: PLC0415
+
+    try:
+        with urllib.request.urlopen(f"http://{host}:{port}/shutdown", timeout=5):
+            logger.info("Owner shutdown requested via HTTP")
+    except (OSError, urllib.error.URLError):
+        logger.debug("HTTP shutdown endpoint unavailable; owner will self-manage")
 
 
 def main() -> None:

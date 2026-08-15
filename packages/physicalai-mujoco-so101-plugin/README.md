@@ -23,11 +23,20 @@ By default this starts:
 
 - A MuJoCo SO-101 owner named `mujoco-so101`
 - Viewer window enabled
-- Virtual cameras enabled (`/dev/video60` and `/dev/video61`)
+- Camera streams served over HTTP (MJPEG + REST control server on port `8080`)
 - Control rate `50 Hz`
 - Substeps `10`
 
 Then open PhysicalAI Studio and connect to the robot type `MuJoCo SO-101 Follower` with name `mujoco-so101`.
+
+View the camera streams in a browser or with `curl`:
+
+```bash
+curl http://127.0.0.1:8080/health
+```
+
+MJPEG stream URLs are `http://127.0.0.1:8080/cameras/<name>/mjpeg` (e.g. open
+`http://127.0.0.1:8080/cameras/overview/mjpeg` in a browser, or play it in VLC).
 
 ## CLI options
 
@@ -41,24 +50,73 @@ Common options:
 - `--model <path>`: custom XML/URDF path (bypasses scene resolution)
 - `--scene <name>`: scene name (`single_pick_place`, `pick_lift`, `pick_place`, or `yahtzee`, default `single_pick_place`)
 - `--no-gui`: disable MuJoCo interactive viewer
-- `--no-cameras`: disable v4l2loopback camera output
-- `--wrist-video-id <int>`: video ID for wrist stream (default `60`)
-- `--overview-video-id <int>`: video ID for overview stream (default `61`)
+- `--no-cameras`: disable camera rendering entirely (HTTP streams and v4l2loopback)
+- `--http-host <host>`: host for the camera/control HTTP server (default `127.0.0.1`)
+- `--http-port <port>`: port for the camera/control HTTP server (default `8080`)
+- `--no-http`: disable the camera/control HTTP server
+- `--v4l2`: also publish cameras to v4l2loopback devices (requires `modprobe v4l2loopback`)
 - `--rate-hz <float>`: owner loop frequency
 - `--substeps <int>`: MuJoCo steps per control cycle
+- `--idle-timeout <seconds>`: seconds with zero subscribers before self-exit
+  (default `10` without HTTP, disabled when HTTP is enabled so stream viewers keep the sim alive)
 - `--allow-remote`: allow non-loopback zenoh connections
 
-## Cameras and v4l2loopback
+## Cameras over HTTP (default)
 
-The plugin publishes two virtual camera feeds:
+The plugin renders two camera feeds and serves them over HTTP:
+
+- `wrist` -> `http://127.0.0.1:8080/cameras/wrist/mjpeg`
+- `overview` -> `http://127.0.0.1:8080/cameras/overview/mjpeg`
+
+Each camera is also available as a single JPEG snapshot at
+`http://127.0.0.1:8080/cameras/<name>/frame.jpg`.
+
+### REST control API
+
+The HTTP server exposes control endpoints for resetting and switching scenes:
+
+```bash
+# List available scenes and the current one
+curl http://127.0.0.1:8080/scenes
+
+# Switch to another scene
+curl -X POST http://127.0.0.1:8080/scenes/pick_place
+
+# Reset/randomize the current scene
+curl -X POST http://127.0.0.1:8080/reset
+
+# Stop the simulation owner
+curl -X POST http://127.0.0.1:8080/shutdown
+```
+
+| Endpoint                    | Method | Description                                        |
+| --------------------------- | ------ | -------------------------------------------------- |
+| `/`                         | GET    | Service info, endpoint index                       |
+| `/health`                   | GET    | Sim status: connected, current scene, cameras      |
+| `/cameras`                  | GET    | Camera list with stream/snapshot URLs              |
+| `/cameras/{name}/mjpeg`     | GET    | MJPEG stream (`multipart/x-mixed-replace`)         |
+| `/cameras/{name}/frame.jpg` | GET    | Latest frame as a JPEG snapshot                    |
+| `/scenes`                   | GET    | Current scene and available scene IDs              |
+| `/scenes/{scene_id}`        | POST   | Switch to another registered scene                 |
+| `/reset`                    | POST   | Reset/randomize the current scene                  |
+| `/shutdown`                 | POST   | Gracefully stop the simulation owner               |
+
+Because the owner process is detached, stopping the CLI with `Ctrl+C` does not
+stop the simulation. Use `POST /shutdown`, `--idle-timeout`, or kill the owner
+process directly.
+
+## Cameras and v4l2loopback (opt-in)
+
+For workflows that need a webcam-visible device, pass `--v4l2` to publish the
+same camera feeds to v4l2loopback devices:
 
 - `wrist` -> `/dev/video<wrist-video-id>` (default `/dev/video60`)
-- `overview` -> `/dev/video<overview-video-id>` (default `/dev/video61`)
+- `overview` -> `/dev/video<overview-video-id>` (default `/dev/video62`)
 
 Example with custom IDs:
 
 ```bash
-uv run --no-sync physicalai-mujoco-so101 start --wrist-video-id 70 --overview-video-id 71
+uv run --no-sync physicalai-mujoco-so101 start --v4l2 --wrist-video-id 70 --overview-video-id 71
 ```
 
 ### One-time setup (Linux)
@@ -99,15 +157,26 @@ v4l2-ctl --all -d /dev/video61
 
 ## Troubleshooting
 
-### `Camera '<name>' unavailable` or invalid argument on `/dev/video*`
+### HTTP server unavailable or port already in use
+
+- The camera/control server binds to `--http-host`/`--http-port` (default `127.0.0.1:8080`).
+- If the port is taken the simulation continues without HTTP and logs a warning — pass a different `--http-port`.
+- When running multiple simulations, give each a distinct `--http-port`.
+
+### `Camera '<name>' unavailable` or invalid argument on `/dev/video*` (with `--v4l2`)
 
 - Ensure v4l2loopback is loaded with `exclusive_caps=1`
-- Ensure the configured video devices exist (default `/dev/video60`, `/dev/video61`)
+- Ensure the configured video devices exist (default `/dev/video60`, `/dev/video62`)
 - Check permissions on device nodes
 
 ### Viewer opens but has Wayland warnings (`libdecor`, window position)
 
 These warnings are typically non-fatal on Wayland and can be ignored if simulation continues.
+
+### Camera/control server is not started
+
+- Confirm the sim is running and the port is free: `curl http://127.0.0.1:8080/health`
+- `--no-http` or `--http-port 0` disables the server; `--no-cameras` disables all camera rendering
 
 ## Using with Studio teleop and inference playback
 
@@ -151,8 +220,9 @@ When the MuJoCo viewer is open, press **`n`** (next scene) to cycle through avai
 
 Planned/desired improvements:
 
-- More configurable camera presets (pose/FOV/device/fps via CLI or payload)
+- More configurable camera presets (pose/FOV/fps via CLI or payload)
 - Scene randomization presets (object layouts, target marker variants, textures)
-- Better turnkey persistence for v4l2loopback module options across reboots
+- RTSP streaming sink (the frame-buffer plumbing is sink-agnostic; an RTSP
+  server such as `aiortsp` or MediaMTX can consume the same buffers later)
 - Optional richer sensor streams (depth/segmentation style outputs)
 - Additional sample tasks and policy playback recipes in this package

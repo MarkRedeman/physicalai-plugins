@@ -1,5 +1,28 @@
 # Video Camera Troubleshooting
 
+> Since the REST/MJPEG camera server was introduced, the MuJoCo cameras no
+> longer need v4l2loopback by default. The default `start` serves `wrist`,
+> `overview` (and `right_wrist` for bimanual) over HTTP; v4l2loopback output is
+> opt-in via `--v4l2`. This document covers both paths.
+
+## HTTP camera server (default)
+
+The `start` CLI runs a FastAPI server on `--http-port` (default `8080`) that
+serves each camera as an MJPEG stream and exposes control endpoints:
+
+- `GET /cameras/{name}/mjpeg` — browser/VLC-viewable stream
+- `GET /cameras/{name}/frame.jpg` — single JPEG snapshot
+- `POST /scenes/{scene_id}` — switch scene
+- `POST /reset` — reset/randomize the current scene
+- `POST /shutdown` — stop the simulation owner
+
+Because the owner process is detached from the CLI, `Ctrl+C` on the CLI does
+not stop it; use `POST /shutdown` or `--idle-timeout`.
+
+## v4l2loopback (opt-in, `--v4l2`)
+
+The legacy v4l2loopback path below applies only when running with `--v4l2`.
+
 ## Device layout
 
 This XPS 14 uses an OV08x40 MIPI CSI camera sensor connected to the Intel IPU7 ISP.
