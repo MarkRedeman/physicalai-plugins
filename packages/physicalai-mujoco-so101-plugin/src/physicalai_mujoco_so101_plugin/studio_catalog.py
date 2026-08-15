@@ -181,6 +181,8 @@ def _definitions() -> list[RobotCatalogDefinition]:
         RobotCatalogDefinition(
             type="MuJoCo_SO101_Follower",
             display_name="MuJoCo SO-101 Follower",
+            category="MuJoCo",
+            source="first_party",
             role="follower",
             robot_builder=_build_mujoco_robot,
             robot_payload=MuJoCoSO101Payload,
