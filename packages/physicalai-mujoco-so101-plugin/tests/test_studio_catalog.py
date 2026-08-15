@@ -46,6 +46,8 @@ class TestDefinitions:
         definition = defs[0]
         assert definition.type == "MuJoCo_SO101_Follower"
         assert definition.display_name == "MuJoCo SO-101 Follower"
+        assert definition.category == "MuJoCo"
+        assert definition.source == "first_party"
         assert definition.role == "follower"
         assert definition.asset is not None
         assert definition.robot_payload is MuJoCoSO101Payload
