@@ -41,6 +41,14 @@ def test_definitions_have_expected_types() -> None:
     assert types == {"ReBot_B601_DM_Follower", "ReBot_Arm102_Leader"}
 
 
+def test_definitions_have_catalog_metadata() -> None:
+    from physicalai_rebot_b601_plugin.studio_catalog import _definitions
+
+    for definition in _definitions():
+        assert definition.category == "ReBot"
+        assert definition.source == "first_party"
+
+
 def test_register_physicalai_studio_plugin() -> None:
     from physicalai_rebot_b601_plugin.studio_catalog import register_physicalai_studio_plugin
 
@@ -117,6 +125,7 @@ def test_rebot_b601_dm_payload_defaults() -> None:
     assert payload.dm_serial_baud == 921600
     assert payload.disable_torque_on_disconnect is True
     assert payload.force_pos_torque_ratio == 0.1
+    assert payload.max_velocity == 1.0
 
 
 def test_rebot_arm102_payload_defaults() -> None:
@@ -136,6 +145,22 @@ def test_payload_models_rebuild() -> None:
 
     ReBotB601DMPayload.model_rebuild(raise_errors=True)
     ReBotArm102Payload.model_rebuild(raise_errors=True)
+
+
+def test_payload_schemas_configure_serial_connection_picker() -> None:
+    from physicalai_rebot_b601_plugin.studio_catalog import ReBotArm102Payload, ReBotB601DMPayload
+
+    for payload_model in (ReBotB601DMPayload, ReBotArm102Payload):
+        schema = payload_model.model_json_schema()
+        connection = schema["x-physicalai-ui"]["groups"]["connection"]
+
+        assert connection["connection_key"] == "connection_string"
+        assert connection["serial_number_key"] == "serial_number"
+        for field_name in ("connection_string", "serial_number"):
+            assert schema["properties"][field_name]["x-physicalai-ui"] == {
+                "group": "connection",
+                "widget": "device-selector",
+            }
 
 
 @pytest.mark.anyio
@@ -162,11 +187,13 @@ async def test_build_rebot_b601_dm_from_dict_payload() -> None:
         "serial_number": "DM-002",
         "can_adapter": "damiao",
         "force_pos_torque_ratio": 0.2,
+        "max_velocity": 0.5,
     }
     robot = _StubRobot(payload)
     factory = _StubFactory(port="/dev/ttyACM1")
     driver = await _build_rebot_b601_dm_driver(robot, factory)
     assert driver is not None
+    assert driver.max_velocity == 0.5
 
 
 @pytest.mark.anyio
