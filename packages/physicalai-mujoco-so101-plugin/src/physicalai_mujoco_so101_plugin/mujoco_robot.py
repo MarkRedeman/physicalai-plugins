@@ -29,6 +29,22 @@ if TYPE_CHECKING:
     from physicalai_mujoco_so101_plugin.http_server import FrameBuffer, HttpServer, SimCommand
 
 
+def _signal_owner_shutdown() -> None:
+    """Request a graceful exit of the shared owner loop, if this runs inside one.
+
+    The driver runs inside ``python -m physicalai.robot.transport.
+    _owner_worker``, where the worker module is loaded as ``__main__``; check
+    both module identities for the loop's shutdown event.
+    """
+    for module_name in ("__main__", "physicalai.robot.transport._owner_worker"):
+        module = sys.modules.get(module_name)
+        event = getattr(module, "shutdown", None) if module is not None else None
+        if isinstance(event, threading.Event):
+            event.set()
+            return
+    logger.warning("Owner shutdown event not found; use Ctrl+C or stop the process to exit")
+
+
 @dataclass
 class MuJoCoSO101Observation:
     """Observation returned by the MuJoCo SO-101 robot."""
@@ -337,7 +353,7 @@ class MuJoCoSO101:
         self._scene_xml_mtimes = current_mtimes
         self._update_camera_from_xml()
 
-    def _update_camera_from_xml(self) -> None:  # noqa: PLR0912, PLR0915
+    def _update_camera_from_xml(self) -> None:  # noqa: C901, PLR0912, PLR0915
         import mujoco  # noqa: PLC0415
         from defusedxml import ElementTree  # noqa: PLC0415
 
@@ -710,22 +726,7 @@ class MuJoCoSO101:
                 logger.warning("Scene switch failed: {}", exc)
         elif isinstance(command, ShutdownCommand):
             logger.info("Shutdown requested via HTTP")
-            self._request_owner_shutdown()
-
-    def _request_owner_shutdown(self) -> None:
-        """Set the owner worker's shutdown event, if this runs inside one.
-
-        The driver runs inside ``python -m physicalai.robot.transport.
-        _owner_worker``, where the worker module is loaded as ``__main__``;
-        check both module identities for the loop's shutdown event.
-        """
-        for module_name in ("__main__", "physicalai.robot.transport._owner_worker"):
-            module = sys.modules.get(module_name)
-            event = getattr(module, "shutdown", None) if module is not None else None
-            if isinstance(event, threading.Event):
-                event.set()
-                return
-        logger.warning("Owner shutdown event not found; use Ctrl+C or stop the process to exit")
+            _signal_owner_shutdown()
 
     def get_observation(self) -> RobotObservation:
         """Return the current simulated joint observation.
