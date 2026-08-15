@@ -95,7 +95,7 @@ class MuJoCoSO101:
         self._pending_scene_switch: bool = False
         self._current_scene_id: str | None = None
         self._scene_on_reset: object | None = None
-        self._scene_xml_mtime: float = 0.0
+        self._scene_xml_mtimes: dict[str, float] = {}
 
         if scene_config is not None:
             self._free_joints: tuple[str, ...] = tuple(scene_config["free_joints"])
@@ -144,10 +144,7 @@ class MuJoCoSO101:
         mujoco.mj_forward(self._model, self._data)
         self._last_sim_time = float(self._data.time)
         self._init_block_joint_addrs()
-        try:
-            self._scene_xml_mtime = Path(self._model_path).stat().st_mtime
-        except OSError:
-            self._scene_xml_mtime = 0.0
+        self._scene_xml_mtimes = self._snapshot_scene_xml_mtimes()
         logger.info(
             "MuJoCo SO101 connected ({} joints, timestep={})",
             self.NUM_JOINTS,
@@ -263,32 +260,79 @@ class MuJoCoSO101:
         if key in {ord("n"), ord("N")} and not self._pending_scene_switch:
             self._pending_scene_switch = True
 
+    def _collect_scene_xml_paths(self) -> list[Path]:
+        root_path = Path(self._model_path).resolve()
+        visited: set[Path] = set()
+        ordered_paths: list[Path] = []
+
+        def walk(path: Path) -> None:
+            normalized = path.resolve()
+            if normalized in visited:
+                return
+            visited.add(normalized)
+            ordered_paths.append(normalized)
+
+            try:
+                from defusedxml import ElementTree  # noqa: PLC0415
+
+                root = ElementTree.parse(normalized).getroot()
+            except (ElementTree.ParseError, OSError):
+                return
+
+            for include in root.findall(".//include"):
+                include_file = include.get("file")
+                if not include_file:
+                    continue
+                include_path = (normalized.parent / include_file).resolve()
+                walk(include_path)
+
+        walk(root_path)
+        return ordered_paths
+
+    def _snapshot_scene_xml_mtimes(self) -> dict[str, float]:
+        mtimes: dict[str, float] = {}
+        for xml_path in self._collect_scene_xml_paths():
+            try:
+                mtimes[str(xml_path)] = xml_path.stat().st_mtime
+            except OSError:
+                continue
+        return mtimes
+
     def _check_scene_xml_camera(self) -> None:
-        try:
-            mtime = Path(self._model_path).stat().st_mtime
-        except OSError:
-            return
-        if mtime <= self._scene_xml_mtime:
+        current_mtimes = self._snapshot_scene_xml_mtimes()
+        if current_mtimes == self._scene_xml_mtimes:
             return
         logger.info("Scene XML changed, updating camera")
-        self._scene_xml_mtime = mtime
+        self._scene_xml_mtimes = current_mtimes
         self._update_camera_from_xml()
 
     def _update_camera_from_xml(self) -> None:  # noqa: PLR0912, PLR0915
         import mujoco  # noqa: PLC0415
         from defusedxml import ElementTree  # noqa: PLC0415
 
-        try:
-            tree = ElementTree.parse(self._model_path)
-        except ElementTree.ParseError as exc:
-            logger.warning("Failed to parse scene XML {}: {}", self._model_path, exc)
+        roots = []
+        for xml_path in self._collect_scene_xml_paths():
+            try:
+                roots.append(ElementTree.parse(xml_path).getroot())
+            except ElementTree.ParseError as exc:
+                logger.warning("Failed to parse XML {}: {}", xml_path, exc)
+
+        if not roots:
             return
-        cam = tree.find(".//camera[@name='overview']")
+
+        def find_first(xpath: str) -> object | None:
+            for root in roots:
+                elem = root.find(xpath)
+                if elem is not None:
+                    return elem
+            return None
+
+        cam = find_first(".//camera[@name='overview']")
         if cam is None:
             return
 
-        for body_name in ("overview_camera_rig", "overview_camera_tilt"):
-            body_elem = tree.find(f".//body[@name='{body_name}']")
+        for body_name in ("overview_camera_rig", "overview_camera_tilt", "camera_mount", "camera_mount_wrist"):
+            body_elem = find_first(f".//body[@name='{body_name}']")
             body_id = mujoco.mj_name2id(self._model, mujoco.mjtObj.mjOBJ_BODY, body_name)
             if body_elem is None or body_id < 0:
                 continue
@@ -308,45 +352,69 @@ class MuJoCoSO101:
                 else:
                     logger.warning("Invalid {} euler values: {}", body_name, euler_str)
 
-        overview_id = mujoco.mj_name2id(self._model, mujoco.mjtObj.mjOBJ_CAMERA, "overview")
-        if overview_id < 0:
-            return
-        pos_str = cam.get("pos")
-        if pos_str:
-            pos = [float(x) for x in pos_str.split()]
-            self._model.cam_pos[overview_id] = pos
+            quat_str = body_elem.get("quat")
+            if quat_str:
+                quat_vals = [float(x) for x in quat_str.split()]
+                if len(quat_vals) == 4:  # noqa: PLR2004
+                    self._model.body_quat[body_id] = quat_vals
+                    logger.info("Updated {} quat: {}", body_name, quat_vals)
+                else:
+                    logger.warning("Invalid {} quat values: {}", body_name, quat_str)
 
-        fovy_str = cam.get("fovy")
-        if fovy_str:
-            self._model.cam_fovy[overview_id] = float(fovy_str)
+        def update_camera_pose(camera_name: str, camera_elem: object) -> None:
+            camera_id = mujoco.mj_name2id(self._model, mujoco.mjtObj.mjOBJ_CAMERA, camera_name)
+            if camera_id < 0:
+                return
 
-        xyaxes_str = cam.get("xyaxes")
-        euler_str = cam.get("euler")
+            pos_str = camera_elem.get("pos")
+            if pos_str:
+                pos = [float(x) for x in pos_str.split()]
+                self._model.cam_pos[camera_id] = pos
 
-        if xyaxes_str:
-            vals = [float(x) for x in xyaxes_str.split()]
-            if len(vals) == 6:  # noqa: PLR2004
-                mat = np.empty(9, dtype=np.float64)
-                mat[:3] = vals[:3]
-                mat[3:6] = vals[3:]
-                mat[6:] = np.cross(vals[:3], vals[3:])
-                quat = np.zeros(4, dtype=np.float64)
-                mujoco.mju_mat2Quat(quat, mat)
-                self._model.cam_quat[overview_id] = quat
-                logger.info("Updated camera xyaxes: {}", vals)
+            fovy_str = camera_elem.get("fovy")
+            if fovy_str:
+                self._model.cam_fovy[camera_id] = float(fovy_str)
+
+            xyaxes_str = camera_elem.get("xyaxes")
+            euler_str = camera_elem.get("euler")
+            quat_str = camera_elem.get("quat")
+
+            if quat_str:
+                quat_vals = [float(x) for x in quat_str.split()]
+                if len(quat_vals) == 4:  # noqa: PLR2004
+                    self._model.cam_quat[camera_id] = quat_vals
+                    logger.info("Updated camera {} quat: {}", camera_name, quat_vals)
+                else:
+                    logger.warning("Invalid {} camera quat values: {}", camera_name, quat_str)
+            elif xyaxes_str:
+                vals = [float(x) for x in xyaxes_str.split()]
+                if len(vals) == 6:  # noqa: PLR2004
+                    mat = np.empty(9, dtype=np.float64)
+                    mat[:3] = vals[:3]
+                    mat[3:6] = vals[3:]
+                    mat[6:] = np.cross(vals[:3], vals[3:])
+                    quat = np.zeros(4, dtype=np.float64)
+                    mujoco.mju_mat2Quat(quat, mat)
+                    self._model.cam_quat[camera_id] = quat
+                    logger.info("Updated camera {} xyaxes: {}", camera_name, vals)
+                else:
+                    logger.warning("Invalid {} camera xyaxes values: {}", camera_name, xyaxes_str)
+            elif euler_str:
+                euler_vals = [float(x) for x in euler_str.split()]
+                if len(euler_vals) == 3:  # noqa: PLR2004
+                    quat = np.zeros(4, dtype=np.float64)
+                    mujoco.mju_euler2Quat(quat, euler_vals, "xyz")
+                    self._model.cam_quat[camera_id] = quat
+                    logger.info("Updated camera {} euler: {} -> quat={}", camera_name, euler_vals, quat.tolist())
+                else:
+                    logger.warning("Invalid {} camera euler values: {}", camera_name, euler_str)
             else:
-                logger.warning("Invalid xyaxes values: {}", xyaxes_str)
-        elif euler_str:
-            euler_vals = [float(x) for x in euler_str.split()]
-            if len(euler_vals) == 3:  # noqa: PLR2004
-                quat = np.zeros(4, dtype=np.float64)
-                mujoco.mju_euler2Quat(quat, euler_vals, "xyz")
-                self._model.cam_quat[overview_id] = quat
-                logger.info("Updated camera euler: {} -> quat={}", euler_vals, quat.tolist())
-            else:
-                logger.warning("Invalid euler values: {}", euler_str)
-        else:
-            logger.info("No orientation attr (euler/xyaxes) on overview camera")
+                logger.info("No orientation attr (euler/xyaxes/quat) on {} camera", camera_name)
+
+        update_camera_pose("overview", cam)
+        wrist_cam = find_first(".//camera[@name='wrist']")
+        if wrist_cam is not None:
+            update_camera_pose("wrist", wrist_cam)
 
         mujoco.mj_forward(self._model, self._data)
 
@@ -395,10 +463,7 @@ class MuJoCoSO101:
         self._init_block_joint_addrs()
         self._init_cameras()
 
-        try:
-            self._scene_xml_mtime = Path(self._model_path).stat().st_mtime
-        except OSError:
-            self._scene_xml_mtime = 0.0
+        self._scene_xml_mtimes = self._snapshot_scene_xml_mtimes()
 
         self._current_scene_id = scene_id
         from physicalai_mujoco_so101_plugin.scene_registry import get_reset_fn  # noqa: PLC0415
@@ -658,7 +723,7 @@ class MuJoCoSO101:
         self._last_sim_time = None
         self._rng = np.random.default_rng()
         self._pending_scene_switch = False
-        self._scene_xml_mtime = 0.0
+        self._scene_xml_mtimes = {}
 
 
 class BiMuJoCoSO101(MuJoCoSO101):
