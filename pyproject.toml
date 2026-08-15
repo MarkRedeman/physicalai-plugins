@@ -2,8 +2,8 @@
 members = ["packages/*"]
 
 [tool.uv.sources]
-physicalai-studio-plugin = { git = "https://github.com/open-edge-platform/physical-ai-studio.git", subdirectory = "application/plugin", rev = "c9006aa9fbac0cf3bfcd4057200dd3b2f612dea6" }
-physicalai = { git = "https://github.com/openvinotoolkit/physicalai.git", rev = "3e163cfebc5f0fe6d97a6e792b4b0a55614d9a44" }
+physicalai-studio-plugin = { git = "https://github.com/open-edge-platform/physical-ai-studio.git", subdirectory = "application/plugin", rev = "d2100696ecd9d1aaf573497b5103f6c86e74d7c2" }
+physicalai = { git = "https://github.com/openvinotoolkit/physicalai.git", rev = "2528309e55ab6a5f7f71c6dc23b8baae21f80108" }
 
 [dependency-groups]
 dev = ["pytest", "mypy", "ruff>=0.15.14", "prek", "pyrefly>=0.58.0"]
