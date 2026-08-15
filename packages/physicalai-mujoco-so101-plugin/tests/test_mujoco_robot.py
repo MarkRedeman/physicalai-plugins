@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import sys
+import threading
+import types
 from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
 from physicalai.config import to_config
 
+from physicalai_mujoco_so101_plugin.http_server import ResetCommand, ShutdownCommand, SwitchSceneCommand
 from physicalai_mujoco_so101_plugin.mujoco_robot import BiMuJoCoSO101, MuJoCoSO101, MuJoCoSO101Observation
 
 
@@ -224,6 +228,8 @@ class TestMuJoCoSO101Pickling:
             "_block_min_sep": 0.09,
             "_target_min_sep": 0.11,
             "_current_scene_id": None,
+            "_http_host": "127.0.0.1",
+            "_http_port": 0,
         }
 
     def test_getstate_after_connect(self, mock_mujoco: MagicMock) -> None:
@@ -247,6 +253,22 @@ class TestMuJoCoSO101Pickling:
         assert robot._model is None  # noqa: SLF001
         assert robot._data is None  # noqa: SLF001
         assert robot._viewer is None  # noqa: SLF001
+        assert robot._http_host == "127.0.0.1"  # noqa: SLF001
+        assert robot._http_port == 0  # noqa: SLF001
+
+    def test_setstate_restores_http_config(self) -> None:
+        state = {
+            "_model_path": "/fake/model.xml",
+            "_substeps": 1,
+            "_enable_viewer": False,
+            "_cameras": [],
+            "_http_host": "0.0.0.0",  # noqa: S104
+            "_http_port": 9000,
+        }
+        robot = MuJoCoSO101.__new__(MuJoCoSO101)
+        robot.__setstate__(state)
+        assert robot._http_host == "0.0.0.0"  # noqa: SLF001, S104
+        assert robot._http_port == 9000  # noqa: SLF001
 
 
 class TestBiMuJoCoSO101:
@@ -309,3 +331,148 @@ class TestBiMuJoCoSO101:
 
         with pytest.raises(ValueError, match="Expected action shape"):
             robot.send_action(np.array([1.0, 2.0, 3.0]))
+
+
+class TestHttpCommands:
+    def test_reset_command_calls_scene_reset(self, mock_mujoco: MagicMock) -> None:
+        _ = mock_mujoco
+        robot = MuJoCoSO101(model_path="/fake/model.xml")
+        robot.connect()
+        robot._scene_on_reset = MagicMock()  # noqa: SLF001
+        robot._commands.put(ResetCommand())  # noqa: SLF001
+
+        robot.get_observation()
+
+        robot._scene_on_reset.assert_called_once_with(robot._model, robot._data, robot._rng)  # noqa: SLF001
+
+    def test_reset_command_falls_back_to_randomize(self, mock_mujoco: MagicMock) -> None:
+        _ = mock_mujoco
+        robot = MuJoCoSO101(model_path="/fake/model.xml")
+        robot.connect()
+        robot._scene_on_reset = None  # noqa: SLF001
+        robot._commands.put(ResetCommand())  # noqa: SLF001
+
+        with patch.object(robot, "_randomize_blocks") as randomize:  # noqa: SLF001
+            robot.get_observation()
+
+        randomize.assert_called_once()
+
+    def test_switch_scene_command(self, mock_mujoco: MagicMock) -> None:
+        _ = mock_mujoco
+        robot = MuJoCoSO101(model_path="/fake/model.xml")
+        robot.connect()
+        robot._commands.put(SwitchSceneCommand(scene_id="pick_lift"))  # noqa: SLF001
+
+        with patch.object(robot, "_switch_to_scene") as switch:  # noqa: SLF001
+            robot.get_observation()
+
+        switch.assert_called_once_with("pick_lift")
+
+    def test_unknown_switch_scene_command_is_handled(self, mock_mujoco: MagicMock) -> None:
+        _ = mock_mujoco
+        robot = MuJoCoSO101(model_path="/fake/model.xml")
+        robot.connect()
+        robot._commands.put(SwitchSceneCommand(scene_id="nope"))  # noqa: SLF001
+
+        with patch.object(robot, "_switch_to_scene", side_effect=KeyError("nope")):  # noqa: SLF001
+            robot.get_observation()
+
+    def test_shutdown_command_sets_owner_event(self, mock_mujoco: MagicMock, monkeypatch: pytest.MonkeyPatch) -> None:
+        _ = mock_mujoco
+        robot = MuJoCoSO101(model_path="/fake/model.xml")
+        robot.connect()
+
+        event = threading.Event()
+        fake_worker = types.ModuleType("physicalai.robot.transport._owner_worker")
+        fake_worker.shutdown = event
+        monkeypatch.setitem(sys.modules, "physicalai.robot.transport._owner_worker", fake_worker)
+
+        robot._commands.put(ShutdownCommand())  # noqa: SLF001
+        robot.get_observation()
+
+        assert event.is_set()
+
+    def test_shutdown_without_owner_event_does_not_raise(self, mock_mujoco: MagicMock) -> None:
+        _ = mock_mujoco
+        robot = MuJoCoSO101(model_path="/fake/model.xml")
+        robot.connect()
+        robot._commands.put(ShutdownCommand())  # noqa: SLF001
+        robot.get_observation()
+
+    def test_http_status_shape(self) -> None:
+        robot = MuJoCoSO101(
+            model_path="/fake/model.xml",
+            cameras=[{"name": "overview", "device": None}],
+        )
+        status = robot._http_status()  # noqa: SLF001
+        assert status["connected"] is False
+        assert status["scene"] is None
+        assert "single_pick_place" in status["scenes"]
+        assert status["cameras"] == [
+            {
+                "name": "overview",
+                "width": 640,
+                "height": 480,
+                "fps": 30,
+                "device": None,
+                "rendering": False,
+            },
+        ]
+
+
+class TestHttpServerIntegration:
+    @staticmethod
+    def _free_port() -> int:
+        import socket  # noqa: PLC0415
+
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.bind(("127.0.0.1", 0))
+            return int(sock.getsockname()[1])
+
+    def test_connect_starts_server_disconnect_stops_it(self, mock_mujoco: MagicMock) -> None:
+        import http.client  # noqa: PLC0415
+
+        _ = mock_mujoco
+        port = self._free_port()
+        robot = MuJoCoSO101(model_path="/fake/model.xml", http_port=port)
+        robot.connect()
+        try:
+            assert robot._http_server is not None  # noqa: SLF001
+            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+            conn.request("GET", "/health")
+            response = conn.getresponse()
+            assert response.status == 200
+            conn.close()
+        finally:
+            robot.disconnect()
+        assert robot._http_server is None  # noqa: SLF001
+        with pytest.raises(OSError):
+            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=2)
+            conn.request("GET", "/health")
+            conn.getresponse()
+
+    def test_connect_with_busy_port_continues_without_http(self, mock_mujoco: MagicMock) -> None:
+        import socket  # noqa: PLC0415
+
+        _ = mock_mujoco
+        port = self._free_port()
+        blocker = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        blocker.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        blocker.bind(("127.0.0.1", port))
+        blocker.listen(1)
+        try:
+            robot = MuJoCoSO101(model_path="/fake/model.xml", http_port=port)
+            robot.connect()
+            assert robot._http_server is None  # noqa: SLF001
+            robot.disconnect()
+        finally:
+            blocker.close()
+
+    def test_http_disabled_by_default_port_zero(self, mock_mujoco: MagicMock) -> None:
+        _ = mock_mujoco
+        robot = MuJoCoSO101(model_path="/fake/model.xml")
+        robot.connect()
+        try:
+            assert robot._http_server is None  # noqa: SLF001
+        finally:
+            robot.disconnect()

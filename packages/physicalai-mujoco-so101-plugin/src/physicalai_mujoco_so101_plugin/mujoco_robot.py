@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import contextlib
+import queue
+import sys
+import threading
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -23,6 +26,8 @@ if TYPE_CHECKING:
     from physicalai.capture.frame import Frame
     from physicalai.robot.interface import RobotObservation
 
+    from physicalai_mujoco_so101_plugin.http_server import FrameBuffer, HttpServer, SimCommand
+
 
 @dataclass
 class MuJoCoSO101Observation:
@@ -41,10 +46,15 @@ class MuJoCoSO101Observation:
 
 @dataclass(frozen=True)
 class CameraConfig:
-    """Output configuration for a virtual camera."""
+    """Output configuration for a virtual camera.
+
+    When ``device`` is ``None`` the camera is served only over HTTP
+    (MJPEG/snapshot). Setting ``device`` to a v4l2loopback node also
+    publishes frames there via pyfakewebcam.
+    """
 
     name: str
-    device: str
+    device: str | None = None
     width: int = 640
     height: int = 480
     fps: int = 30
@@ -76,6 +86,8 @@ class MuJoCoSO101:
         model: object = None,
         data: object = None,
         scene_config: dict | None = None,
+        http_host: str = "127.0.0.1",
+        http_port: int = 0,
     ) -> None:
         """Initialize a disconnected simulation robot."""
         self._model_path = model_path
@@ -88,6 +100,11 @@ class MuJoCoSO101:
         self._camera_devices: dict[str, object] = {}
         self._camera_renderers: dict[str, object] = {}
         self._camera_last_frame_ts: dict[str, float] = {}
+        self._frame_buffers: dict[str, FrameBuffer] = {}
+        self._commands: queue.Queue[SimCommand] = queue.Queue()
+        self._http_host = http_host
+        self._http_port = http_port
+        self._http_server: HttpServer | None = None
         self._block_joint_addrs: list[tuple[int, int]] = []
         self._target_body_id: int | None = None
         self._last_sim_time: float | None = None
@@ -166,15 +183,18 @@ class MuJoCoSO101:
                 self._enable_viewer = False
 
         self._init_cameras()
+        self._start_http_server()
 
     def disconnect(self) -> None:
         """Release simulation resources."""
+        self._stop_http_server()
         for renderer in self._camera_renderers.values():
             with contextlib.suppress(Exception):
                 renderer.close()
         self._camera_renderers.clear()
         self._camera_devices.clear()
         self._camera_last_frame_ts.clear()
+        self._frame_buffers.clear()
         self._block_joint_addrs.clear()
         self._target_body_id = None
         self._last_sim_time = None
@@ -194,6 +214,7 @@ class MuJoCoSO101:
     def _step_and_sync(self) -> None:
         import mujoco  # noqa: PLC0415
 
+        self._drain_commands()
         self._check_scene_xml_camera()
 
         for _ in range(self._substeps):
@@ -216,30 +237,40 @@ class MuJoCoSO101:
 
         import mujoco  # noqa: PLC0415
 
-        try:
-            import pyfakewebcam  # noqa: PLC0415
-        except ImportError as exc:
-            logger.warning("pyfakewebcam unavailable, disabling cameras: {}", exc)
-            return
-
         for config in self._cameras:
             try:
-                cam = pyfakewebcam.FakeWebcam(config.device, config.width, config.height)
                 renderer = mujoco.Renderer(self._model, config.height, config.width)
             except OSError as exc:
-                logger.warning("Camera '{}' unavailable: {}", config.name, exc)
+                logger.warning("Camera '{}' renderer unavailable: {}", config.name, exc)
                 continue
-            self._camera_devices[config.name] = cam
             self._camera_renderers[config.name] = renderer
+            if config.name not in self._frame_buffers:
+                from physicalai_mujoco_so101_plugin.http_server import FrameBuffer  # noqa: PLC0415
+
+                self._frame_buffers[config.name] = FrameBuffer(config.name)
             self._camera_last_frame_ts[config.name] = 0.0
+
+            if config.device:
+                self._init_v4l2_device(config)
             logger.info(
-                "Camera started: {} -> {} ({}x{}@{} fps)",
+                "Camera started: {} ({}x{}@{} fps, v4l2={})",
                 config.name,
-                config.device,
                 config.width,
                 config.height,
                 config.fps,
+                config.device or "off",
             )
+
+    def _init_v4l2_device(self, config: CameraConfig) -> None:
+        try:
+            import pyfakewebcam  # noqa: PLC0415
+        except ImportError as exc:
+            logger.warning("pyfakewebcam unavailable, camera '{}' v4l2 output disabled: {}", config.name, exc)
+            return
+        try:
+            self._camera_devices[config.name] = pyfakewebcam.FakeWebcam(config.device, config.width, config.height)
+        except OSError as exc:
+            logger.warning("Camera '{}' v4l2 device '{}' unavailable: {}", config.name, config.device, exc)
 
     def _init_block_joint_addrs(self) -> None:
         import mujoco  # noqa: PLC0415
@@ -570,8 +601,7 @@ class MuJoCoSO101:
         now = time.monotonic()
         for config in self._cameras:
             renderer = self._camera_renderers.get(config.name)
-            cam = self._camera_devices.get(config.name)
-            if renderer is None or cam is None:
+            if renderer is None:
                 continue
 
             period = 1.0 / config.fps
@@ -587,14 +617,115 @@ class MuJoCoSO101:
 
             if config.mirror_horizontal:
                 frame = frame[:, ::-1, :]
+            frame = np.ascontiguousarray(frame)
 
-            try:
-                cam.schedule_frame(frame)
-            except RuntimeError as exc:
-                logger.debug("Camera publish error for '{}': {}", config.name, exc)
-                continue
+            buffer = self._frame_buffers.get(config.name)
+            if buffer is not None:
+                buffer.put(frame)
+
+            cam = self._camera_devices.get(config.name)
+            if cam is not None:
+                try:
+                    cam.schedule_frame(frame)
+                except RuntimeError as exc:
+                    logger.debug("Camera publish error for '{}': {}", config.name, exc)
+                    continue
 
             self._camera_last_frame_ts[config.name] = now
+
+    def _start_http_server(self) -> None:
+        if self._http_port <= 0:
+            return
+
+        from physicalai_mujoco_so101_plugin.http_server import HttpServer, build_app  # noqa: PLC0415
+
+        app = build_app(
+            service_name="mujoco-so101",
+            buffers=self._frame_buffers,
+            commands=self._commands,
+            get_status=self._http_status,
+        )
+        server = HttpServer(app, self._http_host, self._http_port)
+        try:
+            server.start()
+        except (OSError, RuntimeError) as exc:
+            logger.warning("Failed to start HTTP server on {}:{}: {}", self._http_host, self._http_port, exc)
+            return
+        self._http_server = server
+        logger.info("HTTP camera server running at {}", server.url)
+
+    def _stop_http_server(self) -> None:
+        if self._http_server is None:
+            return
+        with contextlib.suppress(Exception):
+            self._http_server.stop()
+        self._http_server = None
+
+    def _http_status(self) -> dict[str, object]:
+        from physicalai_mujoco_so101_plugin.scene_registry import list_scenes  # noqa: PLC0415
+
+        return {
+            "connected": self.is_connected(),
+            "scene": self._current_scene_id,
+            "scenes": sorted(list_scenes()),
+            "cameras": [
+                {
+                    "name": config.name,
+                    "width": config.width,
+                    "height": config.height,
+                    "fps": config.fps,
+                    "device": config.device,
+                    "rendering": config.name in self._camera_renderers,
+                }
+                for config in self._cameras
+            ],
+        }
+
+    def _drain_commands(self) -> None:
+        while True:
+            try:
+                command = self._commands.get_nowait()
+            except queue.Empty:
+                return
+            self._handle_command(command)
+
+    def _handle_command(self, command: SimCommand) -> None:
+        from physicalai_mujoco_so101_plugin.http_server import (  # noqa: PLC0415
+            ResetCommand,
+            ShutdownCommand,
+            SwitchSceneCommand,
+        )
+
+        if isinstance(command, ResetCommand):
+            logger.info("Scene reset requested via HTTP")
+            if self._scene_on_reset is not None:
+                self._scene_on_reset(self._model, self._data, self._rng)
+            else:
+                self._randomize_blocks()
+        elif isinstance(command, SwitchSceneCommand):
+            logger.info("Scene switch requested via HTTP: {}", command.scene_id)
+            try:
+                self._switch_to_scene(command.scene_id)
+            except KeyError as exc:
+                logger.warning("Scene switch failed: {}", exc)
+        elif isinstance(command, ShutdownCommand):
+            logger.info("Shutdown requested via HTTP")
+            self._request_owner_shutdown()
+
+    def _request_owner_shutdown(self) -> None:
+        """Set the owner worker's shutdown event, if this runs inside one.
+
+        The driver runs inside ``python -m physicalai.robot.transport.
+        _owner_worker``, where the worker module is loaded as ``__main__``;
+        check both module identities for the loop's shutdown event.
+        """
+        for module_name in ("__main__", "physicalai.robot.transport._owner_worker"):
+            module = sys.modules.get(module_name)
+            event = getattr(module, "shutdown", None) if module is not None else None
+            if isinstance(event, threading.Event):
+                event.set()
+                return
+        logger.warning("Owner shutdown event not found; use Ctrl+C or stop the process to exit")
 
     def get_observation(self) -> RobotObservation:
         """Return the current simulated joint observation.
@@ -689,6 +820,8 @@ class MuJoCoSO101:
             "_block_min_sep": self._block_min_sep,
             "_target_min_sep": self._target_min_sep,
             "_current_scene_id": self._current_scene_id,
+            "_http_host": self._http_host,
+            "_http_port": self._http_port,
         }
 
     def __setstate__(self, state: dict) -> None:
@@ -718,6 +851,11 @@ class MuJoCoSO101:
         self._camera_devices = {}
         self._camera_renderers = {}
         self._camera_last_frame_ts = {}
+        self._frame_buffers = {}
+        self._commands = queue.Queue()
+        self._http_host = state.get("_http_host", "127.0.0.1")
+        self._http_port = state.get("_http_port", 0)
+        self._http_server = None
         self._block_joint_addrs = []
         self._target_body_id = None
         self._last_sim_time = None
