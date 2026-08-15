@@ -11,20 +11,23 @@ touched by one thread.
 from __future__ import annotations
 
 import asyncio
-import queue
 import threading
 import time
-from collections.abc import AsyncIterator, Callable, Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import cv2
-import numpy as np
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 from loguru import logger
+
+if TYPE_CHECKING:
+    import queue
+    from collections.abc import AsyncIterator, Callable, Mapping
+
+    import numpy as np
 
 _MJPEG_BOUNDARY = "mujoco-frame"
 _FRAME_WAIT_TIMEOUT_S = 1.0
@@ -65,6 +68,7 @@ class FrameBuffer:
     """Thread-safe latest-frame slot shared by the sim and HTTP threads."""
 
     def __init__(self, name: str) -> None:
+        """Initialize an empty frame slot for *name*."""
         self.name = name
         self._cond = threading.Condition()
         self._sample: FrameSample | None = None
@@ -78,7 +82,11 @@ class FrameBuffer:
             self._cond.notify_all()
 
     def snapshot(self) -> FrameSample | None:
-        """Return the newest frame without blocking (HTTP thread)."""
+        """Return the newest frame without blocking (HTTP thread).
+
+        Returns:
+            The newest sample, or ``None`` if no frame was published yet.
+        """
         with self._cond:
             return self._sample
 
@@ -87,6 +95,9 @@ class FrameBuffer:
 
         On timeout the current (possibly stale) sample is returned so
         stream consumers can re-emit it as a keep-alive.
+
+        Returns:
+            The newest sample, or ``None`` when nothing was ever published.
         """
         deadline = time.monotonic() + timeout
         with self._cond:
@@ -99,7 +110,14 @@ class FrameBuffer:
 
 
 def encode_jpeg(rgb: np.ndarray, quality: int) -> bytes:
-    """Encode an RGB frame as JPEG bytes."""
+    """Encode an RGB frame as JPEG bytes.
+
+    Returns:
+        The JPEG-encoded byte string.
+
+    Raises:
+        RuntimeError: If the encoder fails.
+    """
     bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
     ok, buf = cv2.imencode(".jpg", bgr, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
     if not ok:
@@ -121,9 +139,9 @@ async def _mjpeg_stream(buffer: FrameBuffer, quality: int) -> AsyncIterator[byte
             logger.debug("MJPEG encode error for '{}': {}", buffer.name, exc)
             continue
         yield (
-            f"--{_MJPEG_BOUNDARY}\r\n"
-            f"Content-Type: image/jpeg\r\n"
-            f"Content-Length: {len(jpeg)}\r\n\r\n".encode() + jpeg + b"\r\n"
+            f"--{_MJPEG_BOUNDARY}\r\nContent-Type: image/jpeg\r\nContent-Length: {len(jpeg)}\r\n\r\n".encode()
+            + jpeg
+            + b"\r\n"
         )
 
 
@@ -153,7 +171,7 @@ def build_app(
     app = FastAPI(title=f"{service_name} camera server")
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],  # noqa: S104
+        allow_origins=["*"],
         allow_methods=["*"],
         allow_headers=["*"],
     )
@@ -244,6 +262,7 @@ class HttpServer:
     """Runs a uvicorn server for a FastAPI app on a daemon thread."""
 
     def __init__(self, app: FastAPI, host: str, port: int) -> None:
+        """Configure a server for *app* on *host*:*port* (not yet started)."""
         self._host = host
         self._port = port
         self._server = uvicorn.Server(
