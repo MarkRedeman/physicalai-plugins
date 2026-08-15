@@ -8,8 +8,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-import pytest
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 
 
 @dataclass
@@ -50,6 +49,8 @@ def test_register_plugin() -> None:
     types = [(d.type, d.role) for d in registry.definitions]
     assert ("LeKiwi_Follower", "follower") in types
     assert ("LeKiwi_Leader", "leader") in types
+    assert all(definition.category == "LeKiwi" for definition in registry.definitions)
+    assert all(definition.source == "first_party" for definition in registry.definitions)
 
     defn = registry.definitions[0]
     assert defn.asset is not None
@@ -125,17 +126,33 @@ def test_payload_with_calibration() -> None:
     assert payload.calibration["arm_shoulder_pan"].id == 1
 
 
-def test_payload_requires_serial() -> None:
+def test_payload_allows_manual_connection_path() -> None:
     from physicalai_lekiwi_plugin.studio_catalog import LeKiwiPayload
 
-    with pytest.raises(ValidationError):
-        LeKiwiPayload()
+    payload = LeKiwiPayload(connection_string="/dev/ttyACM0")
+    assert payload.connection_string == "/dev/ttyACM0"
+    assert payload.serial_number == ""
 
 
 def test_payload_model_rebuild() -> None:
     from physicalai_lekiwi_plugin.studio_catalog import LeKiwiPayload
 
     LeKiwiPayload.model_rebuild(raise_errors=True)
+
+
+def test_payload_schema_configures_serial_connection_picker() -> None:
+    from physicalai_lekiwi_plugin.studio_catalog import LeKiwiPayload
+
+    schema = LeKiwiPayload.model_json_schema()
+    connection = schema["x-physicalai-ui"]["groups"]["connection"]
+
+    assert connection["connection_key"] == "connection_string"
+    assert connection["serial_number_key"] == "serial_number"
+    for field_name in ("connection_string", "serial_number"):
+        assert schema["properties"][field_name]["x-physicalai-ui"] == {
+            "group": "connection",
+            "widget": "device-selector",
+        }
 
 
 def test_follower_builder_validates_cross_identity_payload() -> None:
