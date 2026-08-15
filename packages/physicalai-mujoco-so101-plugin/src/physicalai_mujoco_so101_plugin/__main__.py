@@ -77,8 +77,11 @@ def _build_parser() -> argparse.ArgumentParser:
     start.add_argument(
         "--idle-timeout",
         type=float,
-        default=10.0,
-        help="Seconds with zero subscribers before self-exit (default: 10)",
+        default=None,
+        help=(
+            "Seconds with zero subscribers before self-exit "
+            "(default: 10 without HTTP, disabled with HTTP so stream viewers keep the sim alive)"
+        ),
     )
     start.add_argument(
         "--no-gui",
@@ -90,25 +93,49 @@ def _build_parser() -> argparse.ArgumentParser:
         "--no-cameras",
         action="store_true",
         default=False,
-        help="Disable v4l2loopback camera output",
+        help="Disable camera rendering entirely (HTTP streams and v4l2loopback)",
+    )
+    start.add_argument(
+        "--http-host",
+        type=str,
+        default="127.0.0.1",
+        help="Host for the camera/control HTTP server (default: 127.0.0.1)",
+    )
+    start.add_argument(
+        "--http-port",
+        type=int,
+        default=8080,
+        help="Port for the camera/control HTTP server (default: 8080)",
+    )
+    start.add_argument(
+        "--no-http",
+        action="store_true",
+        default=False,
+        help="Disable the camera/control HTTP server",
+    )
+    start.add_argument(
+        "--v4l2",
+        action="store_true",
+        default=False,
+        help="Also publish cameras to v4l2loopback devices (requires modprobe v4l2loopback)",
     )
     start.add_argument(
         "--wrist-video-id",
         type=int,
         default=60,
-        help="v4l2loopback video ID for the wrist camera (default: 60)",
+        help="v4l2loopback video ID for the wrist camera (only with --v4l2, default: 60)",
     )
     start.add_argument(
         "--right-wrist-video-id",
         type=int,
         default=61,
-        help="v4l2loopback video ID for the right wrist camera (bimanual, default: 61)",
+        help="v4l2loopback video ID for the right wrist camera (bimanual, only with --v4l2, default: 61)",
     )
     start.add_argument(
         "--overview-video-id",
         type=int,
         default=62,
-        help="v4l2loopback video ID for the overview camera (default: 62)",
+        help="v4l2loopback video ID for the overview camera (only with --v4l2, default: 62)",
     )
     return parser
 
@@ -140,24 +167,29 @@ def _resolve_model_and_scene(
 def _start(args: argparse.Namespace) -> None:
     model_path, scene_config = _resolve_model_and_scene(args.model, args.scene, bimanual=args.bimanual)
 
+    http_enabled = not args.no_http and args.http_port > 0
+
     cameras: list[dict[str, object]] = []
     if not args.no_cameras:
-        video_ids = [args.wrist_video_id, args.overview_video_id]
-        if args.bimanual:
-            video_ids.append(args.right_wrist_video_id)
-        if any(v < 0 for v in video_ids):
-            msg = "Video IDs must be non-negative integers"
-            raise ValueError(msg)
-        if len(set(video_ids)) != len(video_ids):
-            msg = "Wrist and overview video IDs must be different"
-            raise ValueError(msg)
-        wrist_device = f"/dev/video{args.wrist_video_id}"
-        overview_device = f"/dev/video{args.overview_video_id}"
+        if args.v4l2:
+            video_ids = [args.wrist_video_id, args.overview_video_id]
+            if args.bimanual:
+                video_ids.append(args.right_wrist_video_id)
+            if any(v < 0 for v in video_ids):
+                msg = "Video IDs must be non-negative integers"
+                raise ValueError(msg)
+            if len(set(video_ids)) != len(video_ids):
+                msg = "Wrist and overview video IDs must be different"
+                raise ValueError(msg)
+
+        def _device(video_id: int) -> str | None:
+            return f"/dev/video{video_id}" if args.v4l2 else None
+
         left_wrist_name = "left_wrist" if args.bimanual else "wrist"
         cameras = [
             {
                 "name": left_wrist_name,
-                "device": wrist_device,
+                "device": _device(args.wrist_video_id),
                 "width": 640,
                 "height": 480,
                 "fps": 30,
@@ -165,7 +197,7 @@ def _start(args: argparse.Namespace) -> None:
             },
             {
                 "name": "overview",
-                "device": overview_device,
+                "device": _device(args.overview_video_id),
                 "width": 640,
                 "height": 480,
                 "fps": 30,
@@ -176,7 +208,7 @@ def _start(args: argparse.Namespace) -> None:
             cameras.append(
                 {
                     "name": "right_wrist",
-                    "device": f"/dev/video{args.right_wrist_video_id}",
+                    "device": _device(args.right_wrist_video_id),
                     "width": 640,
                     "height": 480,
                     "fps": 30,
@@ -189,9 +221,15 @@ def _start(args: argparse.Namespace) -> None:
         "substeps": args.substeps,
         "enable_viewer": not args.no_gui,
         "cameras": cameras,
+        "http_host": args.http_host,
+        "http_port": args.http_port if http_enabled else 0,
     }
     if scene_config is not None:
         robot_kwargs["scene_config"] = asdict(scene_config)
+
+    idle_timeout = args.idle_timeout
+    if idle_timeout is None and not http_enabled:
+        idle_timeout = 10.0
 
     robot_cls = BiMuJoCoSO101 if args.bimanual else MuJoCoSO101
     robot = SharedRobot.from_config(
@@ -199,7 +237,7 @@ def _start(args: argparse.Namespace) -> None:
         name=args.name,
         allow_remote=args.allow_remote,
         rate_hz=args.rate_hz,
-        idle_timeout=args.idle_timeout,
+        idle_timeout=idle_timeout,
     )
 
     logger.info("Connecting MuJoCo SO-101 as zenoh owner '{}' ...", args.name)
@@ -211,6 +249,8 @@ def _start(args: argparse.Namespace) -> None:
         args.substeps,
         args.bimanual,
     )
+    if http_enabled:
+        logger.info("Camera/control HTTP server: http://{}:{}", args.http_host, args.http_port)
 
     shutdown = threading.Event()
 
