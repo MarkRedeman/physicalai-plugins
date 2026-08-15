@@ -208,6 +208,8 @@ def _definitions() -> list[RobotCatalogDefinition]:
         RobotCatalogDefinition(
             type="BimanualSO101_Follower",
             display_name="Bimanual SO-101 Follower",
+            category="SO101",
+            source="first_party",
             role="follower",
             robot_builder=_build_bimanual_follower,
             robot_payload=BimanualSO101Payload,
@@ -218,6 +220,8 @@ def _definitions() -> list[RobotCatalogDefinition]:
         RobotCatalogDefinition(
             type="BimanualSO101_Leader",
             display_name="Bimanual SO-101 Leader",
+            category="SO101",
+            source="first_party",
             role="leader",
             robot_builder=_build_bimanual_leader,
             robot_payload=BimanualSO101Payload,
