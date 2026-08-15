@@ -1,3 +1,4 @@
+<?xml version="1.0"?>
 <robot_bodies>
   <!-- Link base -->
   <body name="base" pos="0 0 0" quat="1 0 0 0" childclass="so101">
