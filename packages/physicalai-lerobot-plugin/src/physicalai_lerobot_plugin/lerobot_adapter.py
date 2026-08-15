@@ -13,12 +13,11 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 import numpy as np
 from loguru import logger
+from physicalai.config import export_config
 
 from physicalai_lerobot_plugin.constants import VALID_ROLES
 
 if TYPE_CHECKING:
-    from lerobot.robots.robot import Robot as LeRobotRobot
-    from lerobot.teleoperators.teleoperator import Teleoperator
     from physicalai.capture.frame import Frame
     from physicalai.robot.interface import RobotObservation
 
@@ -50,6 +49,54 @@ _DIM_THRESHOLD_IMAGE: int = 2
 _POSITION_KEY_SUFFIX: str = ".pos"
 
 
+def _device_ids(config_type: str, config_kwargs: dict[str, Any]) -> tuple[str, ...]:
+    """Return a stable serial-device identity without touching hardware."""
+    port = config_kwargs.get("port")
+    if isinstance(port, str) and port:
+        return (f"lerobot:{config_type}:{port}",)
+    return ()
+
+
+def _import_config_modules(package_name: str) -> None:
+    """Import LeRobot config modules so their registered types are available after spawn."""
+    import importlib
+    import pkgutil
+
+    package = importlib.import_module(package_name)
+    for _importer, module_name, is_package in pkgutil.walk_packages(package.__path__, prefix=f"{package_name}."):
+        if "config" in module_name and not is_package:
+            importlib.import_module(module_name)
+
+
+def _register_third_party_plugins() -> None:
+    from lerobot.utils.import_utils import register_third_party_plugins  # noqa: PLC0415
+
+    register_third_party_plugins()
+
+
+def _robot_config_class(type_name: str) -> type:
+    _import_config_modules("lerobot.robots")
+    _register_third_party_plugins()
+    from lerobot.robots.config import RobotConfig  # noqa: PLC0415
+
+    choices = RobotConfig.get_known_choices()
+    logger.info("Resolving LeRobot robot config type={!r}; available types={}", type_name, sorted(choices))
+    return choices[type_name]
+
+
+def _teleoperator_config_class(type_name: str) -> type:
+    _import_config_modules("lerobot.teleoperators")
+    _register_third_party_plugins()
+    from lerobot.teleoperators.config import TeleoperatorConfig  # noqa: PLC0415
+
+    choices = TeleoperatorConfig.get_known_choices()
+    logger.info("Resolving LeRobot teleoperator config type={!r}; available types={}", type_name, sorted(choices))
+    return choices[type_name]
+
+
+@export_config(
+    class_path="physicalai_lerobot_plugin.lerobot_adapter.LeRobotAdapter",
+)
 class LeRobotAdapter:
     """Wraps a lerobot Robot into PhysicalAI's Robot protocol.
 
@@ -66,16 +113,16 @@ class LeRobotAdapter:
 
     def __init__(
         self,
-        config_cls: type,
+        config_type: str,
         config_kwargs: dict[str, Any],
         *,
         role: Literal["leader", "follower"] = "follower",
-        _robot: Any = None,
+        _robot: object | None = None,
     ) -> None:
         """Initialize the adapter.
 
         Args:
-            config_cls: A lerobot ``RobotConfig`` subclass.
+            config_type: Registered LeRobot ``RobotConfig`` type name.
             config_kwargs: Resolved keyword-args for the config dataclass.
             role: ``"follower"`` (full control) or ``"leader"`` (read-only).
 
@@ -86,10 +133,10 @@ class LeRobotAdapter:
             msg = f"Invalid role {role!r}. Must be one of {sorted(VALID_ROLES)}."
             raise ValueError(msg)
 
-        self._config_cls = config_cls
+        self._config_type = config_type
         self._config_kwargs = config_kwargs
         self._role = role
-        self._robot: Any = _robot
+        self._robot: object | None = _robot
         self._joint_order: list[str] | None = None
         self._obs_position_keys: list[str] | None = None
         self._act_position_keys: list[str] | None = None
@@ -101,14 +148,16 @@ class LeRobotAdapter:
                 self._ensure_joint_order(features)
 
     def __getstate__(self) -> dict[str, object]:
+        """Return pickle-safe state without the live lerobot instance."""
         return {
-            "_config_cls": self._config_cls,
+            "_config_type": self._config_type,
             "_config_kwargs": self._config_kwargs,
             "_role": self._role,
         }
 
     def __setstate__(self, state: dict[str, object]) -> None:
-        self._config_cls = state["_config_cls"]
+        """Restore state and reset runtime-only members after unpickling."""
+        self._config_type = state["_config_type"]
         self._config_kwargs = state["_config_kwargs"]
         self._role = state["_role"]
         self._robot = None
@@ -117,14 +166,21 @@ class LeRobotAdapter:
         self._act_position_keys = None
         self._num_joints = None
 
+    def _physicalai_normalize_captured_init_args(self, init_args: dict[str, object]) -> None:
+        """Exclude the live device injected by the catalog builder from config exports."""
+        init_args.pop("_robot", None)
+
     def _ensure_robot(self) -> None:
         if self._robot is not None:
+            logger.info("Using pre-built LeRobot robot for config type={!r}: {!r}", self._config_type, self._robot)
             return
-        from lerobot.robots import make_robot_from_config
-        from lerobot.robots.config import RobotConfig
+        from lerobot.robots import make_robot_from_config  # noqa: PLC0415
 
-        lerobot_config = self._config_cls(**self._config_kwargs)
+        logger.info("Building LeRobot robot config type={!r} with kwargs={!r}", self._config_type, self._config_kwargs)
+        lerobot_config = _robot_config_class(self._config_type)(**self._config_kwargs)
+        logger.info("Built LeRobot robot config: {!r}", lerobot_config)
         self._robot = make_robot_from_config(lerobot_config)
+        logger.info("Built LeRobot robot: {!r}", self._robot)
 
     def _ensure_joint_order(self, obs: dict[str, Any]) -> None:
         """Discover joint order from a lerobot observation dict.
@@ -139,9 +195,7 @@ class LeRobotAdapter:
             return
         pos_keys = sorted(k for k in obs if k.endswith(_POSITION_KEY_SUFFIX))
         if not pos_keys:
-            pos_keys = sorted(
-                k for k in obs if "position" in k.lower() or k.endswith("pos")
-            )
+            pos_keys = sorted(k for k in obs if "position" in k.lower() or k.endswith("pos"))
         self._joint_order = [k[: -len(_POSITION_KEY_SUFFIX)] for k in pos_keys]
         self._num_joints = len(self._joint_order)
         self._obs_position_keys = list(pos_keys)
@@ -154,10 +208,7 @@ class LeRobotAdapter:
             RuntimeError: If ``connect()`` has not been called.
         """
         if self._joint_order is None:
-            msg = (
-                "Joint order not yet discovered. Call connect() first "
-                "or ensure the robot has been observed."
-            )
+            msg = "Joint order not yet discovered. Call connect() first or ensure the robot has been observed."
             raise RuntimeError(msg)
 
     @property
@@ -173,9 +224,14 @@ class LeRobotAdapter:
         return self._joint_order  # type: ignore[return-value]
 
     @property
-    def robot(self) -> Any:
+    def robot(self) -> object | None:
         """The wrapped lerobot Robot instance (may be None before connect)."""
         return self._robot
+
+    @property
+    def device_ids(self) -> tuple[str, ...]:
+        """Stable identities of serial devices exclusively owned by this robot."""
+        return _device_ids(self._config_type, self._config_kwargs)
 
     def connect(self) -> None:
         """Open the connection and discover joint order.
@@ -190,9 +246,12 @@ class LeRobotAdapter:
             return
         try:
             self._ensure_robot()
+            logger.info("Connecting LeRobot robot config type={!r}", self._config_type)
             self._robot.connect(calibrate=True)  # type: ignore[union-attr]
+            logger.info("Connected LeRobot robot config type={!r}; reading initial observation", self._config_type)
             obs = self._robot.get_observation()  # type: ignore[union-attr]
             self._ensure_joint_order(obs)
+            logger.info("LeRobot robot config type={!r} ready with joints={}", self._config_type, self._joint_order)
         except Exception as e:
             msg = f"Failed to connect LeRobot {self._robot}: {e}"
             raise ConnectionError(msg) from e
@@ -282,6 +341,9 @@ class LeRobotAdapter:
         self._robot.send_action(action_dict)  # type: ignore[union-attr]
 
 
+@export_config(
+    class_path="physicalai_lerobot_plugin.lerobot_adapter.LeRobotTeleoperatorAdapter",
+)
 class LeRobotTeleoperatorAdapter:
     """Wraps a lerobot ``Teleoperator`` into PhysicalAI's ``Robot`` protocol.
 
@@ -300,16 +362,16 @@ class LeRobotTeleoperatorAdapter:
 
     def __init__(
         self,
-        config_cls: type,
+        config_type: str,
         config_kwargs: dict[str, Any],
         *,
         role: Literal["leader", "follower"] = "leader",
-        _teleoperator: Any = None,
+        _teleoperator: object | None = None,
     ) -> None:
         """Initialize the teleoperator adapter.
 
         Args:
-            config_cls: A lerobot ``TeleoperatorConfig`` subclass.
+            config_type: Registered LeRobot ``TeleoperatorConfig`` type name.
             config_kwargs: Resolved keyword-args for the config dataclass.
             role: ``"leader"`` (read-only, default) or ``"follower"`` (full).
 
@@ -320,10 +382,10 @@ class LeRobotTeleoperatorAdapter:
             msg = f"Invalid role {role!r}. Must be one of {sorted(VALID_ROLES)}."
             raise ValueError(msg)
 
-        self._config_cls = config_cls
+        self._config_type = config_type
         self._config_kwargs = config_kwargs
         self._role = role
-        self._teleoperator: Any = _teleoperator
+        self._teleoperator: object | None = _teleoperator
         self._joint_order: list[str] | None = None
         self._action_position_keys: list[str] | None = None
         self._num_joints: int | None = None
@@ -334,14 +396,16 @@ class LeRobotTeleoperatorAdapter:
                 self._ensure_joint_order(features)
 
     def __getstate__(self) -> dict[str, object]:
+        """Return pickle-safe state without the live teleoperator instance."""
         return {
-            "_config_cls": self._config_cls,
+            "_config_type": self._config_type,
             "_config_kwargs": self._config_kwargs,
             "_role": self._role,
         }
 
     def __setstate__(self, state: dict[str, object]) -> None:
-        self._config_cls = state["_config_cls"]
+        """Restore state and reset runtime-only members after unpickling."""
+        self._config_type = state["_config_type"]
         self._config_kwargs = state["_config_kwargs"]
         self._role = state["_role"]
         self._teleoperator = None
@@ -349,13 +413,29 @@ class LeRobotTeleoperatorAdapter:
         self._action_position_keys = None
         self._num_joints = None
 
+    def _physicalai_normalize_captured_init_args(self, init_args: dict[str, object]) -> None:
+        """Exclude the live device injected by the catalog builder from config exports."""
+        init_args.pop("_teleoperator", None)
+
     def _ensure_teleoperator(self) -> None:
         if self._teleoperator is not None:
+            logger.info(
+                "Using pre-built LeRobot teleoperator for config type={!r}: {!r}",
+                self._config_type,
+                self._teleoperator,
+            )
             return
-        from lerobot.teleoperators import make_teleoperator_from_config
+        from lerobot.teleoperators import make_teleoperator_from_config  # noqa: PLC0415
 
-        teleop_config = self._config_cls(**self._config_kwargs)
+        logger.info(
+            "Building LeRobot teleoperator config type={!r} with kwargs={!r}",
+            self._config_type,
+            self._config_kwargs,
+        )
+        teleop_config = _teleoperator_config_class(self._config_type)(**self._config_kwargs)
+        logger.info("Built LeRobot teleoperator config: {!r}", teleop_config)
         self._teleoperator = make_teleoperator_from_config(teleop_config)
+        logger.info("Built LeRobot teleoperator: {!r}", self._teleoperator)
 
     def _ensure_joint_order(self, action: dict[str, Any]) -> None:
         if self._joint_order is not None:
@@ -383,9 +463,14 @@ class LeRobotTeleoperatorAdapter:
         return self._joint_order  # type: ignore[return-value]
 
     @property
-    def robot(self) -> Any:
+    def robot(self) -> object | None:
         """The wrapped lerobot Teleoperator instance (may be None before connect)."""
         return self._teleoperator
+
+    @property
+    def device_ids(self) -> tuple[str, ...]:
+        """Stable identities of serial devices exclusively owned by this teleoperator."""
+        return _device_ids(self._config_type, self._config_kwargs)
 
     def connect(self) -> None:
         """Open the connection and discover joint order.
@@ -400,9 +485,15 @@ class LeRobotTeleoperatorAdapter:
             return
         try:
             self._ensure_teleoperator()
+            logger.info("Connecting LeRobot teleoperator config type={!r}", self._config_type)
             self._teleoperator.connect()  # type: ignore[union-attr]
+            logger.info(
+                "Connected LeRobot teleoperator config type={!r}; reading initial action",
+                self._config_type,
+            )
             action = self._teleoperator.get_action()  # type: ignore[union-attr]
             self._ensure_joint_order(action)
+            logger.info("LeRobot teleoperator config type={!r} ready with joints={}", self._config_type, self._joint_order)
         except Exception as e:
             msg = f"Failed to connect LeRobot teleoperator {self._teleoperator}: {e}"
             raise ConnectionError(msg) from e

@@ -10,9 +10,14 @@ creating a typed Pydantic payload model for each from the lerobot
 from __future__ import annotations
 
 import dataclasses
+import importlib
+import importlib.machinery
+import sys
 import types
+from itertools import starmap
 from typing import TYPE_CHECKING, Any, Literal, Union, get_args, get_origin
 
+from loguru import logger
 from physicalai_studio_plugin import (
     CatalogRobotFactory,
     PayloadContainer,
@@ -21,8 +26,10 @@ from physicalai_studio_plugin import (
     RobotCatalogDefinition,
     RobotProbe,
     SerialPortInfo,
+    robot_field_ui,
+    robot_payload_ui,
 )
-from pydantic import BaseModel, Field, create_model, model_validator
+from pydantic import BaseModel, ConfigDict, Field, create_model
 from serial.tools import list_ports
 
 if TYPE_CHECKING:
@@ -38,32 +45,29 @@ if TYPE_CHECKING:
 # ── Robots to exclude from dynamic registration ────────────────────────────
 
 _ROBOTS_TO_SKIP: frozenset[str] = frozenset({
-    "bi_so_follower",                # bimanual — nested sub-arm configs
-    "bi_rebot_b601_follower",        # bimanual
-    "bi_openarm_follower",           # bimanual
-    "lekiwi",                        # separate dedicated plugin
-    "lekiwi_client",                 # separate dedicated plugin
-    "unitree_g1",                    # full-body humanoid (deferred)
-    "mock_robot",                    # test-only
+    "mock_robot",  # test-only
 })
-
-
-# ── Follower → Leader teleoperator mapping ──────────────────────────────────
-
-_FOLLOWER_TO_LEADER: dict[str, str] = {
-    "so100_follower": "so100_leader",
-    "so101_follower": "so101_leader",
-    "koch_follower": "koch_leader",
-    "omx_follower": "omx_leader",
-    "openarm_follower": "openarm_leader",
-    "rebot_b601_follower": "rebot_102_leader",
-    "reachy2": "reachy2_teleoperator",
-}
 
 
 # ── Lerobot config importing ───────────────────────────────────────────────
 
 _LEROBOT_CONFIGS_IMPORTED: bool = False
+_LEROBOT_THIRD_PARTY_PLUGINS_IMPORTED: bool = False
+
+
+def _ensure_optional_dependency_module_specs() -> None:
+    """Normalize optional dependency stubs in ``sys.modules`` for ``find_spec``.
+
+    Some tests inject ``MagicMock`` placeholders for optional hardware SDKs.
+    ``importlib.util.find_spec()`` raises ``ValueError`` when a loaded module's
+    ``__spec__`` is missing, so we attach a minimal ``ModuleSpec`` when needed.
+    """
+    for module_name in ("scservo_sdk", "motorbridge", "motorbridge_smart_servo"):
+        loaded = sys.modules.get(module_name)
+        if loaded is None:
+            continue
+        if not isinstance(getattr(loaded, "__spec__", None), importlib.machinery.ModuleSpec):
+            loaded.__spec__ = importlib.machinery.ModuleSpec(module_name, loader=None)
 
 
 def _ensure_lerobot_configs_imported() -> None:
@@ -75,6 +79,7 @@ def _ensure_lerobot_configs_imported() -> None:
     global _LEROBOT_CONFIGS_IMPORTED  # noqa: PLW0603
     if _LEROBOT_CONFIGS_IMPORTED:
         return
+    _ensure_optional_dependency_module_specs()
     import importlib
     import pkgutil
 
@@ -89,71 +94,223 @@ def _ensure_lerobot_configs_imported() -> None:
     _LEROBOT_CONFIGS_IMPORTED = True
 
 
-# ── Scalar field detection ─────────────────────────────────────────────────
+def _ensure_lerobot_third_party_plugins_imported() -> None:
+    """Load installed third-party extensions through LeRobot's native discovery.
 
-_SIMPLE_SCALARS: frozenset[type] = frozenset({str, int, float, bool})
-_OPTIONAL_UNION_LEN: int = 2  # Union[T, None]  has exactly 2 type args
-
-
-def _is_simple_scalar(typ: type) -> bool:
-    """Check whether *typ* is renderable by the schema-driven form.
-
-    Accepts plain ``str``, ``int``, ``float``, ``bool``, ``Literal[...]``,
-    and ``Optional[str]`` (or ``str | None``).
-
-    Returns:
-        True if the type can be rendered as a form field.
+    LeRobot scans installed distributions whose import names begin with
+    ``lerobot_robot_`` or ``lerobot_teleoperator_`` and imports their package
+    roots. Compatible extensions register config subclasses during that import.
+    LeRobot handles individual optional-plugin import failures without
+    preventing other installed extensions from loading.
     """
-    if typ in _SIMPLE_SCALARS:
-        return True
-    origin = get_origin(typ)
-    if origin is Literal:
-        return True
-    # Optional[T]  →  Union[T, None]  or  T | None  →  types.UnionType
-    if origin in {Union, types.UnionType}:
-        args = get_args(typ)
-        return bool(len(args) == _OPTIONAL_UNION_LEN and args[1] is type(None) and args[0] in _SIMPLE_SCALARS)
-    return False
+    global _LEROBOT_THIRD_PARTY_PLUGINS_IMPORTED  # noqa: PLW0603
+    if _LEROBOT_THIRD_PARTY_PLUGINS_IMPORTED:
+        return
 
+    from lerobot.utils.import_utils import register_third_party_plugins
 
-# ── Base payload with connection fields ────────────────────────────────────
-
-
-class _LeRobotDynPayloadBase(BaseModel):
-    """Base payload for every dynamically registered LeRobot robot.
-
-    Provides the ``connection_string`` / ``serial_number`` device-selector
-    fields and their group metadata.
-    """
-
-    connection_string: str = Field(
-        default="",
-        description="Serial port path",
-    )
-    serial_number: str = Field(
-        default="",
-        description="USB serial number",
-    )
-
-    @model_validator(mode="after")
-    def _validate_identifier(self) -> _LeRobotDynPayloadBase:
-        """Require a serial number or a manual serial-port path.
-
-        Returns:
-            The validated payload.
-
-        Raises:
-            ValueError: If neither identifier is configured.
-        """
-        if not self.connection_string and not self.serial_number:
-            msg = "Either serial_number or connection_string is required"
-            raise ValueError(msg)
-        return self
+    register_third_party_plugins()
+    _LEROBOT_THIRD_PARTY_PLUGINS_IMPORTED = True
 
 
 # ── Payload model factory ──────────────────────────────────────────────────
 
 _REQUIRED_SENTINEL: Any = object()
+_PAYLOAD_MODEL_CACHE: dict[type, type[BaseModel]] = {}
+_PAIR_LEN: int = 2
+_NON_SERIAL_PORT_MODULES: frozenset[str] = frozenset({"reachy2", "yam_follower"})
+
+
+def _is_dataclass_type(annotation: object) -> bool:
+    return isinstance(annotation, type) and dataclasses.is_dataclass(annotation)
+
+
+def _payload_types_namespace(config_cls: type, visited: set[type] | None = None) -> dict[str, object]:
+    """Collect namespaces needed by dataclasses nested in a config schema.
+
+    Returns:
+        Combined module namespaces for the config and nested dataclasses.
+    """
+    visited = set() if visited is None else visited
+    if config_cls in visited:
+        return {}
+    visited.add(config_cls)
+
+    namespace = vars(importlib.import_module(config_cls.__module__)).copy()
+    for field in dataclasses.fields(config_cls):
+        namespace.update(_annotation_types_namespace(field.type, visited))
+    return namespace
+
+
+def _annotation_types_namespace(annotation: object, visited: set[type]) -> dict[str, object]:
+    if _is_dataclass_type(annotation):
+        return _payload_types_namespace(annotation, visited)
+
+    namespace: dict[str, object] = {}
+    for argument in get_args(annotation):
+        namespace.update(_annotation_types_namespace(argument, visited))
+    return namespace
+
+
+def _annotation_has_str(annotation: object) -> bool:
+    if annotation is str:
+        return True
+
+    origin = get_origin(annotation)
+    if origin in {Union, types.UnionType}:
+        return any(_annotation_has_str(arg) for arg in get_args(annotation) if arg is not type(None))
+
+    return False
+
+
+def _is_serial_port_field(config_cls: type, field: dataclasses.Field[Any]) -> bool:
+    """Return whether a config field represents a discoverable serial path."""
+    return (
+        field.name == "port"
+        and not any(f".{name}." in config_cls.__module__ for name in _NON_SERIAL_PORT_MODULES)
+        and _annotation_has_str(field.type)
+    )
+
+
+def _to_payload_annotation(annotation: object) -> object:  # noqa: PLR0911
+    if annotation is Any:
+        return Any
+
+    if _is_dataclass_type(annotation):
+        return _make_payload_model(annotation)
+
+    origin = get_origin(annotation)
+    if origin is None:
+        return annotation
+
+    args = get_args(annotation)
+    converted_args = tuple(_to_payload_annotation(arg) for arg in args)
+
+    if origin in {Union, types.UnionType}:
+        result = converted_args[0]
+        for arg in converted_args[1:]:
+            result |= arg
+        return result
+
+    if origin is Literal:
+        return annotation
+
+    if origin in {list, set, frozenset, tuple, dict}:
+        return origin[converted_args]  # type: ignore[index]
+
+    return annotation
+
+
+def _to_plain_data(value: object) -> object:
+    if isinstance(value, BaseModel):
+        return value.model_dump(mode="python")
+    if isinstance(value, dict):
+        return {k: _to_plain_data(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_to_plain_data(v) for v in value]
+    if isinstance(value, tuple):
+        return tuple(_to_plain_data(v) for v in value)
+    if isinstance(value, set):
+        return {_to_plain_data(v) for v in value}
+    return value
+
+
+def _coerce_to_annotation(  # noqa: C901, PLR0911, PLR0912
+    annotation: object,
+    value: object,
+) -> object:
+    if value is None:
+        return None
+
+    if annotation is Any:
+        return value
+
+    if _is_dataclass_type(annotation):
+        if isinstance(annotation, type) and isinstance(value, annotation):
+            return value
+        if isinstance(value, dict):
+            return _materialize_dataclass(annotation, value)
+        return value
+
+    origin = get_origin(annotation)
+    if origin is None:
+        return value
+
+    args = get_args(annotation)
+    if origin in {Union, types.UnionType}:
+        non_none_args = [arg for arg in args if arg is not type(None)]
+        for arg in non_none_args:
+            converted = _coerce_to_annotation(arg, value)
+            expected = get_origin(arg)
+            if expected is None and isinstance(arg, type):
+                if isinstance(converted, arg):
+                    return converted
+            elif expected is not None:
+                return converted
+        return value
+
+    if origin is list and args and isinstance(value, list):
+        return [_coerce_to_annotation(args[0], item) for item in value]
+    if origin is tuple and args and isinstance(value, tuple | list):
+        if len(args) == _PAIR_LEN and args[1] is Ellipsis:
+            return tuple(_coerce_to_annotation(args[0], item) for item in value)
+        return tuple(starmap(_coerce_to_annotation, zip(args, value, strict=False)))
+    if origin is dict and len(args) == _PAIR_LEN and isinstance(value, dict):
+        key_type, val_type = args
+        return {
+            _coerce_to_annotation(key_type, key): _coerce_to_annotation(val_type, val) for key, val in value.items()
+        }
+    if origin is set and args and isinstance(value, set | list | tuple):
+        return {_coerce_to_annotation(args[0], item) for item in value}
+
+    return value
+
+
+def _materialize_dataclass(config_cls: type, payload_data: dict[str, object]) -> object:
+    kwargs: dict[str, object] = {}
+    for f in dataclasses.fields(config_cls):
+        if f.name not in payload_data:
+            continue
+        kwargs[f.name] = _coerce_to_annotation(f.type, payload_data[f.name])
+    return config_cls(**kwargs)
+
+
+def _config_to_kwargs(config: object) -> dict[str, object]:
+    return {field.name: getattr(config, field.name) for field in dataclasses.fields(type(config))}
+
+
+async def _resolve_ports_in_dataclass(config: object, factory: CatalogRobotFactory, path: str = "") -> None:
+    for field in dataclasses.fields(type(config)):
+        value = getattr(config, field.name)
+        field_path = f"{path}.{field.name}" if path else field.name
+
+        if _is_dataclass_type(field.type) and value is not None:
+            await _resolve_ports_in_dataclass(value, factory, field_path)
+            continue
+
+        if _is_serial_port_field(type(config), field) and isinstance(value, str):
+            if not value:
+                msg = f"Missing required port at {field_path}."
+                raise ValueError(msg)
+            resolved = await factory.find_port(SerialPortInfo(connection_string=value, serial_number=None))
+            if resolved is not None:
+                setattr(config, field.name, resolved)
+
+
+def _iter_port_values(payload: object) -> list[str]:
+    values: list[str] = []
+    if isinstance(payload, BaseModel):
+        return _iter_port_values(payload.model_dump(mode="python"))
+    if isinstance(payload, dict):
+        for key, value in payload.items():
+            if key == "port" and isinstance(value, str) and value:
+                values.append(value)
+            values.extend(_iter_port_values(value))
+        return values
+    if isinstance(payload, list | tuple | set):
+        for item in payload:
+            values.extend(_iter_port_values(item))
+    return values
 
 
 def _resolve_field_type(
@@ -169,20 +326,13 @@ def _resolve_field_type(
     Returns:
         A tuple of (pydantic_type, default_value).
     """
-    origin = get_origin(f.type)
-    is_nullable_str = origin in {Union, types.UnionType} and get_args(f.type) == (str, type(None))
-
-    if is_nullable_str:
-        pydantic_type = str
-        default_val = f.default if f.default is not dataclasses.MISSING and f.default is not None else ""
+    pydantic_type = _to_payload_annotation(f.type)
+    if f.default is not dataclasses.MISSING:
+        default_val = f.default
+    elif f.default_factory is not dataclasses.MISSING:
+        default_val = f.default_factory()
     else:
-        pydantic_type = f.type
-        if f.default is not dataclasses.MISSING:
-            default_val = f.default
-        elif f.default_factory is not dataclasses.MISSING:
-            default_val = f.default_factory()
-        else:
-            default_val = _REQUIRED_SENTINEL
+        default_val = _REQUIRED_SENTINEL
 
     return pydantic_type, default_val
 
@@ -202,24 +352,49 @@ def _make_payload_model(config_cls: type) -> type[BaseModel]:
     Returns:
         A new Pydantic ``BaseModel`` subclass.
     """
+    cached = _PAYLOAD_MODEL_CACHE.get(config_cls)
+    if cached is not None:
+        return cached
+
     field_defs: dict[str, tuple[type, Any]] = {}
-
     for f in dataclasses.fields(config_cls):
-        if not _is_simple_scalar(f.type):
-            continue
-
         pydantic_type, default_val = _resolve_field_type(f)
-
-        if default_val is _REQUIRED_SENTINEL or f.name == "id":
-            field_defs[f.name] = (pydantic_type, Field(..., description=f.name))
+        ui_options: dict[str, object] = {}
+        if _is_serial_port_field(config_cls, f):
+            ui_options.update({"group": "connection", "widget": "device-selector"})
+        if f.name == "id":
+            ui_options["required"] = True
+        extra = robot_field_ui(ui_options) if ui_options else None
+        if default_val is _REQUIRED_SENTINEL:
+            field_defs[f.name] = (pydantic_type, Field(..., description=f.name, json_schema_extra=extra))
         else:
-            field_defs[f.name] = (pydantic_type, Field(default=default_val, description=f.name))
+            field_defs[f.name] = (
+                pydantic_type,
+                Field(default=default_val, description=f.name, json_schema_extra=extra),
+            )
 
-    return create_model(
+    payload_model = create_model(
         f"{config_cls.__name__}Payload",
-        __base__=_LeRobotDynPayloadBase,
+        __config__=ConfigDict(
+            json_schema_extra=robot_payload_ui(
+                {
+                    "groups": {
+                        "connection": {
+                            "title": "Select robot",
+                            "device_discovery": True,
+                            "connection_key": "port",
+                        },
+                    },
+                },
+            ),
+        )
+        if any(_is_serial_port_field(config_cls, f) for f in dataclasses.fields(config_cls))
+        else None,
         **field_defs,
     )
+    payload_model.__pydantic_parent_namespace__ = _payload_types_namespace(config_cls)
+    _PAYLOAD_MODEL_CACHE[config_cls] = payload_model
+    return payload_model
 
 
 _LEROBOT_TELEOPERATORS_IMPORTED: bool = False
@@ -234,6 +409,7 @@ def _ensure_lerobot_teleoperators_imported() -> None:
     global _LEROBOT_TELEOPERATORS_IMPORTED  # noqa: PLW0603
     if _LEROBOT_TELEOPERATORS_IMPORTED:
         return
+    _ensure_optional_dependency_module_specs()
     import importlib
     import pkgutil
 
@@ -252,6 +428,7 @@ def _ensure_lerobot_teleoperators_imported() -> None:
 
 
 def _make_builder(
+    config_type: str,
     config_cls: type,
     payload_cls: type[BaseModel],
     role: str,
@@ -266,10 +443,6 @@ def _make_builder(
     Returns:
         An async callable ``(robot, factory) -> PhysicalAIRobot``.
     """
-    has_str_port = any(
-        f.name == "port" and f.type is str
-        for f in dataclasses.fields(config_cls)
-    )
 
     async def _build(
         robot: PayloadContainer[Any],
@@ -284,32 +457,23 @@ def _make_builder(
             raw = raw.model_dump()
         validated = raw if isinstance(raw, payload_cls) else payload_cls.model_validate(raw)
 
-        serial_number = validated.serial_number
-        port = await factory.find_port(
-            SerialPortInfo(connection_string=validated.connection_string, serial_number=serial_number),
-        )
-        if port is None:
-            msg = f"Robot not found: {serial_number}"
-            raise RuntimeError(msg)
-
-        config_kwargs: dict[str, Any] = {}
-        for f in dataclasses.fields(config_cls):
-            if hasattr(validated, f.name):
-                config_kwargs[f.name] = getattr(validated, f.name)
-
-        if has_str_port:
-            config_kwargs["port"] = port
-
-        lerobot_config = config_cls(**config_kwargs)
+        payload_data = _to_plain_data(validated)
+        lerobot_config = _materialize_dataclass(config_cls, payload_data)
+        await _resolve_ports_in_dataclass(lerobot_config, factory)
+        config_kwargs = _config_to_kwargs(lerobot_config)
         lerobot_robot = make_robot_from_config(lerobot_config)
         return LeRobotAdapter(
-            config_cls, config_kwargs, role=role, _robot=lerobot_robot,
+            config_type,
+            config_kwargs,
+            role=role,
+            _robot=lerobot_robot,
         )
 
     return _build
 
 
 def _make_teleop_builder(
+    config_type: str,
     config_cls: type,
     payload_cls: type[BaseModel],
     role: str,
@@ -324,10 +488,6 @@ def _make_teleop_builder(
     Returns:
         An async callable ``(robot, factory) -> PhysicalAIRobot``.
     """
-    has_str_port = any(
-        f.name == "port" and f.type is str
-        for f in dataclasses.fields(config_cls)
-    )
 
     async def _build(
         robot: PayloadContainer[Any],
@@ -344,26 +504,16 @@ def _make_teleop_builder(
             raw = raw.model_dump()
         validated = raw if isinstance(raw, payload_cls) else payload_cls.model_validate(raw)
 
-        serial_number = validated.serial_number
-        port = await factory.find_port(
-            SerialPortInfo(connection_string=validated.connection_string, serial_number=serial_number),
-        )
-        if port is None:
-            msg = f"Robot not found: {serial_number}"
-            raise RuntimeError(msg)
-
-        config_kwargs: dict[str, Any] = {}
-        for f in dataclasses.fields(config_cls):
-            if hasattr(validated, f.name):
-                config_kwargs[f.name] = getattr(validated, f.name)
-
-        if has_str_port:
-            config_kwargs["port"] = port
-
-        teleop_config = config_cls(**config_kwargs)
+        payload_data = _to_plain_data(validated)
+        teleop_config = _materialize_dataclass(config_cls, payload_data)
+        await _resolve_ports_in_dataclass(teleop_config, factory)
+        config_kwargs = _config_to_kwargs(teleop_config)
         teleoperator = make_teleoperator_from_config(teleop_config)
         return LeRobotTeleoperatorAdapter(
-            config_cls, config_kwargs, role=role, _teleoperator=teleoperator,
+            config_type,
+            config_kwargs,
+            role=role,
+            _teleoperator=teleoperator,
         )
 
     return _build
@@ -398,27 +548,20 @@ class LeRobotProbe(RobotProbe[BaseModel]):
         """Check whether the configured robot endpoint is online.
 
         Returns:
-            bool: ``True`` when the configured serial or port is present.
+            bool: ``True`` when any configured port is present.
         """
         _ = self
-        if manager is not None:
-            ports_list = manager.robots
-            serial_number = getattr(payload, "serial_number", None)
-            if serial_number:
-                return any(p.serial_number == serial_number for p in ports_list)
-            port = getattr(payload, "port", None)
-            if port:
-                return port in {p.connection_string for p in ports_list}
+        configured_ports = set(_iter_port_values(payload))
+        if not configured_ports:
             return False
 
+        if manager is not None:
+            discovered_ports = {p.connection_string for p in manager.robots}
+            return any(port in discovered_ports for port in configured_ports)
+
         all_ports = list_ports.comports()
-        serial_number = getattr(payload, "serial_number", None)
-        if serial_number:
-            return any(p.serial_number == serial_number for p in all_ports)
-        port = getattr(payload, "port", None)
-        if port:
-            return port in {p.device for p in all_ports}
-        return False
+        discovered_ports = {p.device for p in all_ports}
+        return any(port in discovered_ports for port in configured_ports)
 
 
 _LEROBOT_PROBE = LeRobotProbe()
@@ -428,21 +571,21 @@ _LEROBOT_PROBE = LeRobotProbe()
 
 
 def _definitions() -> list[RobotCatalogDefinition]:
-    """Build catalog definitions for every supported lerobot robot type.
+    """Build catalog definitions for every registered LeRobot endpoint type.
 
     Followers are built from ``RobotConfig`` + ``make_robot_from_config``.
-    Leaders (when a matching teleoperator exists) are built from
-    ``TeleoperatorConfig`` + ``make_teleoperator_from_config``.
+    Leaders are built from ``TeleoperatorConfig`` +
+    ``make_teleoperator_from_config``. Every type has a role suffix in its
+    Studio ID so robot and teleoperator choice names cannot collide.
 
     Returns:
         A list of ``RobotCatalogDefinition`` instances.
     """
     _ensure_lerobot_configs_imported()
     _ensure_lerobot_teleoperators_imported()
+    _ensure_lerobot_third_party_plugins_imported()
     from lerobot.robots.config import RobotConfig
     from lerobot.teleoperators.config import TeleoperatorConfig
-
-    teleop_choices = TeleoperatorConfig.get_known_choices()
 
     defs: list[RobotCatalogDefinition] = []
     for type_str, config_cls in RobotConfig.get_known_choices().items():
@@ -452,12 +595,13 @@ def _definitions() -> list[RobotCatalogDefinition]:
         display_name = f"LeRobot {type_str}"
         payload_cls = _make_payload_model(config_cls)
 
-        # Follower — type = LeRobot_{follower_name}
-        follower_builder = _make_builder(config_cls, payload_cls, "follower")
+        follower_builder = _make_builder(type_str, config_cls, payload_cls, "follower")
         defs.append(
             RobotCatalogDefinition(
-                type=f"LeRobot_{type_str}",
+                type=f"LeRobot_{type_str}_Follower",
                 display_name=f"{display_name} Follower",
+                category="LeRobot",
+                source="first_party",
                 role="follower",
                 robot_builder=follower_builder,
                 robot_payload=payload_cls,
@@ -467,35 +611,64 @@ def _definitions() -> list[RobotCatalogDefinition]:
             ),
         )
 
-        # Leader (via teleoperator config) — type = LeRobot_{teleop_name}
-        leader_teleop_type = _FOLLOWER_TO_LEADER.get(type_str)
-        if leader_teleop_type is not None and leader_teleop_type in teleop_choices:
-            teleop_config_cls = teleop_choices[leader_teleop_type]
-            leader_payload_cls = _make_payload_model(teleop_config_cls)
-            leader_builder = _make_teleop_builder(teleop_config_cls, leader_payload_cls, "leader")
-            defs.append(
-                RobotCatalogDefinition(
-                    type=f"LeRobot_{leader_teleop_type}",
-                    display_name=f"{display_name} Leader",
-                    role="leader",
-                    robot_builder=leader_builder,
-                    robot_payload=leader_payload_cls,
-                    asset=None,
-                    adapter_options=RobotAdapterOptions(include_velocities=False, external_effort_gain=None),
-                    probe=_LEROBOT_PROBE,
-                ),
-            )
+    for type_str, config_cls in TeleoperatorConfig.get_known_choices().items():
+        display_name = f"LeRobot {type_str}"
+        payload_cls = _make_payload_model(config_cls)
+        leader_builder = _make_teleop_builder(type_str, config_cls, payload_cls, "leader")
+        defs.append(
+            RobotCatalogDefinition(
+                type=f"LeRobot_{type_str}_Leader",
+                display_name=f"{display_name} Leader",
+                category="LeRobot",
+                source="first_party",
+                role="leader",
+                robot_builder=leader_builder,
+                robot_payload=payload_cls,
+                asset=None,
+                adapter_options=RobotAdapterOptions(include_velocities=False, external_effort_gain=None),
+                probe=_LEROBOT_PROBE,
+            ),
+        )
     return defs
 
 
+def _rebuild_payload_models(annotation: object, visited: set[type[BaseModel]] | None = None) -> None:
+    """Rebuild generated nested payload models before their parent model.
+
+    Pydantic does not rebuild nested dynamically-created models when rebuilding
+    a parent. FastAPI later traverses those nested models while generating
+    OpenAPI, so they must be complete independently.
+    """
+    visited = set() if visited is None else visited
+    if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+        if annotation in visited:
+            return
+        visited.add(annotation)
+        for field in annotation.model_fields.values():
+            _rebuild_payload_models(field.annotation, visited)
+        annotation.model_rebuild(
+            _types_namespace={**globals(), **annotation.__pydantic_parent_namespace__},
+            raise_errors=True,
+        )
+        return
+
+    for argument in get_args(annotation):
+        _rebuild_payload_models(argument, visited)
+
+
 def _assert_payload_model_resolvable(model: type[BaseModel]) -> None:
-    model.model_rebuild(_types_namespace=globals(), raise_errors=True)
+    _rebuild_payload_models(model)
 
 
 def register_physicalai_studio_plugin(registry: _RobotCatalogRegistry) -> None:
     """Register LeRobot catalog entries with the Physical AI Studio registry."""
     for definition in _definitions():
         payload_model = definition.robot_payload
-        if isinstance(payload_model, type) and issubclass(payload_model, BaseModel):
-            _assert_payload_model_resolvable(payload_model)
-        registry.register_robot(definition)
+        try:
+            if isinstance(payload_model, type) and issubclass(payload_model, BaseModel):
+                _assert_payload_model_resolvable(payload_model)
+            registry.register_robot(definition)
+        except Exception:  # noqa: BLE001
+            # Third-party config schemas can contain annotations that cannot be
+            # represented in Studio. Do not let one extension hide all later types.
+            logger.exception("Skipping LeRobot catalog type '{}' because its schema is incompatible", definition.type)
