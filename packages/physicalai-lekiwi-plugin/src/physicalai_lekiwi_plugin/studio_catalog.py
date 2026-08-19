@@ -59,6 +59,7 @@ _LEKIWI_ASSET = RobotAsset(
     packages={"lekiwi": Path("lekiwi")},
     joint_map=_LEKIWI_TO_URDF,
     root_resolver=_get_lekiwi_urdf_root,
+    preview_thumbnail=Path("lekiwi/thumbnail.png"),
 )
 
 

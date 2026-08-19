@@ -63,6 +63,7 @@ _BIMANUAL_SO101_ASSET = RobotAsset(
     packages={"so101_dual": Path("so101_dual")},
     joint_map=_BIMANUAL_SO101_TO_URDF,
     root_resolver=_get_bimanual_urdf_root,
+    preview_thumbnail=Path("so101_dual/thumbnail.png"),
 )
 
 

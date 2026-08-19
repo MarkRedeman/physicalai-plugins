@@ -68,6 +68,8 @@ def test_dm_follower_structure() -> None:
     assert dm.asset.urdf_relative_path == Path("rebot-b601-dm/urdf/reBot-DevArm_fixend.urdf")
     assert dm.asset.packages == {"rebot-b601-dm": Path("rebot-b601-dm")}
     assert dm.asset.root_resolver is not None
+    assert dm.asset.preview_thumbnail == Path("rebot-b601-dm/thumbnail.png")
+    assert (dm.asset.root_resolver() / dm.asset.preview_thumbnail).is_file()
 
 
 def test_arm102_leader_structure() -> None:
@@ -80,6 +82,9 @@ def test_arm102_leader_structure() -> None:
     assert arm102.asset is not None
     assert arm102.asset.urdf_relative_path == Path("stararm102/urdf/stararm102_description.urdf")
     assert arm102.asset.packages == {"stararm102": Path("stararm102")}
+    assert arm102.asset.root_resolver is not None
+    assert arm102.asset.preview_thumbnail == Path("stararm102/thumbnail.png")
+    assert (arm102.asset.root_resolver() / arm102.asset.preview_thumbnail).is_file()
 
 
 def test_definition_robot_type_property() -> None:

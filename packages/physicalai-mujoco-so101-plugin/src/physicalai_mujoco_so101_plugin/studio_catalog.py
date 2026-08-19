@@ -81,6 +81,7 @@ _MUJOCO_SO101_ASSET = RobotAsset(
     packages={"so101": Path("so101")},
     joint_map=_MUJOCO_SO101_TO_URDF,
     root_resolver=_get_mujoco_urdf_root,
+    preview_thumbnail=Path("thumbnail.png"),
 )
 
 _MUJOCO_SO101_BIMANUAL_ASSET = RobotAsset(
@@ -88,6 +89,7 @@ _MUJOCO_SO101_BIMANUAL_ASSET = RobotAsset(
     packages={"so101": Path("so101")},
     joint_map=_MUJOCO_SO101_BIMANUAL_TO_URDF,
     root_resolver=_get_mujoco_urdf_root,
+    preview_thumbnail=Path("thumbnail.png"),
 )
 
 

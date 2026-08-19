@@ -78,6 +78,7 @@ _REBOT_B601_DM_ASSET = RobotAsset(
     packages={"rebot-b601-dm": Path("rebot-b601-dm")},
     joint_map=_REBOT_B601_DM_TO_URDF,
     root_resolver=_get_rebot_urdf_root,
+    preview_thumbnail=Path("rebot-b601-dm/thumbnail.png"),
 )
 
 _REBOT_ARM102_ASSET = RobotAsset(
@@ -85,6 +86,7 @@ _REBOT_ARM102_ASSET = RobotAsset(
     packages={"stararm102": Path("stararm102")},
     joint_map=_REBOT_ARM102_TO_URDF,
     root_resolver=_get_rebot_urdf_root,
+    preview_thumbnail=Path("stararm102/thumbnail.png"),
 )
 
 

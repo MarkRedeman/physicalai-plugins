@@ -91,6 +91,9 @@ class TestDefinitions:
         assert "so101" in definition.asset.packages
         assert "shoulder_pan.pos" in definition.asset.joint_map
         assert definition.asset.root_resolver is not None
+        assert definition.asset.preview_thumbnail is not None
+        assert definition.asset.preview_thumbnail.name == "thumbnail.png"
+        assert (definition.asset.root_resolver() / definition.asset.preview_thumbnail).is_file()
 
     def test_bimanual_urdf_asset(self) -> None:
         defs = _definitions()
@@ -101,6 +104,9 @@ class TestDefinitions:
         assert "left_shoulder_pan.pos" in definition.asset.joint_map
         assert "right_shoulder_pan.pos" in definition.asset.joint_map
         assert definition.asset.root_resolver is not None
+        assert definition.asset.preview_thumbnail is not None
+        assert definition.asset.preview_thumbnail.name == "thumbnail.png"
+        assert (definition.asset.root_resolver() / definition.asset.preview_thumbnail).is_file()
 
 
 class TestSharedRobotAdapter:

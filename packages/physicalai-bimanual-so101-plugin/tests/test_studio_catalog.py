@@ -64,6 +64,8 @@ class TestRegistration:
         assert follower.asset is not None
         assert follower.asset.urdf_relative_path == Path("so101_dual/so101_dual.urdf")
         assert follower.asset.root_resolver is not None
+        assert follower.asset.preview_thumbnail == Path("so101_dual/thumbnail.png")
+        assert (follower.asset.root_resolver() / follower.asset.preview_thumbnail).is_file()
         assert callable(follower.robot_builder)
         assert follower.robot_payload is BimanualSO101Payload
         assert follower.probe is not None
@@ -80,6 +82,8 @@ class TestRegistration:
         assert leader.asset is not None
         assert leader.asset.urdf_relative_path == Path("so101_dual/so101_dual.urdf")
         assert leader.asset.root_resolver is not None
+        assert leader.asset.preview_thumbnail == Path("so101_dual/thumbnail.png")
+        assert (leader.asset.root_resolver() / leader.asset.preview_thumbnail).is_file()
         assert callable(leader.robot_builder)
         assert leader.robot_payload is BimanualSO101Payload
 
