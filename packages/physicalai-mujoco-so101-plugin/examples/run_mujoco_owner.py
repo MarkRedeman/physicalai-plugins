@@ -19,13 +19,19 @@ from loguru import logger
 from physicalai.config import to_config
 from physicalai.robot.transport import SharedRobot
 
+from physicalai_mujoco_so101_plugin.constants import DEFAULT_MUJOCO_OWNER_NAME
 from physicalai_mujoco_so101_plugin.mujoco_robot import MuJoCoSO101
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run MuJoCo SO-101 as a zenoh robot owner")
     parser.add_argument("--model", type=str, default=None, help="MuJoCo model XML/URDF path")
-    parser.add_argument("--name", type=str, default="mujoco-so101", help="Zenoh robot name")
+    parser.add_argument(
+        "--name",
+        type=str,
+        default=DEFAULT_MUJOCO_OWNER_NAME,
+        help="Zenoh robot name",
+    )
     parser.add_argument("--rate-hz", type=float, default=100.0, help="Control loop rate")
     parser.add_argument("--substeps", type=int, default=1, help="Sim steps per control cycle")
     parser.add_argument("--allow-remote", action="store_true", help="Allow remote zenoh connections")

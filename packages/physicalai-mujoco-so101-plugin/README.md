@@ -41,13 +41,13 @@ uv run --no-sync physicalai-mujoco-so101 start
 
 By default this starts:
 
-- A MuJoCo SO-101 owner named `mujoco-so101`
+- A MuJoCo SO-101 owner named `mujoco-so101-follow`
 - Viewer window enabled
 - Camera streams served over HTTP (MJPEG + REST control server on port `8080`)
 - Control rate `50 Hz`
 - Substeps `10`
 
-Then open PhysicalAI Studio and connect to the robot type `MuJoCo SO-101 Follower` with name `mujoco-so101`.
+Then open PhysicalAI Studio and connect to the robot type `MuJoCo SO-101 Follower` with name `mujoco-so101-follow`.
 
 ### CLI teleoperation (self-relay)
 

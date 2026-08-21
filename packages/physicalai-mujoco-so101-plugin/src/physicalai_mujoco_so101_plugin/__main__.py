@@ -21,6 +21,7 @@ from loguru import logger
 from physicalai.config import to_config
 from physicalai.robot.transport import SharedRobot
 
+from physicalai_mujoco_so101_plugin.constants import DEFAULT_MUJOCO_OWNER_NAME
 from physicalai_mujoco_so101_plugin.mujoco_robot import BiMuJoCoSO101, MuJoCoSO101
 
 
@@ -41,8 +42,8 @@ def _build_parser() -> argparse.ArgumentParser:
     start.add_argument(
         "--name",
         type=str,
-        default="mujoco-so101",
-        help="Zenoh robot name (default: mujoco-so101)",
+        default=DEFAULT_MUJOCO_OWNER_NAME,
+        help=f"Zenoh robot name (default: {DEFAULT_MUJOCO_OWNER_NAME})",
     )
     start.add_argument(
         "--rate-hz",
@@ -87,7 +88,13 @@ def _build_parser() -> argparse.ArgumentParser:
         "--no-gui",
         action="store_true",
         default=False,
-        help="Disable MuJoCo interactive viewer window",
+        help="Disable the browser-based 3D viewer (viser/mjviser)",
+    )
+    start.add_argument(
+        "--viser-port",
+        type=int,
+        default=9090,
+        help="Port for the browser-based 3D viewer (default: 9090)",
     )
     start.add_argument(
         "--no-cameras",
@@ -137,6 +144,21 @@ def _build_parser() -> argparse.ArgumentParser:
         default=62,
         help="v4l2loopback video ID for the overview camera (only with --v4l2, default: 62)",
     )
+
+    stop = sub.add_parser("stop", help="Stop a running MuJoCo simulation owner")
+    stop.add_argument(
+        "--http-host",
+        type=str,
+        default="127.0.0.1",
+        help="Host for the camera/control HTTP server (default: 127.0.0.1)",
+    )
+    stop.add_argument(
+        "--http-port",
+        type=int,
+        default=8080,
+        help="Port for the camera/control HTTP server (default: 8080)",
+    )
+
     return parser
 
 
@@ -223,6 +245,7 @@ def _start(args: argparse.Namespace) -> None:
         "cameras": cameras,
         "http_host": args.http_host,
         "http_port": args.http_port if http_enabled else 0,
+        "viser_port": args.viser_port if not args.no_gui else 0,
     }
     if scene_config is not None:
         robot_kwargs["scene_config"] = asdict(scene_config)
@@ -250,7 +273,17 @@ def _start(args: argparse.Namespace) -> None:
         args.bimanual,
     )
     if http_enabled:
-        logger.info("Camera/control HTTP server: http://{}:{}", args.http_host, args.http_port)
+        base_url = f"http://{args.http_host}:{args.http_port}"
+        logger.info("Camera/control HTTP server: {}", base_url)
+        for cam in cameras:
+            # `cameras` is a list[dict[str, object]] built from CLI args.
+            name = cam.get("name")
+            if not isinstance(name, str):
+                continue
+            logger.info("MJPEG: {} -> {}/cameras/{}/mjpeg", name, base_url, name)
+            logger.info("Snapshot: {} -> {}/cameras/{}/frame.jpg", name, base_url, name)
+    if not args.no_gui and args.viser_port > 0:
+        logger.info("3D viewer: http://127.0.0.1:{}", args.viser_port)
 
     shutdown = threading.Event()
 
@@ -273,6 +306,19 @@ def _start(args: argparse.Namespace) -> None:
         logger.info("MuJoCo SO-101 stopped")
 
 
+def _request_http_shutdown(host: str, port: int) -> bool:
+    import urllib.error  # noqa: PLC0415
+    import urllib.request  # noqa: PLC0415
+
+    # host/port are local CLI args, scheme hardcoded to http
+    request = urllib.request.Request(f"http://{host}:{port}/shutdown", method="POST")
+    try:
+        with urllib.request.urlopen(request, timeout=5):  # nosec B310  # noqa: S310
+            return True
+    except (OSError, urllib.error.URLError):
+        return False
+
+
 def _stop_owner_over_http(host: str, port: int) -> None:
     """Ask the detached owner to exit via its HTTP control endpoint.
 
@@ -280,16 +326,28 @@ def _stop_owner_over_http(host: str, port: int) -> None:
     does not stop it; when the HTTP server is enabled it runs with idle exit
     disabled. Issue ``POST /shutdown`` so the simulation shuts down cleanly.
     """
-    import urllib.error  # noqa: PLC0415
-    import urllib.request  # noqa: PLC0415
-
-    try:
-        # host/port are local CLI args, scheme hardcoded to http
-        req = urllib.request.Request(f"http://{host}:{port}/shutdown", method="POST")
-        with urllib.request.urlopen(req, timeout=5):  # nosec B310  # noqa: S310
-            logger.info("Owner shutdown requested via HTTP")
-    except (OSError, urllib.error.URLError):
+    if _request_http_shutdown(host, port):
+        logger.info("Owner shutdown requested via HTTP")
+    else:
         logger.debug("HTTP shutdown endpoint unavailable; owner will self-manage")
+
+
+def _stop(args: argparse.Namespace) -> None:
+    import subprocess  # noqa: PLC0415
+
+    if _request_http_shutdown(args.http_host, args.http_port):
+        logger.info("Shutdown requested at http://{}:{}/shutdown", args.http_host, args.http_port)
+        return
+
+    logger.warning("No HTTP owner on {}:{}; stopping detached owner workers", args.http_host, args.http_port)
+    subprocess.run(
+        ["pkill", "-f", "physicalai.robot.transport._owner_worker"],
+        check=False,
+    )
+    subprocess.run(
+        ["pkill", "-f", "physicalai-mujoco-so101"],
+        check=False,
+    )
 
 
 def main() -> None:
@@ -299,6 +357,8 @@ def main() -> None:
 
     if args.command == "start":
         _start(args)
+    elif args.command == "stop":
+        _stop(args)
     else:
         parser.print_help()
         sys.exit(1)

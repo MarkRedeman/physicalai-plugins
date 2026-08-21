@@ -85,10 +85,10 @@ class MuJoCoSO101:
     NUM_JOINTS: ClassVar[int] = NUM_JOINTS
     DEFAULT_BLOCK_FREEJOINTS: ClassVar[tuple[str, ...]] = ("block1:joint", "block2:joint", "block3:joint")
     DEFAULT_TARGET_BODY_NAME: ClassVar[str] = "target"
-    DEFAULT_SPAWN_CENTER: ClassVar[tuple[float, float]] = (0.24, 0.0)
-    DEFAULT_SPAWN_MIN_R: ClassVar[float] = 0.08
-    DEFAULT_SPAWN_MAX_R: ClassVar[float] = 0.34
-    DEFAULT_SPAWN_ANGLE_HALF_DEG: ClassVar[float] = 125.0
+    DEFAULT_SPAWN_CENTER: ClassVar[tuple[float, float]] = (0.22, 0.0)
+    DEFAULT_SPAWN_MIN_R: ClassVar[float] = 0.05
+    DEFAULT_SPAWN_MAX_R: ClassVar[float] = 0.14
+    DEFAULT_SPAWN_ANGLE_HALF_DEG: ClassVar[float] = 50.0
     DEFAULT_BLOCK_MIN_SEP: ClassVar[float] = 0.09
     DEFAULT_TARGET_MIN_SEP: ClassVar[float] = 0.11
 
@@ -104,6 +104,7 @@ class MuJoCoSO101:
         scene_config: dict | None = None,
         http_host: str = "127.0.0.1",
         http_port: int = 0,
+        viser_port: int = 9090,
     ) -> None:
         """Initialize a disconnected simulation robot."""
         self._model_path = model_path
@@ -112,7 +113,10 @@ class MuJoCoSO101:
         self._cameras = [cam if isinstance(cam, CameraConfig) else CameraConfig(**cam) for cam in (cameras or [])]
         self._model = model
         self._data = data
-        self._viewer = None
+        self._viser_server: object | None = None
+        self._viser_scene: object | None = None
+        self._native_viewer: object | None = None
+        self._viser_port = viser_port
         self._camera_devices: dict[str, object] = {}
         self._camera_renderers: dict[str, object] = {}
         self._camera_last_frame_ts: dict[str, float] = {}
@@ -129,6 +133,7 @@ class MuJoCoSO101:
         self._current_scene_id: str | None = None
         self._scene_on_reset: object | None = None
         self._scene_xml_mtimes: dict[str, float] = {}
+        self._episode_auto_reset: object | None = None
 
         if scene_config is not None:
             self._free_joints: tuple[str, ...] = tuple(scene_config["free_joints"])
@@ -177,6 +182,7 @@ class MuJoCoSO101:
         mujoco.mj_forward(self._model, self._data)
         self._last_sim_time = float(self._data.time)
         self._init_block_joint_addrs()
+        self._init_episode_auto_reset()
         self._scene_xml_mtimes = self._snapshot_scene_xml_mtimes()
         logger.info(
             "MuJoCo SO101 connected ({} joints, timestep={})",
@@ -185,17 +191,9 @@ class MuJoCoSO101:
         )
 
         if self._enable_viewer:
-            try:
-                import mujoco.viewer  # noqa: PLC0415
-
-                self._viewer = mujoco.viewer.launch_passive(
-                    self._model,
-                    self._data,
-                    key_callback=self._key_callback,
-                )
-                logger.info("MuJoCo viewer opened")
-            except Exception as exc:  # noqa: BLE001
-                logger.warning("Failed to open MuJoCo viewer: {}", exc)
+            if not self._launch_viser_viewer() and sys.platform != "darwin":
+                self._launch_native_viewer()
+            if self._viser_scene is None and self._native_viewer is None:
                 self._enable_viewer = False
 
         self._init_cameras()
@@ -213,6 +211,7 @@ class MuJoCoSO101:
         self._frame_buffers.clear()
         self._block_joint_addrs.clear()
         self._target_body_id = None
+        self._episode_auto_reset = None
         self._last_sim_time = None
 
         self._close_viewer()
@@ -236,14 +235,24 @@ class MuJoCoSO101:
         for _ in range(self._substeps):
             mujoco.mj_step(self._model, self._data)
 
-        if self._viewer is not None:
-            if self._viewer.is_running():
-                self._viewer.sync()
+        if self._episode_auto_reset is not None:
+            self._episode_auto_reset.update(self._model, self._data)
+
+        if self._viser_scene is not None:
+            with contextlib.suppress(Exception):
+                self._viser_scene.update_from_mjdata(self._data)
+                # mjviser bakes fixed bodies once; reset moves the green target via
+                # model.body_pos, which cameras see after mj_forward but viser would
+                # otherwise keep at the pose from scene creation.
+                self._sync_viser_fixed_bodies()
+        elif self._native_viewer is not None:
+            if self._native_viewer_is_running():
+                self._native_viewer_sync()
                 self._handle_viewer_reset()
             else:
                 logger.info("MuJoCo viewer closed by user")
                 self._enable_viewer = False
-                self._viewer = None
+                self._native_viewer = None
 
         self._render_cameras()
 
@@ -302,6 +311,25 @@ class MuJoCoSO101:
 
         target_id = mujoco.mj_name2id(self._model, mujoco.mjtObj.mjOBJ_BODY, self._target_body_name)
         self._target_body_id = int(target_id) if target_id >= 0 else None
+
+    def _init_episode_auto_reset(self) -> None:
+        from physicalai_mujoco_so101_plugin.episode_auto_reset import EpisodeAutoReset  # noqa: PLC0415
+
+        if self._model is None:
+            self._episode_auto_reset = None
+            return
+        self._episode_auto_reset = EpisodeAutoReset.maybe_create(
+            self._model,
+            free_joints=self._free_joints,
+            target_body_name=self._target_body_name,
+            spawn_center=self._spawn_center,
+            spawn_min_r=self._spawn_min_r,
+            spawn_max_r=self._spawn_max_r,
+            spawn_angle_half_deg=self._spawn_angle_half_deg,
+            target_min_sep=self._target_min_sep,
+            rng=self._rng,
+            success_dwell_s=5.0,
+        )
 
     def _key_callback(self, key: int) -> None:
         if key in {ord("n"), ord("N")} and not self._pending_scene_switch:
@@ -498,12 +526,8 @@ class MuJoCoSO101:
         self._model = new_model
         self._data = new_data
 
-        if self._viewer is not None and self._viewer.is_running():
-            with self._viewer.lock():
-                sim = self._viewer._get_sim()  # noqa: SLF001
-                if sim is not None:
-                    sim.m = new_model
-                    sim.d = new_data
+        self._recreate_viser_scene()
+        self._native_viewer_set_model_data(new_model, new_data)
 
         self._free_joints = scene.free_joints
         self._target_body_name = scene.target_bodies[0] if scene.target_bodies else ""
@@ -516,6 +540,7 @@ class MuJoCoSO101:
 
         self._last_sim_time = None
         self._init_block_joint_addrs()
+        self._init_episode_auto_reset()
         self._init_cameras()
 
         self._scene_xml_mtimes = self._snapshot_scene_xml_mtimes()
@@ -533,10 +558,130 @@ class MuJoCoSO101:
         )
 
     def _close_viewer(self) -> None:
-        if self._viewer is not None:
+        if self._viser_server is not None:
+            stop = getattr(self._viser_server, "stop", None)
+            if callable(stop):
+                with contextlib.suppress(Exception):
+                    stop()
+            self._viser_server = None
+            self._viser_scene = None
+        if self._native_viewer is not None:
             with contextlib.suppress(Exception):
-                self._viewer.close()
-            self._viewer = None
+                self._native_viewer.close()
+            self._native_viewer = None
+
+    def _launch_viser_viewer(self) -> bool:
+        """Start a browser-based 3D viewer via mjviser/viser (works on macOS)."""
+        if self._viser_port <= 0:
+            return False
+        try:
+            import viser  # noqa: PLC0415
+            from mjviser import ViserMujocoScene  # noqa: PLC0415
+        except ImportError as exc:
+            logger.warning("mjviser/viser unavailable, web viewer disabled: {}", exc)
+            return False
+
+        try:
+            server = viser.ViserServer(port=self._viser_port, verbose=False)
+            scene = ViserMujocoScene(server, self._model, num_envs=1)
+            scene.create_visualization_gui()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Failed to start viser viewer on port {}: {}", self._viser_port, exc)
+            return False
+        else:
+            self._viser_server = server
+            self._viser_scene = scene
+            logger.info("3D viewer: http://127.0.0.1:{}", self._viser_port)
+            return True
+
+    def _recreate_viser_scene(self) -> None:
+        """Rebuild the viser scene after a model hot-swap."""
+        if self._viser_server is None:
+            return
+        try:
+            from mjviser import ViserMujocoScene  # noqa: PLC0415
+
+            scene = ViserMujocoScene(self._viser_server, self._model, num_envs=1)
+            scene.create_visualization_gui()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Failed to recreate viser scene: {}", exc)
+            return
+        self._viser_scene = scene
+
+    def _sync_viser_fixed_bodies(self) -> None:
+        """Push current ``data.xpos`` into mjviser's fixed-geometry handles.
+
+        Reset randomizes the green placement disc by writing ``model.body_pos``
+        (it is a fixed world body, not a freejoint). MuJoCo cameras pick that up
+        after ``mj_forward``, but mjviser only places fixed meshes at create time.
+
+        Handles live under ``/fixed_bodies``, whose frame already carries
+        mjviser's camera-tracking offset, so store world ``xpos`` as-is.
+        """
+        scene = self._viser_scene
+        data = self._data
+        if scene is None or data is None:
+            return
+
+        handles = getattr(scene, "_fixed_geom_handles", None) or {}
+        for (body_id, *_rest), handle in handles.items():
+            handle.position = np.asarray(data.xpos[body_id], dtype=np.float64)
+            handle.wxyz = np.asarray(data.xquat[body_id], dtype=np.float64)
+
+        site_handles = getattr(scene, "_fixed_site_handles", None) or {}
+        for (body_id, *_rest), handle in site_handles.items():
+            handle.position = np.asarray(data.xpos[body_id], dtype=np.float64)
+            handle.wxyz = np.asarray(data.xquat[body_id], dtype=np.float64)
+
+    def _launch_native_viewer(self) -> bool:
+        """Start the native MuJoCo viewer (Linux/Windows only; broken on macOS)."""
+        try:
+            import mujoco.viewer  # noqa: PLC0415
+
+            viewer = mujoco.viewer.launch_passive(
+                self._model,
+                self._data,
+                key_callback=self._key_callback,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Failed to open MuJoCo viewer: {}", exc)
+            return False
+        else:
+            self._native_viewer = viewer
+            logger.info("MuJoCo native viewer opened")
+            return True
+
+    def _native_viewer_is_running(self) -> bool:
+        if self._native_viewer is None:
+            return False
+        is_running = getattr(self._native_viewer, "is_running", None)
+        if callable(is_running):
+            with contextlib.suppress(Exception):
+                return bool(is_running())
+        return True
+
+    def _native_viewer_sync(self) -> None:
+        if self._native_viewer is None:
+            return
+        sync = getattr(self._native_viewer, "sync", None)
+        if callable(sync):
+            with contextlib.suppress(Exception):
+                sync()
+
+    def _native_viewer_set_model_data(self, model: object, data: object) -> None:
+        """Hot-swap scene for native viewer APIs that support it."""
+        if self._native_viewer is None or not self._native_viewer_is_running():
+            return
+        lock = getattr(self._native_viewer, "lock", None)
+        get_sim = getattr(self._native_viewer, "_get_sim", None)
+        if not callable(lock) or not callable(get_sim):
+            return
+        with contextlib.suppress(Exception):
+            with lock():
+                sim = get_sim()
+                if sim is not None:
+                    sim.m = model
+                    sim.d = data
 
     def _check_pending_scene_switch(self) -> None:
         if not self._pending_scene_switch:
@@ -569,8 +714,10 @@ class MuJoCoSO101:
                 self._scene_on_reset(self._model, self._data, self._rng)
             else:
                 self._randomize_blocks()
-            if self._viewer is not None and self._viewer.is_running():
-                self._viewer.sync()
+            if self._episode_auto_reset is not None:
+                self._episode_auto_reset.notify_manual_reset()
+            if self._native_viewer is not None and self._native_viewer_is_running():
+                self._native_viewer_sync()
             current = float(self._data.time)
         self._last_sim_time = current
 
@@ -584,8 +731,14 @@ class MuJoCoSO101:
             self._spawn_center[1] + r * float(np.sin(theta)),
         )
 
-    def _sample_target_and_blocks(self, count: int) -> tuple[tuple[float, float], list[tuple[float, float]]]:
-        target_xy = self._sample_spawn_xy()
+    def _sample_target_and_blocks(self, count: int) -> list[tuple[float, float]]:
+        if self._target_body_id is not None:
+            target_xy = (
+                float(self._model.body_pos[self._target_body_id][0]),
+                float(self._model.body_pos[self._target_body_id][1]),
+            )
+        else:
+            target_xy = self._spawn_center
 
         positions: list[tuple[float, float]] = []
 
@@ -602,7 +755,7 @@ class MuJoCoSO101:
             else:
                 if best is not None:
                     positions.append(best)
-        return target_xy, positions
+        return positions
 
     def _randomize_blocks(self) -> None:
         import mujoco  # noqa: PLC0415
@@ -610,9 +763,8 @@ class MuJoCoSO101:
         if not self._block_joint_addrs:
             return
 
-        target_xy, positions = self._sample_target_and_blocks(len(self._block_joint_addrs))
-        if self._target_body_id is not None:
-            self._model.body_pos[self._target_body_id] = [target_xy[0], target_xy[1], 0.001]
+        # Keep the green plate fixed; only respawn free objects.
+        positions = self._sample_target_and_blocks(len(self._block_joint_addrs))
 
         for (qpos_addr, dof_addr), (x, y) in zip(self._block_joint_addrs, positions, strict=True):
             yaw = float(self._rng.uniform(0.0, 2.0 * np.pi))
@@ -692,6 +844,7 @@ class MuJoCoSO101:
             "connected": self.is_connected(),
             "scene": self._current_scene_id,
             "scenes": sorted(list_scenes()),
+            "episode": self._episode_auto_reset.status() if self._episode_auto_reset is not None else {"enabled": False},
             "cameras": [
                 {
                     "name": config.name,
@@ -726,6 +879,8 @@ class MuJoCoSO101:
                 self._scene_on_reset(self._model, self._data, self._rng)
             else:
                 self._randomize_blocks()
+            if self._episode_auto_reset is not None:
+                self._episode_auto_reset.notify_manual_reset()
         elif isinstance(command, SwitchSceneCommand):
             logger.info("Scene switch requested via HTTP: {}", command.scene_id)
             try:
@@ -831,6 +986,7 @@ class MuJoCoSO101:
             "_current_scene_id": self._current_scene_id,
             "_http_host": self._http_host,
             "_http_port": self._http_port,
+            "_viser_port": self._viser_port,
         }
 
     def __setstate__(self, state: dict) -> None:
@@ -856,7 +1012,10 @@ class MuJoCoSO101:
             self._scene_on_reset = None
         self._model = None
         self._data = None
-        self._viewer = None
+        self._viser_server = None
+        self._viser_scene = None
+        self._native_viewer = None
+        self._viser_port = state.get("_viser_port", 9090)
         self._camera_devices = {}
         self._camera_renderers = {}
         self._camera_last_frame_ts = {}
@@ -867,6 +1026,7 @@ class MuJoCoSO101:
         self._http_server = None
         self._block_joint_addrs = []
         self._target_body_id = None
+        self._episode_auto_reset = None
         self._last_sim_time = None
         self._rng = np.random.default_rng()
         self._pending_scene_switch = False

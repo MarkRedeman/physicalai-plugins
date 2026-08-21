@@ -26,10 +26,10 @@ class SceneConfig:
     scene_xml_relpath: str
     free_joints: tuple[str, ...] = ()
     target_bodies: tuple[str, ...] = ()
-    spawn_center: tuple[float, float] = (0.24, 0.0)
-    spawn_min_r: float = 0.08
-    spawn_max_r: float = 0.34
-    spawn_angle_half_deg: float = 125.0
+    spawn_center: tuple[float, float] = (0.22, 0.0)
+    spawn_min_r: float = 0.05
+    spawn_max_r: float = 0.14
+    spawn_angle_half_deg: float = 50.0
     block_min_sep: float = 0.09
     target_min_sep: float = 0.11
 
@@ -59,10 +59,11 @@ def _pick_lift_reset(model: object, data: object, rng: np.random.Generator) -> N
         theta = float(rng.uniform(-np.radians(angle_half_deg), np.radians(angle_half_deg)))
         return (center[0] + r * np.cos(theta), center[1] + r * np.sin(theta))
 
-    tx, ty = sample_xy()
     tid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, target_body)
     if tid >= 0:
-        model.body_pos[tid] = [tx, ty, 0.001]
+        tx, ty = float(model.body_pos[tid][0]), float(model.body_pos[tid][1])
+    else:
+        tx, ty = center
 
     positions: list[tuple[float, float]] = []
     for _ in block_joints:
@@ -107,10 +108,11 @@ def _pick_place_reset(model: object, data: object, rng: np.random.Generator) -> 
         theta = float(rng.uniform(-np.radians(angle_half_deg), np.radians(angle_half_deg)))
         return (center[0] + r * np.cos(theta), center[1] + r * np.sin(theta))
 
-    tx, ty = sample_xy()
     tid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, target_body)
     if tid >= 0:
-        model.body_pos[tid] = [tx, ty, 0.001]
+        tx, ty = float(model.body_pos[tid][0]), float(model.body_pos[tid][1])
+    else:
+        tx, ty = center
 
     positions: list[tuple[float, float]] = []
     for _ in block_joints:
@@ -145,9 +147,10 @@ def _single_pick_place_reset(model: object, data: object, rng: np.random.Generat
 
     block_joints = ("block1:joint",)
     target_body = "target"
-    center = (0.24, 0.0)
-    min_r, max_r = 0.08, 0.30
-    angle_half_deg = 125.0
+    # Compact arc in front of the SO-101 (easy teleop reach).
+    center = (0.22, 0.0)
+    min_r, max_r = 0.05, 0.14
+    angle_half_deg = 50.0
     _block_min_sep, target_min_sep = 0.09, 0.11
 
     def sample_xy() -> tuple[float, float]:
@@ -155,10 +158,12 @@ def _single_pick_place_reset(model: object, data: object, rng: np.random.Generat
         theta = float(rng.uniform(-np.radians(angle_half_deg), np.radians(angle_half_deg)))
         return (center[0] + r * np.cos(theta), center[1] + r * np.sin(theta))
 
-    tx, ty = sample_xy()
+    # Keep the green plate fixed; only respawn the cube away from it.
     tid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, target_body)
     if tid >= 0:
-        model.body_pos[tid] = [tx, ty, 0.001]
+        tx, ty = float(model.body_pos[tid][0]), float(model.body_pos[tid][1])
+    else:
+        tx, ty = center
 
     positions: list[tuple[float, float]] = []
     for _ in block_joints:
@@ -292,6 +297,12 @@ _SCENES: dict[str, SceneConfig] = {
         scene_xml_relpath="scenes/single_pick_place/scene.xml",
         free_joints=("block1:joint",),
         target_bodies=("target",),
+        # Keep spawns inside comfortable SO-101 teleop reach (was up to ~0.5 m).
+        spawn_center=(0.22, 0.0),
+        spawn_min_r=0.05,
+        spawn_max_r=0.14,
+        spawn_angle_half_deg=50.0,
+        target_min_sep=0.11,
     ),
     "pick_place": SceneConfig(
         scene_id="pick_place",

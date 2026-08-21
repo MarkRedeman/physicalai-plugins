@@ -4,9 +4,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from physicalai.config import to_config
-from physicalai.robot.transport import SharedRobot
 
-from physicalai_mujoco_so101_plugin.constants import BIMANUAL_SO101_JOINT_ORDER, SO101_JOINT_ORDER
+from physicalai_mujoco_so101_plugin.constants import (
+    BIMANUAL_SO101_JOINT_ORDER,
+    DEFAULT_MUJOCO_OWNER_NAME,
+    SO101_JOINT_ORDER,
+)
 from physicalai_mujoco_so101_plugin.studio_catalog import (
     MuJoCoSO101Payload,
     MuJoCoSO101Probe,
@@ -19,7 +22,7 @@ from physicalai_mujoco_so101_plugin.studio_catalog import (
 class TestMuJoCoSO101Payload:
     def test_default_payload(self) -> None:
         payload = MuJoCoSO101Payload()
-        assert payload.name == "mujoco-so101"
+        assert payload.name == DEFAULT_MUJOCO_OWNER_NAME
         assert payload.allow_remote is False
         assert payload.connect_timeout == 10.0
 
@@ -103,28 +106,38 @@ class TestDefinitions:
 
 class TestSharedRobotAdapter:
     def test_has_no_owned_devices(self) -> None:
-        robot = _SharedSO101Robot(SharedRobot.attach("mujoco-so101"), SO101_JOINT_ORDER)
+        robot = _SharedSO101Robot(
+            DEFAULT_MUJOCO_OWNER_NAME,
+            False,
+            10.0,
+            SO101_JOINT_ORDER,
+        )
         assert robot.device_ids == ()
         assert robot.joint_names == list(SO101_JOINT_ORDER)
 
     def test_bimanual_joint_names(self) -> None:
-        robot = _SharedSO101Robot(SharedRobot.attach("mujoco-so101"), BIMANUAL_SO101_JOINT_ORDER)
+        robot = _SharedSO101Robot(
+            DEFAULT_MUJOCO_OWNER_NAME,
+            False,
+            10.0,
+            BIMANUAL_SO101_JOINT_ORDER,
+        )
         assert robot.joint_names == list(BIMANUAL_SO101_JOINT_ORDER)
 
-    def test_exports_attach_only_shared_robot_recipe(self) -> None:
-        robot = _SharedSO101Robot(SharedRobot.attach("mujoco-so101", connect_timeout=5.0), SO101_JOINT_ORDER)
+    def test_exports_owner_name_recipe(self) -> None:
+        robot = _SharedSO101Robot(
+            DEFAULT_MUJOCO_OWNER_NAME,
+            False,
+            5.0,
+            SO101_JOINT_ORDER,
+        )
 
         assert to_config(robot) == {
             "class_path": "physicalai_mujoco_so101_plugin.studio_catalog._SharedSO101Robot",
             "init_args": {
-                "shared_robot": {
-                    "class_path": "physicalai.robot.SharedRobot",
-                    "init_args": {
-                        "name": "mujoco-so101",
-                        "allow_remote": False,
-                        "connect_timeout": 5.0,
-                    },
-                },
+                "owner_name": DEFAULT_MUJOCO_OWNER_NAME,
+                "allow_remote": False,
+                "connect_timeout": 5.0,
                 "joint_names": list(SO101_JOINT_ORDER),
             },
         }

@@ -22,7 +22,11 @@ from pydantic import BaseModel, Field
 
 import physicalai_mujoco_so101_plugin
 from physicalai_mujoco_so101_plugin._urdf import get_urdf_path
-from physicalai_mujoco_so101_plugin.constants import BIMANUAL_SO101_JOINT_ORDER, SO101_JOINT_ORDER
+from physicalai_mujoco_so101_plugin.constants import (
+    BIMANUAL_SO101_JOINT_ORDER,
+    DEFAULT_MUJOCO_OWNER_NAME,
+    SO101_JOINT_ORDER,
+)
 
 if TYPE_CHECKING:
     from typing import Protocol
@@ -95,7 +99,7 @@ class MuJoCoSO101Payload(BaseModel):
     """Connection settings for a MuJoCo SO-101 simulation owner."""
 
     name: str = Field(
-        default="mujoco-so101",
+        default=DEFAULT_MUJOCO_OWNER_NAME,
         description="Zenoh logical robot name of the running MuJoCo simulation",
     )
     allow_remote: bool = Field(
@@ -106,6 +110,19 @@ class MuJoCoSO101Payload(BaseModel):
         default=10.0,
         description="Timeout in seconds for connecting to the zenoh owner",
     )
+
+
+def _check_zenoh_robot_online(name: str) -> bool:
+    from physicalai.robot.transport import SharedRobot  # noqa: PLC0415
+
+    try:
+        robot = SharedRobot.attach(name=name, connect_timeout=2.0)
+        robot.connect()
+        robot.disconnect()
+    except (ConnectionError, TimeoutError, RuntimeError):
+        return False
+    else:
+        return True
 
 
 class MuJoCoSO101Probe(RobotProbe[MuJoCoSO101Payload]):
@@ -136,26 +153,22 @@ class MuJoCoSO101Probe(RobotProbe[MuJoCoSO101Payload]):
         return await asyncio.to_thread(_check_zenoh_robot_online, payload.name)
 
 
-def _check_zenoh_robot_online(name: str) -> bool:
-    from physicalai.robot.transport import SharedRobot  # noqa: PLC0415
-
-    try:
-        robot = SharedRobot.attach(name=name, connect_timeout=2.0)
-        robot.connect()
-        robot.disconnect()
-    except (ConnectionError, TimeoutError, RuntimeError):
-        return False
-    else:
-        return True
-
-
 _MUJOCO_PROBE = MuJoCoSO101Probe()
 
 
 @export_config(class_path="physicalai_mujoco_so101_plugin.studio_catalog._SharedSO101Robot")
 class _SharedSO101Robot:
-    def __init__(self, shared_robot: object, joint_names: list[str] | tuple[str, ...]) -> None:
-        self._shared_robot = shared_robot
+    def __init__(
+        self,
+        owner_name: str,
+        allow_remote: bool,
+        connect_timeout: float,
+        joint_names: list[str] | tuple[str, ...],
+    ) -> None:
+        self._owner_name = owner_name
+        self._allow_remote = allow_remote
+        self._connect_timeout = connect_timeout
+        self._shared_robot: object | None = None
         self.joint_names = list(joint_names)
 
     @property
@@ -164,18 +177,35 @@ class _SharedSO101Robot:
         return ()
 
     def connect(self) -> None:
-        self._shared_robot.connect()
+        from physicalai.robot.transport import SharedRobot  # noqa: PLC0415
+
+        shared = SharedRobot.attach(
+            name=self._owner_name,
+            allow_remote=self._allow_remote,
+            connect_timeout=self._connect_timeout,
+        )
+        shared.connect()
+        self._shared_robot = shared
 
     def disconnect(self) -> None:
-        self._shared_robot.disconnect()
+        if self._shared_robot is not None:
+            self._shared_robot.disconnect()
 
     def get_observation(self) -> RobotObservation:
+        if self._shared_robot is None:
+            msg = "MuJoCo shared robot is not connected."
+            raise RuntimeError(msg)
         return self._shared_robot.get_observation()
 
     def send_action(self, action: np.ndarray, *, goal_time: float = 0.1) -> None:
+        if self._shared_robot is None:
+            msg = "MuJoCo shared robot is not connected."
+            raise RuntimeError(msg)
         self._shared_robot.send_action(action, goal_time=goal_time)
 
     def is_connected(self) -> bool:
+        if self._shared_robot is None:
+            return False
         return self._shared_robot.is_connected()
 
 
@@ -188,14 +218,12 @@ async def _build_mujoco_robot(
     raw = robot.payload
     validated = raw if isinstance(raw, MuJoCoSO101Payload) else MuJoCoSO101Payload.model_validate(raw)
 
-    from physicalai.robot.transport import SharedRobot  # noqa: PLC0415
-
-    shared = SharedRobot.attach(
-        name=validated.name,
-        allow_remote=validated.allow_remote,
-        connect_timeout=validated.connect_timeout,
+    return _SharedSO101Robot(
+        validated.name,
+        validated.allow_remote,
+        validated.connect_timeout,
+        SO101_JOINT_ORDER,
     )
-    return _SharedSO101Robot(shared, SO101_JOINT_ORDER)
 
 
 async def _build_bimanual_mujoco_robot(
@@ -207,14 +235,12 @@ async def _build_bimanual_mujoco_robot(
     raw = robot.payload
     validated = raw if isinstance(raw, MuJoCoSO101Payload) else MuJoCoSO101Payload.model_validate(raw)
 
-    from physicalai.robot.transport import SharedRobot  # noqa: PLC0415
-
-    shared = SharedRobot.attach(
-        name=validated.name,
-        allow_remote=validated.allow_remote,
-        connect_timeout=validated.connect_timeout,
+    return _SharedSO101Robot(
+        validated.name,
+        validated.allow_remote,
+        validated.connect_timeout,
+        BIMANUAL_SO101_JOINT_ORDER,
     )
-    return _SharedSO101Robot(shared, BIMANUAL_SO101_JOINT_ORDER)
 
 
 def _definitions() -> list[RobotCatalogDefinition]:
