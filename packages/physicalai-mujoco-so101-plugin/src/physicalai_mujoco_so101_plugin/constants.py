@@ -32,6 +32,10 @@ BIMANUAL_SO101_JOINT_ORDER: Final = (
 
 BIMANUAL_NUM_JOINTS: Final = 12
 
+# Zenoh owner name used by ``physicalai-mujoco-so101 start`` (``--name`` default)
+# and the Studio MuJoCo payload ``name`` field default.
+DEFAULT_MUJOCO_OWNER_NAME: Final = "mujoco-so101-follow"
+
 JOINT_LIMITS_DEG: Final = {
     "shoulder_pan": (-110.0, 110.0),
     "shoulder_lift": (-100.0, 100.0),

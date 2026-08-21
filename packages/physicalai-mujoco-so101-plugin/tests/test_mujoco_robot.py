@@ -221,15 +221,16 @@ class TestMuJoCoSO101Pickling:
             "_cameras": [],
             "_free_joints": ("block1:joint", "block2:joint", "block3:joint"),
             "_target_body_name": "target",
-            "_spawn_center": (0.24, 0.0),
-            "_spawn_min_r": 0.08,
-            "_spawn_max_r": 0.34,
-            "_spawn_angle_half_deg": 125.0,
+            "_spawn_center": (0.22, 0.0),
+            "_spawn_min_r": 0.05,
+            "_spawn_max_r": 0.14,
+            "_spawn_angle_half_deg": 50.0,
             "_block_min_sep": 0.09,
             "_target_min_sep": 0.11,
             "_current_scene_id": None,
             "_http_host": "127.0.0.1",
             "_http_port": 0,
+            "_viser_port": 9090,
         }
 
     def test_getstate_after_connect(self, mock_mujoco: MagicMock) -> None:
@@ -252,9 +253,11 @@ class TestMuJoCoSO101Pickling:
         assert robot._enable_viewer is True  # noqa: SLF001
         assert robot._model is None  # noqa: SLF001
         assert robot._data is None  # noqa: SLF001
-        assert robot._viewer is None  # noqa: SLF001
+        assert robot._viser_scene is None  # noqa: SLF001
+        assert robot._native_viewer is None  # noqa: SLF001
         assert robot._http_host == "127.0.0.1"  # noqa: SLF001
         assert robot._http_port == 0  # noqa: SLF001
+        assert robot._viser_port == 9090  # noqa: SLF001
 
     def test_setstate_restores_http_config(self) -> None:
         state = {
