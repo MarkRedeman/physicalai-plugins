@@ -142,4 +142,4 @@ uv sync
 uv run pytest
 ```
 
-See `docs/creating-a-studio-plugin.md` for the full plugin development guide.
+See [`docs/creating-a-studio-plugin.md`](../../docs/creating-a-studio-plugin.md) for the full plugin development guide.
