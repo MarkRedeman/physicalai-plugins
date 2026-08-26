@@ -196,6 +196,8 @@ def _to_payload_annotation(annotation: object) -> object:  # noqa: PLR0911
         return annotation
 
     if origin in {list, set, frozenset, tuple, dict}:
+        if not converted_args:
+            return origin
         return origin[converted_args]  # type: ignore[index]
 
     return annotation
