@@ -35,6 +35,11 @@
       "release-type": "python",
       "package-name": "physicalai-lerobot-plugin",
       "changelog-path": "CHANGELOG.md"
+    },
+    "packages/physicalai-mujoco-so101-plugin": {
+      "release-type": "python",
+      "package-name": "physicalai-mujoco-so101-plugin",
+      "changelog-path": "CHANGELOG.md"
     }
   }
 }

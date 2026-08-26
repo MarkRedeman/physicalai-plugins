@@ -2,6 +2,10 @@
 
 This repository uses [release-please](https://github.com/googleapis/release-please) for automated releases of Python packages defined in `.github/release-please-config.json`. Currently:
 
+- `physicalai-bimanual-so101-plugin`
+- `physicalai-lekiwi-plugin`
+- `physicalai-lerobot-plugin`
+- `physicalai-mujoco-so101-plugin`
 - `physicalai-rebot-b601-plugin`
 
 ## Pull request title convention
@@ -28,16 +32,20 @@ For **breaking** changes — add `!` after the type to trigger a MAJOR version b
 
 1. **Merge PRs to `main`** — merge PRs with conventional PR titles.
 2. **Draft release PR** — `release-please` runs on every push to `main` and automatically creates or updates draft release PRs (one per package) with updated `CHANGELOG.md` files.
-3. **Review and merge the release PR** — once the team is ready to release, review the release PR and merge it. `release-please` then creates the git tag (e.g. `physicalai-rebot-b601-plugin-v0.3.0`) and a GitHub Release with generated release notes.
+3. **Review and merge the release PR** — once the team is ready to release, review the release PR and merge it. `release-please` then creates the git tag (e.g. `physicalai-lekiwi-plugin-v0.2.0`) and a GitHub Release with generated release notes.
 4. **Automated publish** — after the tag and GitHub Release are created, `publish.yml` builds, smoke-tests and publishes the package to PyPI.
 
 ## Versioning
 
 Package versions are **not hardcoded** — they are derived from git tags at build time via [`hatch-vcs`](https://github.com/ofek/hatch-vcs). Each package has its own tag pattern:
 
-| Package                        | Tag pattern                              |
-| ------------------------------ | ---------------------------------------- |
-| `physicalai-rebot-b601-plugin` | `physicalai-rebot-b601-plugin-v<semver>` |
+| Package                            | Tag pattern                                  |
+| ---------------------------------- | -------------------------------------------- |
+| `physicalai-bimanual-so101-plugin` | `physicalai-bimanual-so101-plugin-v<semver>` |
+| `physicalai-lekiwi-plugin`         | `physicalai-lekiwi-plugin-v<semver>`         |
+| `physicalai-lerobot-plugin`        | `physicalai-lerobot-plugin-v<semver>`        |
+| `physicalai-mujoco-so101-plugin`   | `physicalai-mujoco-so101-plugin-v<semver>`   |
+| `physicalai-rebot-b601-plugin`     | `physicalai-rebot-b601-plugin-v<semver>`     |
 
 ## Testing a Release (TestPyPI)
 

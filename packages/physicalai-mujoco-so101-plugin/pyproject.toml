@@ -39,6 +39,7 @@ physicalai-mujoco-so101 = "physicalai_mujoco_so101_plugin.__main__:main"
 
 [tool.hatch.version]
 source = "vcs"
+tag-pattern = '^(?:packages/[\w-]+-)?[vV]?(?P<version>\d+(?:\.\d+)*)$'
 raw-options = { search_parent_directories = true }
 
 [tool.hatch.build.targets.wheel]
