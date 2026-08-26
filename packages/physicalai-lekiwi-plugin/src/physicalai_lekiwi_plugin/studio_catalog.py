@@ -14,8 +14,9 @@ from physicalai_studio_plugin import (
     RobotCatalogDefinition,
     RobotProbe,
     SerialPortInfo,
+    robot_payload_ui,
 )
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict
 from serial.tools import list_ports
 
 import physicalai_lekiwi_plugin
@@ -64,10 +65,23 @@ class LeKiwiPayload(BaseModel):
     """Connection payload for a LeKiwi robot."""
 
     connection_string: str = ""
-    serial_number: str = Field(...)
+    serial_number: str = ""
     calibration: dict[str, LeKiwiJointCalibrationPayload] | None = None
     baudrate: int = 1_000_000
     disable_torque_on_disconnect: bool = True
+
+    model_config = ConfigDict(
+        json_schema_extra=robot_payload_ui(
+            [
+                {
+                    "kind": "connection",
+                    "label": "Select robot",
+                    "device_discovery": True,
+                    "bind": {"connection": "connection_string", "serial_number": "serial_number"},
+                },
+            ],
+        ),
+    )
 
 
 class LeKiwiJointCalibrationPayload(BaseModel):
@@ -138,7 +152,9 @@ async def _build_lekiwi_driver(robot: PayloadContainer[LeKiwiPayload], factory: 
     validated = raw if isinstance(raw, LeKiwiPayload) else LeKiwiPayload.model_validate(raw)
 
     serial_number = validated.serial_number
-    port = await factory.find_port(SerialPortInfo(connection_string=None, serial_number=serial_number))
+    port = await factory.find_port(
+        SerialPortInfo(connection_string=validated.connection_string, serial_number=serial_number),
+    )
     if port is None:
         msg = f"Robot not found: {serial_number}"
         raise RuntimeError(msg)
@@ -174,7 +190,9 @@ async def _build_lekiwi_leader(robot: PayloadContainer[LeKiwiPayload], factory: 
     validated = raw if isinstance(raw, LeKiwiPayload) else LeKiwiPayload.model_validate(raw)
 
     serial_number = validated.serial_number
-    port = await factory.find_port(SerialPortInfo(connection_string=None, serial_number=serial_number))
+    port = await factory.find_port(
+        SerialPortInfo(connection_string=validated.connection_string, serial_number=serial_number),
+    )
     if port is None:
         msg = f"Robot not found: {serial_number}"
         raise RuntimeError(msg)
