@@ -4,6 +4,26 @@ from pathlib import Path
 
 import pytest
 
+_RETIRED_UI_KEYS = {"groups", "group", "widget", "connection_key", "serial_number_key"}
+_CONNECTION_UI = [
+    {
+        "kind": "connection",
+        "label": "Select robot",
+        "device_discovery": True,
+        "bind": {"connection": "connection_string", "serial_number": "serial_number"},
+    },
+]
+
+
+def _assert_no_retired_ui_keys(value: object) -> None:
+    if isinstance(value, dict):
+        assert not _RETIRED_UI_KEYS.intersection(value)
+        for nested_value in value.values():
+            _assert_no_retired_ui_keys(nested_value)
+    elif isinstance(value, list):
+        for nested_value in value:
+            _assert_no_retired_ui_keys(nested_value)
+
 
 class _StubFactory:
     def __init__(self, port: str | None = "/dev/ttyACM0") -> None:
@@ -60,6 +80,7 @@ def test_dm_follower_structure() -> None:
     assert dm.asset.urdf_relative_path == Path("rebot-b601-dm/urdf/reBot-DevArm_fixend.urdf")
     assert dm.asset.packages == {"rebot-b601-dm": Path("rebot-b601-dm")}
     assert dm.asset.root_resolver is not None
+    assert (dm.asset.root_resolver() / dm.asset.urdf_relative_path).is_file()
 
 
 def test_arm102_leader_structure() -> None:
@@ -72,6 +93,8 @@ def test_arm102_leader_structure() -> None:
     assert arm102.asset is not None
     assert arm102.asset.urdf_relative_path == Path("stararm102/urdf/stararm102_description.urdf")
     assert arm102.asset.packages == {"stararm102": Path("stararm102")}
+    assert arm102.asset.root_resolver is not None
+    assert (arm102.asset.root_resolver() / arm102.asset.urdf_relative_path).is_file()
 
 
 def test_definition_robot_type_property() -> None:
@@ -117,6 +140,7 @@ def test_rebot_b601_dm_payload_defaults() -> None:
     assert payload.dm_serial_baud == 921600
     assert payload.disable_torque_on_disconnect is True
     assert payload.force_pos_torque_ratio == 0.1
+    assert payload.max_velocity == 1.0
 
 
 def test_rebot_arm102_payload_defaults() -> None:
@@ -136,6 +160,42 @@ def test_payload_models_rebuild() -> None:
 
     ReBotB601DMPayload.model_rebuild(raise_errors=True)
     ReBotArm102Payload.model_rebuild(raise_errors=True)
+
+
+@pytest.mark.parametrize(
+    "payload_cls",
+    ["ReBotB601DMPayload", "ReBotArm102Payload"],
+)
+def test_payload_requires_connection_identifier(payload_cls: str) -> None:
+    from pydantic import ValidationError
+
+    from physicalai_rebot_b601_plugin.studio_catalog import ReBotArm102Payload, ReBotB601DMPayload
+
+    payload_models = {
+        "ReBotB601DMPayload": ReBotB601DMPayload,
+        "ReBotArm102Payload": ReBotArm102Payload,
+    }
+    with pytest.raises(ValidationError, match="connection_string or serial_number"):
+        payload_models[payload_cls]()
+
+
+@pytest.mark.parametrize("payload_name", ["ReBotB601DMPayload", "ReBotArm102Payload"])
+def test_payload_schemas_configure_serial_connection_picker(payload_name: str) -> None:
+    from physicalai_studio_plugin import validate_robot_payload_ui
+
+    from physicalai_rebot_b601_plugin.studio_catalog import ReBotArm102Payload, ReBotB601DMPayload
+
+    payload_models = {
+        "ReBotB601DMPayload": ReBotB601DMPayload,
+        "ReBotArm102Payload": ReBotArm102Payload,
+    }
+    payload_model = payload_models[payload_name]
+
+    validate_robot_payload_ui(payload_model)
+    schema = payload_model.model_json_schema()
+
+    assert schema["x-physicalai-ui"] == _CONNECTION_UI
+    _assert_no_retired_ui_keys(schema)
 
 
 @pytest.mark.anyio
@@ -162,11 +222,13 @@ async def test_build_rebot_b601_dm_from_dict_payload() -> None:
         "serial_number": "DM-002",
         "can_adapter": "damiao",
         "force_pos_torque_ratio": 0.2,
+        "max_velocity": 0.5,
     }
     robot = _StubRobot(payload)
     factory = _StubFactory(port="/dev/ttyACM1")
     driver = await _build_rebot_b601_dm_driver(robot, factory)
     assert driver is not None
+    assert driver.max_velocity == 0.5
 
 
 @pytest.mark.anyio

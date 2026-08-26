@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 from importlib import import_module
+from importlib.machinery import ModuleSpec
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, call, patch
 
@@ -12,7 +13,9 @@ from physicalai.config import to_config
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-sys.modules.setdefault("motorbridge_smart_servo", MagicMock())
+_mock_smart_servo = MagicMock()
+_mock_smart_servo.__spec__ = ModuleSpec("motorbridge_smart_servo", None)
+sys.modules.setdefault("motorbridge_smart_servo", _mock_smart_servo)
 
 
 def _make_mock_smart_servo() -> MagicMock:

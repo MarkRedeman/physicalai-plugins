@@ -9,7 +9,27 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 import pytest
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
+
+_RETIRED_UI_KEYS = {"groups", "group", "widget", "connection_key", "serial_number_key"}
+_CONNECTION_UI = [
+    {
+        "kind": "connection",
+        "label": "Select robot",
+        "device_discovery": True,
+        "bind": {"connection": "connection_string", "serial_number": "serial_number"},
+    },
+]
+
+
+def _assert_no_retired_ui_keys(value: object) -> None:
+    if isinstance(value, dict):
+        assert not _RETIRED_UI_KEYS.intersection(value)
+        for nested_value in value.values():
+            _assert_no_retired_ui_keys(nested_value)
+    elif isinstance(value, list):
+        for nested_value in value:
+            _assert_no_retired_ui_keys(nested_value)
 
 
 @dataclass
@@ -55,6 +75,8 @@ def test_register_plugin() -> None:
     assert defn.asset is not None
     assert defn.asset.urdf_relative_path == Path("lekiwi/urdf/LeKiwi.urdf")
     assert defn.asset.packages == {"lekiwi": Path("lekiwi")}
+    assert defn.asset.root_resolver is not None
+    assert (defn.asset.root_resolver() / defn.asset.urdf_relative_path).is_file()
     from physicalai_lekiwi_plugin.studio_catalog import LeKiwiPayload
 
     assert defn.robot_payload is LeKiwiPayload
@@ -125,17 +147,30 @@ def test_payload_with_calibration() -> None:
     assert payload.calibration["arm_shoulder_pan"].id == 1
 
 
-def test_payload_requires_serial() -> None:
+def test_payload_allows_manual_connection_path() -> None:
     from physicalai_lekiwi_plugin.studio_catalog import LeKiwiPayload
 
-    with pytest.raises(ValidationError):
-        LeKiwiPayload()
+    payload = LeKiwiPayload(connection_string="/dev/ttyACM0")
+    assert payload.connection_string == "/dev/ttyACM0"
+    assert payload.serial_number == ""
 
 
 def test_payload_model_rebuild() -> None:
     from physicalai_lekiwi_plugin.studio_catalog import LeKiwiPayload
 
     LeKiwiPayload.model_rebuild(raise_errors=True)
+
+
+def test_payload_schema_configures_serial_connection_picker() -> None:
+    from physicalai_studio_plugin import validate_robot_payload_ui
+
+    from physicalai_lekiwi_plugin.studio_catalog import LeKiwiPayload
+
+    validate_robot_payload_ui(LeKiwiPayload)
+    schema = LeKiwiPayload.model_json_schema()
+
+    assert schema["x-physicalai-ui"] == _CONNECTION_UI
+    _assert_no_retired_ui_keys(schema)
 
 
 def test_follower_builder_validates_cross_identity_payload() -> None:
@@ -161,6 +196,20 @@ def test_follower_builder_validates_cross_identity_payload() -> None:
 
     assert driver.port == "/dev/ttyACM9"
     assert driver.disable_torque_on_disconnect is True
+
+
+def test_follower_builder_requires_connection_identifier() -> None:
+    from physicalai_lekiwi_plugin.studio_catalog import LeKiwiPayload, _build_lekiwi_driver
+
+    with pytest.raises(RuntimeError, match="connection_string or serial_number"):
+        asyncio.run(_build_lekiwi_driver(_PayloadContainer(LeKiwiPayload()), _FakeFactory()))
+
+
+def test_leader_builder_requires_connection_identifier() -> None:
+    from physicalai_lekiwi_plugin.studio_catalog import LeKiwiPayload, _build_lekiwi_leader
+
+    with pytest.raises(RuntimeError, match="connection_string or serial_number"):
+        asyncio.run(_build_lekiwi_leader(_PayloadContainer(LeKiwiPayload()), _FakeFactory()))
 
 
 def test_urdf_path_exists() -> None:

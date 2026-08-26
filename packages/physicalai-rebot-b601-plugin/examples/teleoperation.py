@@ -109,7 +109,7 @@ def main() -> None:
 
             obs = l.get_observation()
             follower_action = obs.joint_positions.copy()
-            f.send_action(follower_action)
+            f.send_action(follower_action, goal_time=period)
 
             pos_str = "  ".join(f"{v:7.2f}" for v in obs.joint_positions)
             print(f"[{obs.timestamp:13.3f}]  {pos_str}")
