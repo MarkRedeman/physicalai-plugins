@@ -116,6 +116,15 @@ with runtime:
     runtime.run()
 ```
 
+The same teleoperation can be run from a config with the
+[PhysicalAI CLI](https://github.com/openvinotoolkit/physicalai):
+
+```bash
+uv run physicalai run --config packages/physicalai-bimanual-so101-plugin/examples/runtime/teleop.yaml
+```
+
+Press `Ctrl+C` to stop.
+
 ## URDF Model
 
 ```python

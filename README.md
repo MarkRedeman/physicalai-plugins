@@ -92,6 +92,22 @@ uv run physicalai run --config packages/physicalai-rebot-b601-plugin/examples/ru
 uv run physicalai run --config packages/physicalai-rebot-b601-plugin/examples/runtime/teleop-rs.yaml
 ```
 
+### Bimanual SO-101
+
+Bimanual teleoperation with a leader BimanualSO101 (both arms):
+
+```bash
+uv run physicalai run --config packages/physicalai-bimanual-so101-plugin/examples/runtime/teleop.yaml
+```
+
+### LeRobot
+
+Follower → leader teleoperation for any bundled LeRobot robot:
+
+```bash
+uv run physicalai run --config packages/physicalai-lerobot-plugin/examples/runtime/teleop.yaml
+```
+
 ### MuJoCo SO-101
 
 Self-relay of a running MuJoCo owner over Zenoh:

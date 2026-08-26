@@ -33,6 +33,20 @@ _Placeholder images — replace them with real screenshots._
 uv add physicalai-lerobot-plugin
 ```
 
+## Run with the PhysicalAI CLI
+
+The [PhysicalAI CLI](https://github.com/openvinotoolkit/physicalai) `run`
+subcommand executes a `RobotRuntime` from a YAML config. The bundled config
+teleoperates a LeRobot follower with its matching leader teleoperator:
+
+```bash
+uv run physicalai run --config packages/physicalai-lerobot-plugin/examples/runtime/teleop.yaml
+```
+
+The example uses the `so101_follower` / `so101_leader` pair; set `config_type`
+and `config_kwargs` to any of the bundled follower/leader types below. Press
+`Ctrl+C` to stop.
+
 ## Third-party LeRobot extensions
 
 Install this package first, then install a LeRobot extension into the same
