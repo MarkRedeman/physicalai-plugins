@@ -384,6 +384,15 @@ def test_make_teleop_builder_config_kwargs() -> None:
     assert callable(builder)
 
 
+def test_coerce_union_prefers_matching_shape() -> None:
+    from physicalai_lerobot_plugin.studio_catalog import _coerce_to_annotation
+
+    assert _coerce_to_annotation(list[float] | float, 1.5) == 1.5
+    assert _coerce_to_annotation(list[float] | float, [1.5, 2.5]) == [1.5, 2.5]
+    assert _coerce_to_annotation(dict[str, int] | str, "hello") == "hello"
+    assert _coerce_to_annotation(dict[str, int] | str, {"a": 1}) == {"a": 1}
+
+
 # ── URDF path test ─────────────────────────────────────────────────────────
 
 

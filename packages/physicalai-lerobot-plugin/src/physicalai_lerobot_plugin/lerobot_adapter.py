@@ -7,6 +7,7 @@ lerobot robot's observation dict on the first ``get_observation()`` call
 
 from __future__ import annotations
 
+import dataclasses
 import importlib
 import pkgutil
 import time
@@ -49,14 +50,56 @@ class LeRobotAdapterObservation:
 _DIM_THRESHOLD_IMAGE: int = 2
 
 _POSITION_KEY_SUFFIX: str = ".pos"
+_POSITION_KEY_LONG_SUFFIX: str = "_position"
+_POSITION_KEY_FALLBACK_SUFFIX: str = "pos"
+
+
+def _strip_position_suffix(key: str) -> str:
+    """Strip a trailing position marker to derive the joint name.
+
+    Prefers the canonical ``.pos`` suffix, then falls back to ``_position`` or
+    ``pos`` so auto-detection stays correct for varied observation keys.
+
+    Returns:
+        The joint name with the trailing position marker removed.
+    """
+    if key.endswith(_POSITION_KEY_SUFFIX):
+        return key[: -len(_POSITION_KEY_SUFFIX)]
+    if key.endswith(_POSITION_KEY_LONG_SUFFIX):
+        return key[: -len(_POSITION_KEY_LONG_SUFFIX)]
+    if key.endswith(_POSITION_KEY_FALLBACK_SUFFIX):
+        return key[: -len(_POSITION_KEY_FALLBACK_SUFFIX)]
+    return key
+
+
+def _collect_device_ports(value: object) -> list[str]:
+    """Recursively collect ``port`` string values from nested config data.
+
+    Args:
+        value: Config kwargs or a nested container/dataclass within them.
+
+    Returns:
+        All non-empty ``port`` string values found at any nesting depth.
+    """
+    ports: list[str] = []
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if key == "port" and isinstance(item, str) and item:
+                ports.append(item)
+            ports.extend(_collect_device_ports(item))
+    elif isinstance(value, (list, tuple, set)):
+        for item in value:
+            ports.extend(_collect_device_ports(item))
+    elif dataclasses.is_dataclass(value) and not isinstance(value, type):
+        for field in dataclasses.fields(value):
+            ports.extend(_collect_device_ports(getattr(value, field.name)))
+    return ports
 
 
 def _device_ids(config_type: str, config_kwargs: dict[str, Any]) -> tuple[str, ...]:
-    """Return a stable serial-device identity without touching hardware."""
-    port = config_kwargs.get("port")
-    if isinstance(port, str) and port:
-        return (f"lerobot:{config_type}:{port}",)
-    return ()
+    """Return stable serial-device identities without touching hardware."""
+    ports = sorted(set(_collect_device_ports(config_kwargs)))
+    return tuple(f"lerobot:{config_type}:{port}" for port in ports)
 
 
 def _import_config_modules(package_name: str) -> None:
@@ -196,7 +239,7 @@ class LeRobotAdapter:
         pos_keys = sorted(k for k in obs if k.endswith(_POSITION_KEY_SUFFIX))
         if not pos_keys:
             pos_keys = sorted(k for k in obs if "position" in k.lower() or k.endswith("pos"))
-        self._joint_order = [k[: -len(_POSITION_KEY_SUFFIX)] for k in pos_keys]
+        self._joint_order = [_strip_position_suffix(k) for k in pos_keys]
         self._num_joints = len(self._joint_order)
         self._obs_position_keys = list(pos_keys)
         self._act_position_keys = list(pos_keys)

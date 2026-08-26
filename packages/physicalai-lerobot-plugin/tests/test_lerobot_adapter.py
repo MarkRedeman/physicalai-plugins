@@ -112,6 +112,20 @@ class TestLeRobotAdapterConstruction:
 
         assert adapter.device_ids == ("lerobot:mock_robot:/dev/ttyACM0",)
 
+    def test_device_ids_collect_nested_ports(self, mock_lerobot_robot: MagicMock) -> None:
+        from physicalai_lerobot_plugin.lerobot_adapter import LeRobotAdapter
+
+        config_kwargs = {
+            "left_arm": {"port": "/dev/ttyACM0"},
+            "right_arm": {"port": "/dev/ttyACM1"},
+        }
+        adapter = LeRobotAdapter(_MOCK_CONFIG_TYPE, config_kwargs, _robot=mock_lerobot_robot)
+
+        assert adapter.device_ids == (
+            "lerobot:mock_robot:/dev/ttyACM0",
+            "lerobot:mock_robot:/dev/ttyACM1",
+        )
+
 
 class TestLeRobotAdapterLifecycle:
     def test_connect_and_disconnect(self, mock_lerobot_robot: MagicMock) -> None:
@@ -183,6 +197,16 @@ class TestLeRobotAdapterAutoDetection:
             obs.joint_positions,
             np.array([1.0, 2.0, 3.0], dtype=np.float32),
         )
+
+    def test_joint_names_strip_fallback_position_suffixes(self, mock_lerobot_robot: MagicMock) -> None:
+
+        custom_obs = {"j1pos": 1.0, "j2pos": 2.0, "shoulder_position": 3.0}
+        mock_lerobot_robot.get_observation.side_effect = None
+        mock_lerobot_robot.get_observation.return_value = custom_obs
+
+        adapter = _make_adapter(mock_lerobot_robot)
+        adapter.get_observation()
+        assert adapter.joint_names == ["j1", "j2", "shoulder"]
 
     def test_properties_raise_before_discovery(self, mock_lerobot_robot: MagicMock) -> None:
 

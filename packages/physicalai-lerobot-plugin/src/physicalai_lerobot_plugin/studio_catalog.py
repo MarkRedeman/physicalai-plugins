@@ -246,6 +246,14 @@ def _coerce_to_annotation(  # noqa: C901, PLR0911, PLR0912
                 if isinstance(converted, arg):
                     return converted
             elif expected is not None:
+                if expected is list and not isinstance(value, list):
+                    continue
+                if expected is dict and not isinstance(value, dict):
+                    continue
+                if expected is tuple and not isinstance(value, tuple | list):
+                    continue
+                if expected is set and not isinstance(value, set | list | tuple):
+                    continue
                 return converted
         return value
 
@@ -318,10 +326,8 @@ def _resolve_field_type(
 ) -> tuple[type, Any]:
     """Resolve a dataclass field into a (pydantic_type, default) pair.
 
-    Nullable strings (``str | None``) are flattened to plain ``str`` with
-    ``default=""`` so the JSON Schema uses ``type: string`` instead of
-    ``anyOf: [string, null]`` — the latter is not cleanly rendered by the
-    Physical AI Studio form UI.
+    The original annotation and default are preserved, and nested dataclasses
+    and container types are converted recursively via ``_to_payload_annotation``.
 
     Returns:
         A tuple of (pydantic_type, default_value).
@@ -340,11 +346,9 @@ def _resolve_field_type(
 def _make_payload_model(config_cls: type) -> type[BaseModel]:
     """Dynamically create a Pydantic payload model from a lerobot ``RobotConfig``.
 
-    The resulting model inherits from :class:`_LeRobotDynPayloadBase` and
-    adds one ``Field`` per scalar config attribute (``str``, ``int``,
-    ``float``, ``bool``, ``Literal``, ``Optional[str]``).  Complex fields
-    (``dict``, ``list``, nested dataclasses, union types with dict, …) are
-    omitted and will receive their dataclass defaults at build time.
+    The model adds one ``Field`` per dataclass attribute, with nested
+    dataclasses and container types converted recursively into Pydantic types
+    via ``_to_payload_annotation``.
 
     Args:
         config_cls: A lerobot ``RobotConfig`` subclass.
