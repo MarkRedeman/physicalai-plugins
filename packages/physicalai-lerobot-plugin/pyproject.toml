@@ -32,7 +32,7 @@ lerobot = "physicalai_lerobot_plugin.studio_catalog:register_physicalai_studio_p
 
 [tool.hatch.version]
 source = "vcs"
-tag-pattern = '^(?:packages/[\w-]+-)?(?P<version>[vV]?\d+(?:\.\d+)*)$'
+tag-pattern = '^(?:packages/[\w-]+-)?[vV]?(?P<version>\d+(?:\.\d+)*)$'
 raw-options = { search_parent_directories = true }
 
 [tool.hatch.build.targets.wheel]
