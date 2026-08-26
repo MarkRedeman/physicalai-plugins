@@ -355,7 +355,7 @@ Look for increasing `bus-error` counters. Common fixes:
 
 If the above does not resolve your issue:
 
-- Open a [GitHub issue](https://github.com/MarkRedeman/physicalai-rebot-b601-plugin/issues).
+- Open a [GitHub issue](https://github.com/MarkRedeman/physicalai-plugins/issues).
 - Include the full error traceback, your command line, and the output of:
 
   ```bash
