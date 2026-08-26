@@ -284,7 +284,8 @@ def _stop_owner_over_http(host: str, port: int) -> None:
     import urllib.request  # noqa: PLC0415
 
     try:
-        with urllib.request.urlopen(f"http://{host}:{port}/shutdown", timeout=5):
+        # host/port are local CLI args, scheme hardcoded to http
+        with urllib.request.urlopen(f"http://{host}:{port}/shutdown", timeout=5):  # nosec B310
             logger.info("Owner shutdown requested via HTTP")
     except (OSError, urllib.error.URLError):
         logger.debug("HTTP shutdown endpoint unavailable; owner will self-manage")
