@@ -1,14 +1,34 @@
-# physicalai-rebot-b601-plugin
+# PhysicalAI reBot B601 Plugin
 
-Third-party Seeed reBot B601 robot arm plugin for [PhysicalAI](https://github.com/openvinotoolkit/physicalai).
+Third-party Seeed reBot B601 robot arm plugin for [PhysicalAI](https://github.com/openvinotoolkit/physicalai). Part of the [physicalai-plugins](https://github.com/MarkRedeman/physicalai-plugins) monorepo.
 
-Provides concrete implementations of the `Robot` protocol for:
+[![PyPI version](https://img.shields.io/pypi/v/physicalai-rebot-b601-plugin.svg)](https://pypi.org/project/physicalai-rebot-b601-plugin/)
+[![Python versions](https://img.shields.io/pypi/pyversions/physicalai-rebot-b601-plugin.svg)](https://pypi.org/project/physicalai-rebot-b601-plugin/)
+
+## Features
+
+- Concrete implementations of the `Robot` protocol — no inheritance or registration required
+- B601-DM (Damiao) and B601-RS (RobStride) followers plus a Star Arm 102 leader
+- Leader → follower teleoperation via the built-in `TeleopSource`
+- Bundled URDFs for gravity compensation and kinematics
+
+## Hardware
 
 | Class               | Arm              | Motors                                           | Protocol                     |
 | ------------------- | ---------------- | ------------------------------------------------ | ---------------------------- |
 | `ReBotB601DM`       | B601-DM follower | Damiao (via `motorbridge`)                       | POS_VEL / FORCE_POS          |
 | `ReBotB601RS`       | B601-RS follower | RobStride (via `motorbridge`)                    | MIT mode + gripper impedance |
 | `ReBotArm102Leader` | Arm 102 leader   | FashionStar UART (via `motorbridge-smart-servo`) | Read-only                    |
+
+## Screenshots
+
+_Placeholder images — replace them with real screenshots._
+
+![reBot B601 in the PhysicalAI Studio robot catalog](https://raw.githubusercontent.com/MarkRedeman/physicalai-plugins/main/screenshots/studio-catalog.png)
+
+![Connecting to a reBot B601 in PhysicalAI Studio](https://raw.githubusercontent.com/MarkRedeman/physicalai-plugins/main/packages/physicalai-rebot-b601-plugin/screenshots/studio.png)
+
+![reBot B601 leader-to-follower teleop in the PhysicalAI CLI](https://raw.githubusercontent.com/MarkRedeman/physicalai-plugins/main/packages/physicalai-rebot-b601-plugin/screenshots/cli-teleop.png)
 
 ## Installation
 
@@ -18,7 +38,7 @@ uv add physicalai-rebot-b601-plugin
 
 `motorbridge` and `motorbridge-smart-servo` are included as core dependencies.
 
-## Usage
+## Quick start
 
 ```python
 import numpy as np
@@ -35,6 +55,26 @@ with connect(robot) as arm:
 
 All classes satisfy `isinstance(robot, Robot)` — no inheritance or registration
 required. Use with `physicalai.robot.connect` and `physicalai.robot.verify_robot`.
+
+## Run with the PhysicalAI CLI
+
+The [PhysicalAI CLI](https://github.com/openvinotoolkit/physicalai) `run`
+subcommand executes a `RobotRuntime` from a YAML config. The bundled configs
+relay a `ReBotArm102Leader` to a B601-DM or B601-RS follower:
+
+```bash
+uv run physicalai run --config packages/physicalai-rebot-b601-plugin/examples/runtime/teleop-dm.yaml
+uv run physicalai run --config packages/physicalai-rebot-b601-plugin/examples/runtime/teleop-rs.yaml
+```
+
+Press `Ctrl+C` to stop.
+
+### Standalone scripts
+
+```bash
+uv run python packages/physicalai-rebot-b601-plugin/examples/move_joints.py --duration 10
+uv run python packages/physicalai-rebot-b601-plugin/examples/read_joints.py
+```
 
 ## URDF Models
 
@@ -60,6 +100,13 @@ star_urdf = urdf_dir / "stararm102" / "urdf" / "stararm102_description.urdf"
 | `rebot-b601-dm` | B601-DM (fixend) | Gravity compensation for `ReBotB601DM` |
 | `rebot-b601-rs` | B601-RS v3       | Kinematics for `ReBotB601RS`           |
 | `stararm102`    | Star Arm 102     | Kinematics for `ReBotArm102Leader`     |
+
+## Development
+
+```bash
+uv sync
+uv run pytest packages/physicalai-rebot-b601-plugin/tests/
+```
 
 ## Acknowledgments
 

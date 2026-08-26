@@ -1,12 +1,33 @@
 # PhysicalAI LeKiwi Plugin
 
-Third-party LeKiwi mobile manipulator plugin for [PhysicalAI](https://github.com/openvinotoolkit/physicalai).
+Third-party LeKiwi mobile manipulator plugin for [PhysicalAI](https://github.com/openvinotoolkit/physicalai). Part of the [physicalai-plugins](https://github.com/MarkRedeman/physicalai-plugins) monorepo.
 
-Provides a concrete implementation of the `Robot` protocol for:
+[![PyPI version](https://img.shields.io/pypi/v/physicalai-lekiwi-plugin.svg)](https://pypi.org/project/physicalai-lekiwi-plugin/)
+[![Python versions](https://img.shields.io/pypi/pyversions/physicalai-lekiwi-plugin.svg)](https://pypi.org/project/physicalai-lekiwi-plugin/)
+
+## Features
+
+- Concrete implementation of the `Robot` protocol — no inheritance or registration required
+- 6-DOF SO-ARM100 arm + 3-wheel holonomic base, in normalized or raw-ticks units
+- Follower and leader (read-only) roles for teleoperation
+- Bundled URDF for kinematics and gravity compensation
+- `KeyboardTeleop` and `CompositeTeleop` action sources for `physicalai run`
+
+## Hardware
 
 | Class    | Robot                                        | Motors                              | Protocol            |
 | -------- | -------------------------------------------- | ----------------------------------- | ------------------- |
 | `LeKiwi` | 6-DOF SO-ARM100 arm + 3-wheel holonomic base | Feetech STS3215 (via `scservo_sdk`) | POSITION / VELOCITY |
+
+## Screenshots
+
+_Placeholder images — replace them with real screenshots._
+
+![LeKiwi in the PhysicalAI Studio robot catalog](https://raw.githubusercontent.com/MarkRedeman/physicalai-plugins/main/screenshots/studio-catalog.png)
+
+![Connecting to a LeKiwi in PhysicalAI Studio](https://raw.githubusercontent.com/MarkRedeman/physicalai-plugins/main/packages/physicalai-lekiwi-plugin/screenshots/studio.png)
+
+![LeKiwi composite teleop in the PhysicalAI CLI](https://raw.githubusercontent.com/MarkRedeman/physicalai-plugins/main/packages/physicalai-lekiwi-plugin/screenshots/cli-teleop.png)
 
 ## Installation
 
@@ -18,7 +39,7 @@ uv add physicalai-lekiwi-plugin
 
 > No calibration JSON is bundled. You must provide your own calibration file (LeRobot format) or use uncalibrated/ticks mode.
 
-## Usage
+## Quick start
 
 ### Basic follower (with calibration file)
 
@@ -82,43 +103,49 @@ with connect(robot) as robot:
 
 Leader mode disables torque on all motors so the arm can be moved manually.
 
-### Keyboard WASD base control
+## Run with the PhysicalAI CLI
+
+The [PhysicalAI CLI](https://github.com/openvinotoolkit/physicalai) `run`
+subcommand executes a `RobotRuntime` from a YAML config. Run the bundled
+configs from the repo root:
+
+```bash
+# Keyboard drive of the base (arm holds its position)
+uv run physicalai run --config packages/physicalai-lekiwi-plugin/examples/runtime/drive-keyboard.yaml
+
+# Composite teleop: leader arm positions the arm, keyboard drives the base
+uv run physicalai run --config packages/physicalai-lekiwi-plugin/examples/runtime/teleop.yaml
+```
+
+Press `Ctrl+C` to stop. Optionally cap the run with `--run.duration_s=60`.
+
+### Keyboard controls
+
+| Key       | Action               |
+| --------- | -------------------- |
+| `w` / `s` | forward / backward   |
+| `a` / `d` | rotate left / right  |
+| `q` / `e` | strafe left / right  |
+| `space`   | stop (zero the base) |
+
+### Teleop action sources
+
+`physicalai-lekiwi-plugin` bundles reusable action sources:
 
 ```python
-import numpy as np
-from physicalai.robot import connect
-from physicalai_lekiwi_plugin import LeKiwi
+from physicalai_lekiwi_plugin.teleop import CompositeTeleop, KeyboardTeleop
+```
 
-robot = LeKiwi.uncalibrated(port="/dev/ttyACM0", role="follower")
+| Source            | Purpose                                                 |
+| ----------------- | ------------------------------------------------------- |
+| `KeyboardTeleop`  | WASD/QE base velocities; arm held at its observed pose  |
+| `CompositeTeleop` | Combine a leader arm with a base source into one action |
 
-with connect(robot) as robot:
-    print("WASD drive: W=forward, S=backward, A=rotate left, D=rotate right, Q=strafe left, E=strafe right")
-    try:
-        while True:
-            key = input("cmd> ").strip().lower()
-            vx = vy = vtheta = 0.0
-            if key == "w":
-                vx = 0.15
-            elif key == "s":
-                vx = -0.15
-            elif key == "a":
-                vtheta = 0.5
-            elif key == "d":
-                vtheta = -0.5
-            elif key == "q":
-                vy = 0.15
-            elif key == "e":
-                vy = -0.15
-            elif key in ("", "x"):
-                break
+### Standalone scripts
 
-            action = np.zeros(9, dtype=np.float32)
-            action[6:] = [vx, vy, vtheta]
-            robot.send_action(action)
-    except KeyboardInterrupt:
-        pass
-
-    robot.send_action(np.zeros(9, dtype=np.float32))
+```bash
+uv run python packages/physicalai-lekiwi-plugin/examples/move_joints.py --duration 10
+uv run python packages/physicalai-lekiwi-plugin/examples/read_joints.py --calibration calibration.json
 ```
 
 ## URDF Model
@@ -147,12 +174,22 @@ wheel_raw = robot._body_to_wheel_raw(vx, vy, vtheta)
 body_vel = robot._wheel_raw_to_body(left_raw, back_raw, right_raw)
 ```
 
+The helper methods above are internal; prefer the `Robot` protocol
+(`get_observation` / `send_action`) in application code.
+
 | Parameter     | Value          |
 | ------------- | -------------- |
 | Wheel angles  | 240°, 0°, 120° |
 | Wheel radius  | 0.05 m         |
 | Base radius   | 0.125 m        |
 | Max raw wheel | 3000           |
+
+## Development
+
+```bash
+uv sync
+uv run pytest packages/physicalai-lekiwi-plugin/tests/
+```
 
 ## Acknowledgments
 
