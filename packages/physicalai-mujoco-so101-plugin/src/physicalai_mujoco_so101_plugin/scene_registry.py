@@ -188,6 +188,46 @@ def _single_pick_place_reset(model: object, data: object, rng: np.random.Generat
     mujoco.mj_forward(model, data)
 
 
+def _garment_fold_reset(model: object, data: object, rng: np.random.Generator) -> None:  # noqa: ARG001
+    import mujoco  # noqa: PLC0415
+
+    home = {
+        "left_shoulder_pan": -1.1,
+        "left_shoulder_lift": 0.3,
+        "left_elbow_flex": 0.8,
+        "left_wrist_flex": 0.3,
+        "right_shoulder_pan": 1.1,
+        "right_shoulder_lift": 0.3,
+        "right_elbow_flex": 0.8,
+        "right_wrist_flex": 0.3,
+    }
+
+    for joint_name, val in home.items():
+        jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, joint_name)
+        if jid < 0:
+            continue
+        qpos_adr = int(model.jnt_qposadr[jid])
+        dof_adr = int(model.jnt_dofadr[jid])
+        data.qpos[qpos_adr] = val
+        data.qvel[dof_adr] = 0.0
+        aid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, joint_name)
+        if aid >= 0:
+            data.ctrl[aid] = val
+
+    if model.nflex > 0:
+        first_vertex_body = int(model.flex_vertbodyid[0])
+        flex_qpos_adr = min(
+            int(model.jnt_qposadr[j]) for j in range(model.njnt) if int(model.jnt_bodyid[j]) == first_vertex_body
+        )
+        flex_dof_adr = min(
+            int(model.jnt_dofadr[j]) for j in range(model.njnt) if int(model.jnt_bodyid[j]) == first_vertex_body
+        )
+        data.qpos[flex_qpos_adr : flex_qpos_adr + 3 * model.nflexvert] = model.flex_vert.ravel()
+        data.qvel[flex_dof_adr : flex_dof_adr + 3 * model.nflexvert] = 0.0
+
+    mujoco.mj_forward(model, data)
+
+
 def _yahtzee_reset(model: object, data: object, rng: np.random.Generator) -> None:  # noqa: PLR0914
     import mujoco  # noqa: PLC0415
 
@@ -281,6 +321,12 @@ _SCENES: dict[str, SceneConfig] = {
         block_min_sep=0.018,
         target_min_sep=0.02,
     ),
+    "garment_fold": SceneConfig(
+        scene_id="garment_fold",
+        display_name="Garment Fold",
+        description="Fold a flexible garment lying flat on a table",
+        scene_xml_relpath="scenes/garment_fold/scene.xml",
+    ),
 }
 
 _RESET_FUNCTIONS: dict[str, ResetFn] = {
@@ -288,6 +334,7 @@ _RESET_FUNCTIONS: dict[str, ResetFn] = {
     "single_pick_place": _single_pick_place_reset,
     "pick_place": _pick_place_reset,
     "yahtzee": _yahtzee_reset,
+    "garment_fold": _garment_fold_reset,
 }
 
 
