@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sys
-from importlib import import_module
+from importlib import import_module, machinery
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, call, patch
 
@@ -14,7 +14,9 @@ from physicalai.config import to_config
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-sys.modules.setdefault("scservo_sdk", MagicMock())
+_mock_scservo_sdk = MagicMock()
+_mock_scservo_sdk.__spec__ = machinery.ModuleSpec("scservo_sdk", None)
+sys.modules.setdefault("scservo_sdk", _mock_scservo_sdk)
 
 
 def _make_mock_scservo_sdk() -> MagicMock:
