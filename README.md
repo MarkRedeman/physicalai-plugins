@@ -1,4 +1,4 @@
-# physicalai-rebot-b601-plugin
+# physicalai-plugins
 
 Third-party Seeed reBot B601 robot arm plugin for [PhysicalAI](https://github.com/openvinotoolkit/physicalai).
 

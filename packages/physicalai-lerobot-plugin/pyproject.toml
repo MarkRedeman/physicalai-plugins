@@ -23,9 +23,9 @@ dependencies = [
 tests = ["pytest"]
 
 [project.urls]
-Homepage = "https://github.com/MarkRedeman/physicalai-rebot-b601-plugin"
-Repository = "https://github.com/MarkRedeman/physicalai-rebot-b601-plugin"
-Issues = "https://github.com/MarkRedeman/physicalai-rebot-b601-plugin/issues"
+Homepage = "https://github.com/MarkRedeman/physicalai-plugins"
+Repository = "https://github.com/MarkRedeman/physicalai-plugins"
+Issues = "https://github.com/MarkRedeman/physicalai-plugins/issues"
 
 [project.entry-points."physicalai.studio.catalog_plugins"]
 lerobot = "physicalai_lerobot_plugin.studio_catalog:register_physicalai_studio_plugin"
