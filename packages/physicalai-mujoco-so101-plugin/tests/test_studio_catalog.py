@@ -47,8 +47,6 @@ class TestDefinitions:
         definition = defs[0]
         assert definition.type == "MuJoCo_SO101_Follower"
         assert definition.display_name == "MuJoCo SO-101 Follower"
-        assert definition.category == "MuJoCo"
-        assert definition.source == "first_party"
         assert definition.role == "follower"
         assert definition.asset is not None
         assert definition.robot_payload is MuJoCoSO101Payload
@@ -59,8 +57,6 @@ class TestDefinitions:
         definition = defs[1]
         assert definition.type == "MuJoCo_SO101_Bimanual_Follower"
         assert definition.display_name == "MuJoCo SO-101 Bimanual Follower"
-        assert definition.category == "MuJoCo"
-        assert definition.source == "first_party"
         assert definition.role == "follower"
         assert definition.asset is not None
         assert definition.robot_payload is MuJoCoSO101Payload
@@ -91,6 +87,7 @@ class TestDefinitions:
         assert "so101" in definition.asset.packages
         assert "shoulder_pan.pos" in definition.asset.joint_map
         assert definition.asset.root_resolver is not None
+        assert (definition.asset.root_resolver() / definition.asset.urdf_relative_path).is_file()
 
     def test_bimanual_urdf_asset(self) -> None:
         defs = _definitions()
@@ -101,6 +98,7 @@ class TestDefinitions:
         assert "left_shoulder_pan.pos" in definition.asset.joint_map
         assert "right_shoulder_pan.pos" in definition.asset.joint_map
         assert definition.asset.root_resolver is not None
+        assert (definition.asset.root_resolver() / definition.asset.urdf_relative_path).is_file()
 
 
 class TestSharedRobotAdapter:

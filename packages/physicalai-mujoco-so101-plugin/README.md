@@ -89,17 +89,17 @@ curl -X POST http://127.0.0.1:8080/reset
 curl -X POST http://127.0.0.1:8080/shutdown
 ```
 
-| Endpoint                    | Method | Description                                        |
-| --------------------------- | ------ | -------------------------------------------------- |
-| `/`                         | GET    | Service info, endpoint index                       |
-| `/health`                   | GET    | Sim status: connected, current scene, cameras      |
-| `/cameras`                  | GET    | Camera list with stream/snapshot URLs              |
-| `/cameras/{name}/mjpeg`     | GET    | MJPEG stream (`multipart/x-mixed-replace`)         |
-| `/cameras/{name}/frame.jpg` | GET    | Latest frame as a JPEG snapshot                    |
-| `/scenes`                   | GET    | Current scene and available scene IDs              |
-| `/scenes/{scene_id}`        | POST   | Switch to another registered scene                 |
-| `/reset`                    | POST   | Reset/randomize the current scene                  |
-| `/shutdown`                 | POST   | Gracefully stop the simulation owner               |
+| Endpoint                    | Method | Description                                   |
+| --------------------------- | ------ | --------------------------------------------- |
+| `/`                         | GET    | Service info, endpoint index                  |
+| `/health`                   | GET    | Sim status: connected, current scene, cameras |
+| `/cameras`                  | GET    | Camera list with stream/snapshot URLs         |
+| `/cameras/{name}/mjpeg`     | GET    | MJPEG stream (`multipart/x-mixed-replace`)    |
+| `/cameras/{name}/frame.jpg` | GET    | Latest frame as a JPEG snapshot               |
+| `/scenes`                   | GET    | Current scene and available scene IDs         |
+| `/scenes/{scene_id}`        | POST   | Switch to another registered scene            |
+| `/reset`                    | POST   | Reset/randomize the current scene             |
+| `/shutdown`                 | POST   | Gracefully stop the simulation owner          |
 
 Because the owner process is detached, stopping the CLI with `Ctrl+C` does not
 stop the simulation. Use `POST /shutdown`, `--idle-timeout`, or kill the owner
