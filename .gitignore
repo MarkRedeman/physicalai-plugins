@@ -212,5 +212,8 @@ __marimo__/
 # Misc
 .DS_Store
 
+# MuJoCo runtime logs
+MUJOCO_LOG.TXT
+
 
 tmp/

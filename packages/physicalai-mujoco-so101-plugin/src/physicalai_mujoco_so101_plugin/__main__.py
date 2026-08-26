@@ -285,7 +285,8 @@ def _stop_owner_over_http(host: str, port: int) -> None:
 
     try:
         # host/port are local CLI args, scheme hardcoded to http
-        with urllib.request.urlopen(f"http://{host}:{port}/shutdown", timeout=5):  # nosec B310
+        req = urllib.request.Request(f"http://{host}:{port}/shutdown", method="POST")
+        with urllib.request.urlopen(req, timeout=5):  # nosec B310  # noqa: S310
             logger.info("Owner shutdown requested via HTTP")
     except (OSError, urllib.error.URLError):
         logger.debug("HTTP shutdown endpoint unavailable; owner will self-manage")

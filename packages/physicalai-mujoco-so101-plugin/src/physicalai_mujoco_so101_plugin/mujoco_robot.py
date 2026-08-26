@@ -378,7 +378,14 @@ class MuJoCoSO101:
         if cam is None:
             return
 
-        for body_name in ("overview_camera_rig", "overview_camera_tilt", "camera_mount", "camera_mount_wrist"):
+        for body_name in (
+            "overview_camera_rig",
+            "overview_camera_tilt",
+            "camera_mount",
+            "camera_mount_wrist",
+            "left_camera_mount",
+            "right_camera_mount",
+        ):
             body_elem = find_first(f".//body[@name='{body_name}']")
             body_id = mujoco.mj_name2id(self._model, mujoco.mjtObj.mjOBJ_BODY, body_name)
             if body_elem is None or body_id < 0:
@@ -459,9 +466,10 @@ class MuJoCoSO101:
                 logger.info("No orientation attr (euler/xyaxes/quat) on {} camera", camera_name)
 
         update_camera_pose("overview", cam)
-        wrist_cam = find_first(".//camera[@name='wrist']")
-        if wrist_cam is not None:
-            update_camera_pose("wrist", wrist_cam)
+        for camera_name in ("wrist", "left_wrist", "right_wrist"):
+            wrist_cam = find_first(f".//camera[@name='{camera_name}']")
+            if wrist_cam is not None:
+                update_camera_pose(camera_name, wrist_cam)
 
         mujoco.mj_forward(self._model, self._data)
 

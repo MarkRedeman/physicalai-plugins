@@ -1,9 +1,10 @@
 # Video Camera Troubleshooting
 
 > Since the REST/MJPEG camera server was introduced, the MuJoCo cameras no
-> longer need v4l2loopback by default. The default `start` serves `wrist`,
-> `overview` (and `right_wrist` for bimanual) over HTTP; v4l2loopback output is
-> opt-in via `--v4l2`. This document covers both paths.
+> longer need v4l2loopback by default. The default `start` serves `overview`
+> (plus `wrist` for single-arm, or `left_wrist`/`right_wrist` for bimanual)
+> over HTTP; v4l2loopback output is opt-in via `--v4l2`. This document covers
+> both paths.
 
 ## HTTP camera server (default)
 

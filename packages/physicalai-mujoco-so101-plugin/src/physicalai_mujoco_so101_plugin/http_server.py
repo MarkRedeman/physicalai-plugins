@@ -19,7 +19,6 @@ from typing import TYPE_CHECKING, Any
 import cv2
 import uvicorn
 from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 from loguru import logger
 
@@ -169,12 +168,6 @@ def build_app(
         The configured FastAPI application.
     """
     app = FastAPI(title=f"{service_name} camera server")
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
 
     @app.get("/")
     def root() -> dict[str, Any]:
