@@ -32,6 +32,7 @@ rebot-b601 = "physicalai_rebot_b601_plugin.studio_catalog:register_physicalai_st
 
 [tool.hatch.version]
 source = "vcs"
+tag-pattern = '^(?:packages/[\w-]+-)?[vV]?(?P<version>\d+(?:\.\d+)*)$'
 raw-options = { search_parent_directories = true }
 
 [tool.hatch.build.targets.wheel]

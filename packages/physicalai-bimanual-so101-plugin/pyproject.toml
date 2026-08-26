@@ -31,6 +31,7 @@ bimanual-so101 = "physicalai_bimanual_so101_plugin.studio_catalog:register_physi
 
 [tool.hatch.version]
 source = "vcs"
+tag-pattern = '^(?:packages/[\w-]+-)?[vV]?(?P<version>\d+(?:\.\d+)*)$'
 raw-options = { search_parent_directories = true }
 
 [tool.hatch.build.targets.wheel]
