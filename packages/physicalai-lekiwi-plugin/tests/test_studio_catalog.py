@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+import pytest
 from pydantic import BaseModel
 
 _RETIRED_UI_KEYS = {"groups", "group", "widget", "connection_key", "serial_number_key"}
@@ -195,6 +196,20 @@ def test_follower_builder_validates_cross_identity_payload() -> None:
 
     assert driver.port == "/dev/ttyACM9"
     assert driver.disable_torque_on_disconnect is True
+
+
+def test_follower_builder_requires_connection_identifier() -> None:
+    from physicalai_lekiwi_plugin.studio_catalog import LeKiwiPayload, _build_lekiwi_driver
+
+    with pytest.raises(RuntimeError, match="connection_string or serial_number"):
+        asyncio.run(_build_lekiwi_driver(_PayloadContainer(LeKiwiPayload()), _FakeFactory()))
+
+
+def test_leader_builder_requires_connection_identifier() -> None:
+    from physicalai_lekiwi_plugin.studio_catalog import LeKiwiPayload, _build_lekiwi_leader
+
+    with pytest.raises(RuntimeError, match="connection_string or serial_number"):
+        asyncio.run(_build_lekiwi_leader(_PayloadContainer(LeKiwiPayload()), _FakeFactory()))
 
 
 def test_urdf_path_exists() -> None:

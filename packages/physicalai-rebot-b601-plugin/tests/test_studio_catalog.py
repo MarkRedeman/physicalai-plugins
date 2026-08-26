@@ -162,6 +162,23 @@ def test_payload_models_rebuild() -> None:
     ReBotArm102Payload.model_rebuild(raise_errors=True)
 
 
+@pytest.mark.parametrize(
+    "payload_cls",
+    ["ReBotB601DMPayload", "ReBotArm102Payload"],
+)
+def test_payload_requires_connection_identifier(payload_cls: str) -> None:
+    from pydantic import ValidationError
+
+    from physicalai_rebot_b601_plugin.studio_catalog import ReBotArm102Payload, ReBotB601DMPayload
+
+    payload_models = {
+        "ReBotB601DMPayload": ReBotB601DMPayload,
+        "ReBotArm102Payload": ReBotArm102Payload,
+    }
+    with pytest.raises(ValidationError, match="connection_string or serial_number"):
+        payload_models[payload_cls]()
+
+
 @pytest.mark.parametrize("payload_name", ["ReBotB601DMPayload", "ReBotArm102Payload"])
 def test_payload_schemas_configure_serial_connection_picker(payload_name: str) -> None:
     from physicalai_studio_plugin import validate_robot_payload_ui

@@ -7,7 +7,7 @@ for the ``physicalai.studio.catalog_plugins`` group.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, Self
 
 from loguru import logger
 from physicalai_studio_plugin import (
@@ -21,7 +21,7 @@ from physicalai_studio_plugin import (
     SerialPortInfo,
     robot_payload_ui,
 )
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 
 import physicalai_rebot_b601_plugin
 from physicalai_rebot_b601_plugin import ReBotArm102Leader, ReBotB601DM, get_urdf_path
@@ -111,6 +111,13 @@ class ReBotB601DMPayload(BaseModel):
         ),
     )
 
+    @model_validator(mode="after")
+    def _require_connection_identifier(self) -> Self:
+        if not self.connection_string and not self.serial_number:
+            msg = "At least one of connection_string or serial_number must be provided"
+            raise ValueError(msg)
+        return self
+
 
 class ReBotArm102Payload(BaseModel):
     """Connection payload for a ReBot Arm102 leader arm."""
@@ -134,6 +141,13 @@ class ReBotArm102Payload(BaseModel):
             ],
         ),
     )
+
+    @model_validator(mode="after")
+    def _require_connection_identifier(self) -> Self:
+        if not self.connection_string and not self.serial_number:
+            msg = "At least one of connection_string or serial_number must be provided"
+            raise ValueError(msg)
+        return self
 
 
 type ReBotPayload = ReBotB601DMPayload | ReBotArm102Payload
@@ -189,16 +203,17 @@ async def _build_rebot_b601_dm_driver(
     if isinstance(raw, BaseModel) and type(raw) is not ReBotB601DMPayload:
         raw = raw.model_dump()
     validated = raw if isinstance(raw, ReBotB601DMPayload) else ReBotB601DMPayload.model_validate(raw)
-    serial_number = validated.serial_number
+    connection_string = validated.connection_string or None
+    serial_number = validated.serial_number or None
     port = await factory.find_port(
         SerialPortInfo(
-            connection_string=validated.connection_string,
+            connection_string=connection_string,
             serial_number=serial_number,
         ),
     )
 
     if port is None:
-        msg = f"Robot not found: {serial_number}"
+        msg = f"Robot not found: {serial_number or connection_string}"
         raise RuntimeError(msg)
     return ReBotB601DM(
         port=port,
@@ -219,15 +234,16 @@ async def _build_rebot_arm102_driver(
     if isinstance(raw, BaseModel) and type(raw) is not ReBotArm102Payload:
         raw = raw.model_dump()
     validated = raw if isinstance(raw, ReBotArm102Payload) else ReBotArm102Payload.model_validate(raw)
-    serial_number = validated.serial_number
+    connection_string = validated.connection_string or None
+    serial_number = validated.serial_number or None
     serial = SerialPortInfo(
-        connection_string=validated.connection_string,
+        connection_string=connection_string,
         serial_number=serial_number,
     )
     port = await factory.find_port(serial)
 
     if port is None:
-        msg = f"Robot not found: {serial_number}"
+        msg = f"Robot not found: {serial_number or connection_string}"
         raise RuntimeError(msg)
     return ReBotArm102Leader(
         port=port,

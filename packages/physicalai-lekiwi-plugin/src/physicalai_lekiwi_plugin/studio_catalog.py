@@ -145,19 +145,28 @@ def _payload_calibration_to_lekiwi(
     return LeKiwiCalibration.from_dict({name: value.model_dump() for name, value in calibration.items()})
 
 
+async def _resolve_lekiwi_port(validated: LeKiwiPayload, factory: CatalogRobotFactory) -> str:
+    connection_string = validated.connection_string or None
+    serial_number = validated.serial_number or None
+    if connection_string is None and serial_number is None:
+        msg = "At least one of connection_string or serial_number must be provided"
+        raise RuntimeError(msg)
+    port = await factory.find_port(
+        SerialPortInfo(connection_string=connection_string, serial_number=serial_number),
+    )
+    if port is None:
+        msg = f"Robot not found: {serial_number or connection_string}"
+        raise RuntimeError(msg)
+    return port
+
+
 async def _build_lekiwi_driver(robot: PayloadContainer[LeKiwiPayload], factory: CatalogRobotFactory) -> PhysicalAIRobot:
     raw = robot.payload
     if isinstance(raw, BaseModel) and type(raw) is not LeKiwiPayload:
         raw = raw.model_dump()
     validated = raw if isinstance(raw, LeKiwiPayload) else LeKiwiPayload.model_validate(raw)
 
-    serial_number = validated.serial_number
-    port = await factory.find_port(
-        SerialPortInfo(connection_string=validated.connection_string, serial_number=serial_number),
-    )
-    if port is None:
-        msg = f"Robot not found: {serial_number}"
-        raise RuntimeError(msg)
+    port = await _resolve_lekiwi_port(validated, factory)
 
     calibration: LeKiwiCalibration | None = None
     if validated.calibration is not None:
@@ -189,13 +198,7 @@ async def _build_lekiwi_leader(robot: PayloadContainer[LeKiwiPayload], factory: 
         raw = raw.model_dump()
     validated = raw if isinstance(raw, LeKiwiPayload) else LeKiwiPayload.model_validate(raw)
 
-    serial_number = validated.serial_number
-    port = await factory.find_port(
-        SerialPortInfo(connection_string=validated.connection_string, serial_number=serial_number),
-    )
-    if port is None:
-        msg = f"Robot not found: {serial_number}"
-        raise RuntimeError(msg)
+    port = await _resolve_lekiwi_port(validated, factory)
 
     return LeKiwi.uncalibrated(
         port=port,
