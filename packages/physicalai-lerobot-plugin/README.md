@@ -88,7 +88,9 @@ Payload classes are generated dynamically from each LeRobot config dataclass.
 4. Runtime endpoint resolution:
    - `port` fields are resolved at build time through the Studio factory when
      possible (including nested bimanual arm configs)
-   - payload schema itself does not add Studio-specific connection fields
+   - for configs with a serial `port` field, the schema is annotated with a
+     Studio "Select robot" connection section bound to that `port`; the payload
+     model itself adds no extra Studio fields
 
 ### Common payload fields
 
