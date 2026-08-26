@@ -33,6 +33,28 @@ uv add physicalai-bimanual-so101-plugin
 
 `feetech-servo-sdk` is included as a core dependency.
 
+## Calibration examples
+
+Bundled SO-101 calibration files (LeRobot format) live under
+[`examples/calibration/`](examples/calibration/):
+
+| File                                 | Arm      | Use                        |
+| ------------------------------------ | -------- | -------------------------- |
+| `examples/calibration/follower.json` | Follower | Left + right follower arms |
+| `examples/calibration/leader.json`   | Leader   | Left + right leader arms   |
+
+Pass them as the `calibration` path when constructing a `SO101`:
+
+```python
+from physicalai.robot.so101 import SO101, SO101Calibration
+
+cal = SO101Calibration.from_path("examples/calibration/follower.json")
+arm = SO101(port="/dev/ttyACM0", calibration=cal, role="follower")
+```
+
+The bundled runtime config (`examples/runtime/teleop.yaml`) references these
+files already.
+
 ## Quick start
 
 ### Calibrated follower

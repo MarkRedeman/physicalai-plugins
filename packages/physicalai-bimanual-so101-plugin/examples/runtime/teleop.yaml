@@ -7,12 +7,14 @@
 #
 # Stop with Ctrl+C. Edit the ports for your hardware.
 #
-# This example uses raw-ticks bringup mode (allow_uncalibrated: true) on all
-# arms so no calibration files are required. For normalized units, provide
-# calibration JSONs and drop allow_uncalibrated:
+# Uses the bundled SO-101 calibration examples (both arms share the same
+# follower/leader arm type):
 #
-#   calibration: ./left_calibration.json   # CHANGE_ME
-#   calibration: ./right_calibration.json  # CHANGE_ME
+#   examples/calibration/follower.json  # left + right followers
+#   examples/calibration/leader.json    # left + right leaders
+#
+# For raw-ticks bringup (no calibration), replace the calibration paths with
+# `allow_uncalibrated: true` on every arm.
 
 runtime:
   robot:
@@ -23,13 +25,13 @@ runtime:
         init_args:
           port: /dev/ttyACM0 # CHANGE_ME: left follower serial port
           role: follower
-          allow_uncalibrated: true
+          calibration: packages/physicalai-bimanual-so101-plugin/examples/calibration/follower.json
       right:
         class_path: physicalai.robot.SO101
         init_args:
           port: /dev/ttyACM1 # CHANGE_ME: right follower serial port
           role: follower
-          allow_uncalibrated: true
+          calibration: packages/physicalai-bimanual-so101-plugin/examples/calibration/follower.json
 
   action_source:
     class_path: physicalai.runtime.TeleopSource
@@ -42,12 +44,12 @@ runtime:
             init_args:
               port: /dev/ttyUSB0 # CHANGE_ME: left leader serial port
               role: leader
-              allow_uncalibrated: true
+              calibration: packages/physicalai-bimanual-so101-plugin/examples/calibration/leader.json
           right:
             class_path: physicalai.robot.SO101
             init_args:
               port: /dev/ttyUSB1 # CHANGE_ME: right leader serial port
               role: leader
-              allow_uncalibrated: true
+              calibration: packages/physicalai-bimanual-so101-plugin/examples/calibration/leader.json
 
   fps: 30.0
