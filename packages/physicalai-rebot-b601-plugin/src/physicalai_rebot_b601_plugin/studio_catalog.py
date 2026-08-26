@@ -19,8 +19,9 @@ from physicalai_studio_plugin import (
     RobotCatalogDefinition,
     RobotProbe,
     SerialPortInfo,
+    robot_payload_ui,
 )
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict
 
 import physicalai_rebot_b601_plugin
 from physicalai_rebot_b601_plugin import ReBotArm102Leader, ReBotB601DM, get_urdf_path
@@ -90,22 +91,49 @@ class ReBotB601DMPayload(BaseModel):
     """Connection payload for a ReBot B601 DM follower arm."""
 
     connection_string: str = ""
-    serial_number: str = Field(...)
+    serial_number: str = ""
     can_adapter: Literal["damiao", "socketcan"] = "damiao"
     dm_serial_baud: int = 921600
     disable_torque_on_disconnect: bool = True
     force_pos_torque_ratio: float = 0.1
+    max_velocity: float = 1.0
+
+    model_config = ConfigDict(
+        json_schema_extra=robot_payload_ui(  # pyrefly: ignore[bad-argument-type]
+            [
+                {
+                    "kind": "connection",
+                    "label": "Select robot",
+                    "device_discovery": True,
+                    "bind": {"connection": "connection_string", "serial_number": "serial_number"},
+                },
+            ],
+        ),
+    )
 
 
 class ReBotArm102Payload(BaseModel):
     """Connection payload for a ReBot Arm102 leader arm."""
 
     connection_string: str = ""
-    serial_number: str = Field(...)
+    serial_number: str = ""
     baudrate: int = 1_000_000
     unlock_on_connect: bool = True
     reset_multi_turn_on_connect: bool = True
     zero_on_connect: bool = False
+
+    model_config = ConfigDict(
+        json_schema_extra=robot_payload_ui(  # pyrefly: ignore[bad-argument-type]
+            [
+                {
+                    "kind": "connection",
+                    "label": "Select robot",
+                    "device_discovery": True,
+                    "bind": {"connection": "connection_string", "serial_number": "serial_number"},
+                },
+            ],
+        ),
+    )
 
 
 type ReBotPayload = ReBotB601DMPayload | ReBotArm102Payload
@@ -179,6 +207,7 @@ async def _build_rebot_b601_dm_driver(
         role="follower",
         disable_torque_on_disconnect=validated.disable_torque_on_disconnect,
         force_pos_torque_ratio=validated.force_pos_torque_ratio,
+        max_velocity=validated.max_velocity,
     )
 
 

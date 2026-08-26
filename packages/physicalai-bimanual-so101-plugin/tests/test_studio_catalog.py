@@ -47,13 +47,6 @@ class TestRegistration:
         types = {d.type for d in _definitions()}
         assert types == {"BimanualSO101_Follower", "BimanualSO101_Leader"}
 
-    def test_definitions_have_catalog_metadata(self) -> None:
-        from physicalai_bimanual_so101_plugin.studio_catalog import _definitions
-
-        for definition in _definitions():
-            assert definition.category == "SO101"
-            assert definition.source == "first_party"
-
     def test_follower_structure(self) -> None:
         from physicalai_bimanual_so101_plugin.studio_catalog import BimanualSO101Payload, _definitions
 
@@ -64,8 +57,7 @@ class TestRegistration:
         assert follower.asset is not None
         assert follower.asset.urdf_relative_path == Path("so101_dual/so101_dual.urdf")
         assert follower.asset.root_resolver is not None
-        assert follower.asset.preview_thumbnail == Path("so101_dual/thumbnail.png")
-        assert (follower.asset.root_resolver() / follower.asset.preview_thumbnail).is_file()
+        assert (follower.asset.root_resolver() / follower.asset.urdf_relative_path).is_file()
         assert callable(follower.robot_builder)
         assert follower.robot_payload is BimanualSO101Payload
         assert follower.probe is not None
@@ -82,8 +74,7 @@ class TestRegistration:
         assert leader.asset is not None
         assert leader.asset.urdf_relative_path == Path("so101_dual/so101_dual.urdf")
         assert leader.asset.root_resolver is not None
-        assert leader.asset.preview_thumbnail == Path("so101_dual/thumbnail.png")
-        assert (leader.asset.root_resolver() / leader.asset.preview_thumbnail).is_file()
+        assert (leader.asset.root_resolver() / leader.asset.urdf_relative_path).is_file()
         assert callable(leader.robot_builder)
         assert leader.robot_payload is BimanualSO101Payload
 

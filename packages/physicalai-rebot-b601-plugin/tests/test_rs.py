@@ -4,6 +4,7 @@ import math
 import sys
 from dataclasses import dataclass
 from importlib import import_module
+from importlib.machinery import ModuleSpec
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, call, patch
 
@@ -13,7 +14,9 @@ import pytest
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-sys.modules.setdefault("motorbridge", MagicMock())
+_mock_motorbridge = MagicMock()
+_mock_motorbridge.__spec__ = ModuleSpec("motorbridge", None)
+sys.modules.setdefault("motorbridge", _mock_motorbridge)
 
 
 @dataclass(frozen=True)

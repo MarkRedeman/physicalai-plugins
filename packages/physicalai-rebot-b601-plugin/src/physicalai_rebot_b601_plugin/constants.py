@@ -59,7 +59,7 @@ REBOT_B601_DM_JOINT_DIRECTIONS: Final = {
     "gripper": -6.0,
 }
 
-REBOT_B601_DM_POS_VEL_DEG_S: Final = (150.0, 150.0, 150.0, 150.0, 150.0, 150.0, 150.0)
+REBOT_B601_DM_POS_VEL_DEG_S: Final = (250.0, 250.0, 250.0, 200.0, 200.0, 200.0, 200.0)
 
 VALID_CAN_ADAPTERS: Final = frozenset({"damiao", "socketcan"})
 VALID_RS_CAN_ADAPTERS: Final = frozenset({"socketcan", "robstride"})
