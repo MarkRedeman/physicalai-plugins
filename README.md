@@ -1,71 +1,153 @@
 # physicalai-plugins
 
-Third-party Seeed reBot B601 robot arm plugin for [PhysicalAI](https://github.com/openvinotoolkit/physicalai).
+A monorepo of third-party robot plugins for [PhysicalAI](https://github.com/openvinotoolkit/physicalai).
 
-Provides concrete implementations of the `Robot` protocol for:
+Every package provides concrete implementations of the `Robot` protocol
+(no inheritance or registration required) and registers a robot catalog with
+[PhysicalAI Studio](https://github.com/open-edge-platform/physical-ai-studio)
+via an entry point. Packages are built and released independently with
+[release-please](RELEASE.md).
 
-| Class               | Arm              | Motors                                           | Protocol                     |
-| ------------------- | ---------------- | ------------------------------------------------ | ---------------------------- |
-| `ReBotB601DM`       | B601-DM follower | Damiao (via `motorbridge`)                       | POS_VEL / FORCE_POS          |
-| `ReBotB601RS`       | B601-RS follower | RobStride (via `motorbridge`)                    | MIT mode + gripper impedance |
-| `ReBotArm102Leader` | Arm 102 leader   | FashionStar UART (via `motorbridge-smart-servo`) | Read-only                    |
+## Packages
+
+| Package                                                                                   | Description                                                    | Released          |
+| ----------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ----------------- |
+| [`physicalai-lekiwi-plugin`](packages/physicalai-lekiwi-plugin/README.md)                 | LeKiwi mobile manipulator (6-DOF arm + 3-wheel holonomic base) | yes               |
+| [`physicalai-rebot-b601-plugin`](packages/physicalai-rebot-b601-plugin/README.md)         | Seeed reBot B601 arm (B601-DM / B601-RS) + Star Arm 102 leader | yes               |
+| [`physicalai-bimanual-so101-plugin`](packages/physicalai-bimanual-so101-plugin/README.md) | Bimanual SO-101 (twin 6-DOF STS3215 arms)                      | yes               |
+| [`physicalai-lerobot-plugin`](packages/physicalai-lerobot-plugin/README.md)               | LeRobot robot/teleoperator adapter for the Studio catalog      | yes               |
+| [`physicalai-mujoco-so101-plugin`](packages/physicalai-mujoco-so101-plugin/README.md)     | MuJoCo SO-101 simulation plugin for PhysicalAI Studio          | not yet published |
+
+## Requirements
+
+- Python 3.12+
+- [uv](https://docs.astral.sh/uv/) (used for the workspace, locking, and tooling)
+- Physical hardware per package (serial ports / CAN adapters), or the MuJoCo simulator
+
+## Repository layout
+
+```text
+packages/
+  physicalai-bimanual-so101-plugin/
+  physicalai-lekiwi-plugin/
+  physicalai-lerobot-plugin/
+  physicalai-mujoco-so101-plugin/
+  physicalai-rebot-b601-plugin/
+docs/                          # guides (e.g. creating a plugin)
+scripts/smoke.py               # import + version smoke test used by CI releases
+.github/                       # CI, release-please config
+```
 
 ## Installation
 
+From the repo root, install the whole workspace (all plugins, dev tooling):
+
 ```bash
-uv add physicalai-rebot-b601-plugin
+uv sync
 ```
 
-`motorbridge` and `motorbridge-smart-servo` are included as core dependencies.
+To depend on a single package from another project:
 
-## Usage
+```bash
+uv add physicalai-lekiwi-plugin
+```
+
+## Running examples with the PhysicalAI CLI
+
+The [PhysicalAI CLI](https://github.com/openvinotoolkit/physicalai) ships a
+`run` subcommand that executes a `RobotRuntime` (read observation → ask an
+action source → send action → tick) from a YAML config. This replaces the
+hand-written control loops that used to live in `examples/`.
+
+Run any of the bundled runtime configs from the repo root with:
+
+```bash
+uv run physicalai run --config <path-to-yaml>
+```
+
+Press `Ctrl+C` to stop. Optionally cap the run with
+`--run.duration_s=60`.
+
+### LeKiwi
+
+Keyboard drive of the base (arm holds its position):
+
+```bash
+uv run physicalai run --config packages/physicalai-lekiwi-plugin/examples/runtime/drive-keyboard.yaml
+```
+
+Composite teleoperation — leader arm positions the arm, keyboard drives the
+base:
+
+```bash
+uv run physicalai run --config packages/physicalai-lekiwi-plugin/examples/runtime/teleop.yaml
+```
+
+### reBot B601
+
+Leader → follower teleoperation (Star Arm 102 leader to a B601-DM or B601-RS):
+
+```bash
+uv run physicalai run --config packages/physicalai-rebot-b601-plugin/examples/runtime/teleop-dm.yaml
+uv run physicalai run --config packages/physicalai-rebot-b601-plugin/examples/runtime/teleop-rs.yaml
+```
+
+### MuJoCo SO-101
+
+Self-relay of a running MuJoCo owner over Zenoh:
+
+```bash
+uv run python packages/physicalai-mujoco-so101-plugin/examples/run_mujoco_owner.py
+uv run physicalai run --config packages/physicalai-mujoco-so101-plugin/examples/runtime/teleop.yaml
+```
+
+### Standalone scripts
+
+Read-only and periodic-motion examples are not control-loop native and stay
+as plain scripts:
+
+```bash
+uv run python packages/physicalai-lekiwi-plugin/examples/read_joints.py
+uv run python packages/physicalai-rebot-b601-plugin/examples/move_joints.py --duration 10
+```
+
+## Teleop action sources
+
+`physicalai-lekiwi-plugin` bundles reusable
+[action sources](https://github.com/openvinotoolkit/physicalai) that can be
+wired into any `physicalai run` config (or used directly from Python):
 
 ```python
-import numpy as np
-from physicalai.robot import Robot, connect
-from physicalai_rebot_b601_plugin import ReBotB601DM
-
-robot = ReBotB601DM(port="/dev/ttyACM0", can_adapter="damiao")
-
-with connect(robot) as arm:
-    obs = arm.get_observation()
-    action = obs.joint_positions.copy()
-    arm.send_action(action)
+from physicalai_lekiwi_plugin.teleop import CompositeTeleop, KeyboardTeleop
 ```
 
-All classes satisfy `isinstance(robot, Robot)` — no inheritance or registration
-required. Use with `physicalai.robot.connect` and `physicalai.robot.verify_robot`.
+| Source            | Purpose                                                 |
+| ----------------- | ------------------------------------------------------- |
+| `KeyboardTeleop`  | WASD/QE base velocities; arm held at its observed pose  |
+| `CompositeTeleop` | Combine a leader arm with a base source into one action |
 
-## URDF Models
+Keyboard controls (single characters, case-insensitive):
 
-Bundled URDF descriptions for gravity compensation and kinematics:
+| Key       | Action               |
+| --------- | -------------------- |
+| `w` / `s` | forward / backward   |
+| `a` / `d` | rotate left / right  |
+| `q` / `e` | strafe left / right  |
+| `space`   | stop (zero the base) |
 
-```python
-from physicalai_rebot_b601_plugin import get_urdf_path
+## Development
 
-urdf_dir = get_urdf_path()
-
-# B601-DM / fixend arm (for gravity compensation)
-dm_urdf = urdf_dir / "rebot-b601-dm" / "urdf" / "reBot-DevArm_fixend.urdf"
-
-# B601-RS arm
-rs_urdf = urdf_dir / "rebot-b601-rs" / "urdf" / "00-arm-rs_asm-v3.urdf"
-
-# Star Arm 102 (leader)
-star_urdf = urdf_dir / "stararm102" / "urdf" / "stararm102_description.urdf"
+```bash
+uv sync                          # install workspace + dev tooling
+uv run prek                      # lint, format, type check (ruff + pyrefly + hooks)
+uv run pytest packages/*/tests/  # run all package test suites
 ```
 
-| URDF            | Model            | Use                                    |
-| --------------- | ---------------- | -------------------------------------- |
-| `rebot-b601-dm` | B601-DM (fixend) | Gravity compensation for `ReBotB601DM` |
-| `rebot-b601-rs` | B601-RS v3       | Kinematics for `ReBotB601RS`           |
-| `stararm102`    | Star Arm 102     | Kinematics for `ReBotArm102Leader`     |
+## Release process
 
-## Acknowledgments
+See [RELEASE.md](RELEASE.md) — packages are versioned from git tags via
+`hatch-vcs` and published to PyPI by release-please.
 
-URDF models for the reBot Arm B601 are from the
-[reBotArm_control_py](https://github.com/vectorBH6/reBotArm_control_py) project,
-released under the MIT License by vectorBH6.
+## License
 
-The Star Arm 102 URDF is from the
-[Star-Arm-102](https://github.com/servodevelop/Star-Arm-102) project.
+Apache-2.0 — see [LICENSE](LICENSE).
