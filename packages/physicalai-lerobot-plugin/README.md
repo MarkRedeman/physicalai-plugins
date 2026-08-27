@@ -1,14 +1,31 @@
-# physicalai-lerobot-plugin
+# PhysicalAI LeRobot Plugin
 
-`physicalai-lerobot-plugin` bridges
-[LeRobot](https://github.com/huggingface/lerobot) robot and teleoperator
-configs into the
-[PhysicalAI](https://github.com/openvinotoolkit/physicalai) Studio catalog.
+Bridges [LeRobot](https://github.com/huggingface/lerobot) robot and teleoperator
+configs into the [PhysicalAI](https://github.com/openvinotoolkit/physicalai)
+Studio catalog. Part of the [physicalai-plugins](https://github.com/MarkRedeman/physicalai-plugins) monorepo.
 
-The intent of this package is to let Studio users select supported LeRobot
-hardware from a schema-driven UI, auto-resolve serial devices, and run them
-through a PhysicalAI-compatible adapter without writing robot-specific glue
-code.
+[![PyPI version](https://img.shields.io/pypi/v/physicalai-lerobot-plugin.svg)](https://pypi.org/project/physicalai-lerobot-plugin/)
+[![Python versions](https://img.shields.io/pypi/pyversions/physicalai-lerobot-plugin.svg)](https://pypi.org/project/physicalai-lerobot-plugin/)
+
+## Overview
+
+This plugin lets Studio users select supported LeRobot hardware from a
+schema-driven UI, auto-resolve serial devices, and run them through a
+PhysicalAI-compatible adapter without writing robot-specific glue code.
+
+Each installed LeRobot follower robot and teleoperator is registered as a
+Studio catalog entry:
+
+- follower type: `LeRobot_<follower_type>_Follower`
+- leader type: `LeRobot_<teleoperator_type>_Leader`
+
+## Screenshots
+
+_Placeholder images — replace them with real screenshots._
+
+![LeRobot entries in the PhysicalAI Studio robot catalog](https://raw.githubusercontent.com/MarkRedeman/physicalai-plugins/main/screenshots/studio-catalog.png)
+
+![A LeRobot robot in the PhysicalAI Studio catalog](https://raw.githubusercontent.com/MarkRedeman/physicalai-plugins/main/packages/physicalai-lerobot-plugin/screenshots/studio.png)
 
 ## Installation
 
@@ -16,18 +33,21 @@ code.
 uv add physicalai-lerobot-plugin
 ```
 
-## Usage
+## Run with the PhysicalAI CLI
 
-The plugin registers one catalog entry for every installed LeRobot follower
-robot and teleoperator. This includes first-party LeRobot types and compatible
-third-party extensions.
+The [PhysicalAI CLI](https://github.com/openvinotoolkit/physicalai) `run`
+subcommand executes a `RobotRuntime` from a YAML config. The bundled config
+teleoperates a LeRobot follower with its matching leader teleoperator:
 
-Each entry is exposed as:
+```bash
+uv run physicalai run --config packages/physicalai-lerobot-plugin/examples/runtime/teleop.yaml
+```
 
-- follower type: `LeRobot_<follower_type>_Follower`
-- leader type: `LeRobot_<teleoperator_type>_Leader`
+The example uses the `so101_follower` / `so101_leader` pair; set `config_type`
+and `config_kwargs` to any of the bundled follower/leader types below. Press
+`Ctrl+C` to stop.
 
-### Third-party LeRobot extensions
+## Third-party LeRobot extensions
 
 Install this package first, then install a LeRobot extension into the same
 Python environment. On Studio startup, the catalog invokes LeRobot's native
@@ -40,7 +60,7 @@ extension must import its config registration code from its package root and
 use LeRobot's `register_subclass(...)` mechanism. Hardware SDK dependencies
 remain the responsibility of the extension package.
 
-### Bundled LeRobot followers
+## Bundled LeRobot followers
 
 - `bi_so_follower`
 - `bi_rebot_b601_follower`
@@ -59,7 +79,7 @@ remain the responsibility of the extension package.
 - `lekiwi`
 - `lekiwi_client`
 
-### Bundled LeRobot leader teleoperators
+## Bundled LeRobot leader teleoperators
 
 - `so100_leader` (for `so100_follower`)
 - `so101_leader` (for `so101_follower`)
@@ -69,11 +89,7 @@ remain the responsibility of the extension package.
 - `rebot_102_leader` (for `rebot_b601_follower`)
 - `reachy2_teleoperator` (for `reachy2`)
 
-### Notes
-
-- Test-only robots are intentionally not registered by this plugin.
-- Payload models are generated from LeRobot config dataclasses, so fields can
-  differ by robot type.
+## Payload models
 
 ### How payload fields are built
 
@@ -136,6 +152,12 @@ selected LeRobot config type.
   "id": "bi-so-main"
 }
 ```
+
+## Notes
+
+- Test-only robots are intentionally not registered by this plugin.
+- Payload models are generated from LeRobot config dataclasses, so fields can
+  differ by robot type.
 
 ## Development
 

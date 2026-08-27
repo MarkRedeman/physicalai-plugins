@@ -1,8 +1,28 @@
 # PhysicalAI MuJoCo SO-101 Plugin
 
-MuJoCo SO-101 simulation plugin for PhysicalAI Studio.
+MuJoCo SO-101 simulation plugin for PhysicalAI Studio. Part of the [physicalai-plugins](https://github.com/MarkRedeman/physicalai-plugins) monorepo.
 
 This plugin lets you run a virtual SO-101 robot as a PhysicalAI transport owner, then connect to it from Studio exactly like real hardware.
+
+## Features
+
+- Run a virtual SO-101 as a PhysicalAI transport owner
+- MuJoCo interactive viewer
+- Camera streams over HTTP (MJPEG) and optional v4l2loopback
+- REST control server (scenes, reset, shutdown)
+- Built-in task scenes
+
+## Screenshots
+
+_Placeholder images — replace them with real screenshots._
+
+![MuJoCo SO-101 in the PhysicalAI Studio robot catalog](https://raw.githubusercontent.com/MarkRedeman/physicalai-plugins/main/screenshots/studio-catalog.png)
+
+![Connecting to the MuJoCo SO-101 in PhysicalAI Studio](https://raw.githubusercontent.com/MarkRedeman/physicalai-plugins/main/packages/physicalai-mujoco-so101-plugin/screenshots/studio.png)
+
+![MuJoCo viewer with a pick-and-place scene](https://raw.githubusercontent.com/MarkRedeman/physicalai-plugins/main/packages/physicalai-mujoco-so101-plugin/screenshots/viewer.png)
+
+![MJPEG camera stream in a browser](https://raw.githubusercontent.com/MarkRedeman/physicalai-plugins/main/packages/physicalai-mujoco-so101-plugin/screenshots/mjpeg.png)
 
 ## What this is for
 
@@ -28,6 +48,17 @@ By default this starts:
 - Substeps `10`
 
 Then open PhysicalAI Studio and connect to the robot type `MuJoCo SO-101 Follower` with name `mujoco-so101`.
+
+### CLI teleoperation (self-relay)
+
+With the owner running, you can also relay the simulation back to itself using
+the [PhysicalAI CLI](https://github.com/openvinotoolkit/physicalai):
+
+```bash
+uv run physicalai run --config packages/physicalai-mujoco-so101-plugin/examples/runtime/teleop.yaml
+```
+
+Press `Ctrl+C` to stop.
 
 View the camera streams in a browser or with `curl`:
 

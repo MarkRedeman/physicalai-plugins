@@ -1,0 +1,26 @@
+# reBot B601-DM teleoperation runtime config.
+#
+# Relays a ReBotArm102Leader (Star Arm 102, FashionStar UART) to a
+# B601-DM follower (Damiao CAN). Run from the repo root with:
+#
+#   uv run physicalai run --config packages/physicalai-rebot-b601-plugin/examples/runtime/teleop-dm.yaml
+#
+# Stop with Ctrl+C. Edit the ports for your hardware.
+
+runtime:
+  robot:
+    class_path: physicalai_rebot_b601_plugin.dm.ReBotB601DM
+    init_args:
+      port: /dev/ttyACM0 # CHANGE_ME: follower serial port (or CAN channel)
+      can_adapter: damiao # damiao | socketcan
+
+  action_source:
+    class_path: physicalai.runtime.TeleopSource
+    init_args:
+      leader:
+        class_path: physicalai_rebot_b601_plugin.leader.ReBotArm102Leader
+        init_args:
+          port: /dev/ttyUSB0 # CHANGE_ME: leader arm serial port
+          baudrate: 1000000
+
+  fps: 30.0

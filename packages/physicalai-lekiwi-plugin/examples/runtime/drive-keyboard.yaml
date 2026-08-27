@@ -1,0 +1,29 @@
+# LeKiwi keyboard-drive runtime config.
+#
+# Drives the LeKiwi 3-wheel base from the keyboard (WASD/QE) while the arm
+# holds its current position. Run from the repo root with:
+#
+#   uv run physicalai run --config packages/physicalai-lekiwi-plugin/examples/runtime/drive-keyboard.yaml
+#
+# Keys: W/S forward/backward, A/D rotate left/right, Q/E strafe left/right,
+# SPACE stop. Stop the run with Ctrl+C.
+#
+# `calibration` must point at a LeKiwiCalibration JSON — LeKiwi requires it
+# (raw-ticks bringup is not config-expressible).
+
+runtime:
+  robot:
+    class_path: physicalai_lekiwi_plugin.LeKiwi
+    init_args:
+      port: /dev/ttyACM0 # CHANGE_ME: LeKiwi serial port
+      baudrate: 1000000
+      calibration: ./calibration.json # CHANGE_ME: path to LeKiwiCalibration JSON
+
+  action_source:
+    class_path: physicalai_lekiwi_plugin.teleop.KeyboardTeleop
+    init_args:
+      vx: 0.15 # forward/backward speed, m/s
+      vy: 0.10 # strafe speed, m/s
+      vtheta: 0.5 # rotational speed, deg/s
+
+  fps: 30.0

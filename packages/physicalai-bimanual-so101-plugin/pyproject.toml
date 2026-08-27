@@ -47,6 +47,9 @@ include = [
     "README.md",
     "pyproject.toml",
 ]
+exclude = [
+    "examples/**",
+]
 
 [tool.hatch.build.targets.sdist.force-include]
 "../../LICENSE" = "LICENSE"

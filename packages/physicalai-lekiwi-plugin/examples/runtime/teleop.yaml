@@ -1,0 +1,40 @@
+# LeKiwi composite teleoperation runtime config.
+#
+# Teleoperates a LeKiwi with BOTH a leader arm and the keyboard: the leader
+# (a second LeKiwi in `role: leader`, read-only) positions the arm joints,
+# while WASD/QE drives the base. Run from the repo root with:
+#
+#   uv run physicalai run --config packages/physicalai-lekiwi-plugin/examples/runtime/teleop.yaml
+#
+# Keys: W/S forward/backward, A/D rotate left/right, Q/E strafe left/right,
+# SPACE stop. Stop the run with Ctrl+C.
+#
+# Point `calibration` at a LeKiwiCalibration JSON for both robots — LeKiwi
+# requires it (raw-ticks bringup is not config-expressible).
+
+runtime:
+  robot:
+    class_path: physicalai_lekiwi_plugin.LeKiwi
+    init_args:
+      port: /dev/ttyACM0 # CHANGE_ME: follower serial port
+      baudrate: 1000000
+      calibration: ./calibration.json # CHANGE_ME: path to LeKiwiCalibration JSON
+
+  action_source:
+    class_path: physicalai_lekiwi_plugin.teleop.CompositeTeleop
+    init_args:
+      leader:
+        class_path: physicalai_lekiwi_plugin.LeKiwi
+        init_args:
+          port: /dev/ttyUSB0 # CHANGE_ME: leader serial port
+          baudrate: 1000000
+          role: leader
+          calibration: ./calibration.json # CHANGE_ME: path to LeKiwiCalibration JSON
+      base_source:
+        class_path: physicalai_lekiwi_plugin.teleop.KeyboardTeleop
+        init_args:
+          vx: 0.15
+          vy: 0.10
+          vtheta: 0.5
+
+  fps: 30.0

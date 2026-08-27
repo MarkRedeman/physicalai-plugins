@@ -149,9 +149,9 @@ class TestReBotArm102LeaderObservation:
         assert "raw_positions" in obs.sensor_data
         assert "reliable" in obs.sensor_data
 
-    def test_send_action_raises(self, mock_smart_servo: MagicMock) -> None:
+    def test_send_action_is_noop(self, mock_smart_servo: MagicMock) -> None:
         robot = _create_robot(mock_smart_servo)
         robot.connect()
 
-        with pytest.raises(RuntimeError, match="read-only"):
-            robot.send_action(np.zeros(7, dtype=np.float32))
+        # Leaders are passive: send_action must not raise or actuate anything.
+        robot.send_action(np.zeros(7, dtype=np.float32))

@@ -1,0 +1,30 @@
+# LeKiwi read-joints runtime config.
+#
+# Reads and logs joint positions while holding the current pose. Run from the
+# repo root with:
+#
+#   uv run physicalai run --config packages/physicalai-lekiwi-plugin/examples/runtime/read-joints.yaml
+#
+# `calibration` must point at a LeKiwiCalibration JSON — LeKiwi requires it
+# (raw-ticks bringup is not config-expressible).
+
+runtime:
+  robot:
+    class_path: physicalai_lekiwi_plugin.LeKiwi
+    init_args:
+      port: /dev/ttyACM0 # CHANGE_ME: LeKiwi serial port
+      baudrate: 1000000
+      calibration: ./calibration.json # CHANGE_ME: path to LeKiwiCalibration JSON
+
+  action_source:
+    class_path: physicalai_lekiwi_plugin.motion.HoldPoseSource
+
+  callbacks:
+    - class_path: physicalai_lekiwi_plugin.motion.JointLogger
+      init_args:
+        throttle_steps: 1
+
+  fps: 10
+
+run:
+  duration_s: 30
