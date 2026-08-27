@@ -1,23 +1,17 @@
 [build-system]
-requires = ["hatchling<1.30", "hatch-vcs"]  # cap <1.30: hatchling>=1.30 emits Metadata 2.5, rejected by PyPI/twine (pypi/warehouse#19083)
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
-name = "physicalai-lekiwi-plugin"
+name = "physicalai-common-extras"
 dynamic = ["version"]
-description = "LeKiwi mobile manipulator plugin for PhysicalAI (6-DOF arm + 3-wheel holonomic base)"
+description = "Reusable action sources and runtime callbacks for PhysicalAI plugins"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"
 dependencies = [
     "physicalai>=0.1.1",
-    "physicalai-studio-plugin",
-    "physicalai-common-extras",
     "numpy>=1.24",
-    "loguru>=0.7",
-    "pydantic>=2.0",
-    "feetech-servo-sdk>=1.0",
-    "pyserial>=3.5",
 ]
 
 [project.optional-dependencies]
@@ -28,24 +22,17 @@ Homepage = "https://github.com/MarkRedeman/physicalai-plugins"
 Repository = "https://github.com/MarkRedeman/physicalai-plugins"
 Issues = "https://github.com/MarkRedeman/physicalai-plugins/issues"
 
-[project.entry-points."physicalai.studio.catalog_plugins"]
-lekiwi = "physicalai_lekiwi_plugin.studio_catalog:register_physicalai_studio_plugin"
-
 [tool.hatch.version]
 source = "vcs"
 tag-pattern = '^(?:packages/[\w-]+-)?[vV]?(?P<version>\d+(?:\.\d+)*)$'
 raw-options = { search_parent_directories = true }
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/physicalai_lekiwi_plugin"]
-
-[tool.hatch.build.targets.wheel.force-include]
-"urdf" = "urdf"
+packages = ["src/physicalai_common_extras"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "src/physicalai_lekiwi_plugin/**",
-    "urdf/**",
+    "src/physicalai_common_extras/**",
     "README.md",
     "pyproject.toml",
     "LICENSE",
@@ -53,3 +40,6 @@ include = [
 exclude = [
     "examples/**",
 ]
+
+[tool.hatch.build.targets.sdist.force-include]
+"../../LICENSE" = "LICENSE"

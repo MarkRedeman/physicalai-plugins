@@ -15,12 +15,8 @@ if TYPE_CHECKING:
     from physicalai_lekiwi_plugin.calibration import LeKiwiCalibration as LeKiwiCalibration
     from physicalai_lekiwi_plugin.lekiwi import LeKiwi as LeKiwi
     from physicalai_lekiwi_plugin.lekiwi import LeKiwiObservation as LeKiwiObservation
-    from physicalai_lekiwi_plugin.teleop.composite import CompositeTeleop as CompositeTeleop
-    from physicalai_lekiwi_plugin.teleop.keyboard import KeyboardTeleop as KeyboardTeleop
 
 __all__ = [
-    "CompositeTeleop",
-    "KeyboardTeleop",
     "LeKiwi",
     "LeKiwiCalibration",
     "LeKiwiObservation",
@@ -41,13 +37,5 @@ def __getattr__(name: str) -> object:
         from physicalai_lekiwi_plugin.calibration import LeKiwiCalibration
 
         return LeKiwiCalibration
-    if name == "CompositeTeleop":
-        from physicalai_lekiwi_plugin.teleop.composite import CompositeTeleop
-
-        return CompositeTeleop
-    if name == "KeyboardTeleop":
-        from physicalai_lekiwi_plugin.teleop.keyboard import KeyboardTeleop
-
-        return KeyboardTeleop
     msg = f"module {__name__!r} has no attribute {name!r}"
     raise AttributeError(msg)

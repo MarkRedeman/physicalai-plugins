@@ -1,4 +1,4 @@
-"""Tests for the motion/observation helpers in physicalai_rebot_b601_plugin.motion."""
+"""Tests for the motion/observation helpers in physicalai_common_extras.motion."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 from physicalai.config import to_config
 
-from physicalai_rebot_b601_plugin.motion import HoldPoseSource, JointLogger, SineWaveSource
+from physicalai_common_extras import HoldPoseSource, JointLogger, SineWaveSource
 
 
 class _FakeObservation:
@@ -28,7 +28,7 @@ class TestSineWaveSource:
     def test_update_returns_sine_commands(self) -> None:
         source = SineWaveSource(amplitude=10.0, frequency=0.25)
         obs = _FakeObservation(np.zeros(7, dtype=np.float32))
-        with patch("physicalai_rebot_b601_plugin.motion.time.monotonic", side_effect=[0.0, 0.5]):
+        with patch("physicalai_common_extras.motion.time.monotonic", side_effect=[0.0, 0.5]):
             source.connect(bus=object(), session_id="s")
             action = source.update(obs, {}, 0)
 
@@ -45,7 +45,7 @@ class TestSineWaveSource:
             phase_offsets=[0.0, math.pi / 2, 1.0],
         )
         obs = _FakeObservation(np.zeros(3, dtype=np.float32))
-        with patch("physicalai_rebot_b601_plugin.motion.time.monotonic", side_effect=[0.0, 1.0]):
+        with patch("physicalai_common_extras.motion.time.monotonic", side_effect=[0.0, 1.0]):
             source.connect(bus=object(), session_id="s")
             action = source.update(obs, {}, 0)
 
@@ -67,7 +67,7 @@ class TestSineWaveSource:
 
     def test_export_config_roundtrip(self) -> None:
         cfg = to_config(SineWaveSource(frequency=0.5))
-        assert cfg["class_path"] == "physicalai_rebot_b601_plugin.motion.SineWaveSource"
+        assert cfg["class_path"] == "physicalai_common_extras.SineWaveSource"
         assert cfg["init_args"]["frequency"] == 0.5
 
 
@@ -87,7 +87,7 @@ class TestHoldPoseSource:
 
     def test_export_config_roundtrip(self) -> None:
         cfg = to_config(HoldPoseSource())
-        assert cfg["class_path"] == "physicalai_rebot_b601_plugin.motion.HoldPoseSource"
+        assert cfg["class_path"] == "physicalai_common_extras.HoldPoseSource"
 
 
 class TestJointLogger:
@@ -111,5 +111,5 @@ class TestJointLogger:
 
     def test_export_config_roundtrip(self) -> None:
         cfg = to_config(JointLogger(throttle_steps=3))
-        assert cfg["class_path"] == "physicalai_rebot_b601_plugin.motion.JointLogger"
+        assert cfg["class_path"] == "physicalai_common_extras.JointLogger"
         assert cfg["init_args"]["throttle_steps"] == 3

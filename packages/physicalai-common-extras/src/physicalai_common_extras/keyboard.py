@@ -31,7 +31,7 @@ _SELECT_TIMEOUT_S = 0.0
 _MAX_BASE_AXES = 3
 
 
-@export_config(class_path="physicalai_lekiwi_plugin.teleop.KeyboardTeleop")
+@export_config(class_path="physicalai_common_extras.KeyboardTeleop")
 class KeyboardTeleop:
     """Map keyboard input to base velocities; hold the arm at its current pose.
 

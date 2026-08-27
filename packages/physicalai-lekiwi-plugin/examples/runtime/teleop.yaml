@@ -21,20 +21,30 @@ runtime:
       calibration: ./calibration.json # CHANGE_ME: path to LeKiwiCalibration JSON
 
   action_source:
-    class_path: physicalai_lekiwi_plugin.teleop.CompositeTeleop
+    class_path: physicalai_common_extras.CompositeSource
     init_args:
-      leader:
-        class_path: physicalai_lekiwi_plugin.LeKiwi
-        init_args:
-          port: /dev/ttyUSB0 # CHANGE_ME: leader serial port
-          baudrate: 1000000
-          role: leader
-          calibration: ./calibration.json # CHANGE_ME: path to LeKiwiCalibration JSON
-      base_source:
-        class_path: physicalai_lekiwi_plugin.teleop.KeyboardTeleop
-        init_args:
-          vx: 0.15
-          vy: 0.10
-          vtheta: 0.5
+      channels:
+        - class_path: physicalai_common_extras.CompositeChannel
+          init_args:
+            source:
+              class_path: physicalai.runtime.TeleopSource
+              init_args:
+                leader:
+                  class_path: physicalai_lekiwi_plugin.LeKiwi
+                  init_args:
+                    port: /dev/ttyUSB0 # CHANGE_ME: leader serial port
+                    baudrate: 1000000
+                    role: leader
+                    calibration: ./calibration.json # CHANGE_ME: path to LeKiwiCalibration JSON
+            indices: [0, 1, 2, 3, 4, 5] # arm joints
+        - class_path: physicalai_common_extras.CompositeChannel
+          init_args:
+            source:
+              class_path: physicalai_common_extras.KeyboardTeleop
+              init_args:
+                vx: 0.15
+                vy: 0.10
+                vtheta: 0.5
+            indices: [6, 7, 8] # base velocities
 
   fps: 30.0

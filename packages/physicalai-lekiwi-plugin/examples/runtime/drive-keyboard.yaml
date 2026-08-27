@@ -20,7 +20,7 @@ runtime:
       calibration: ./calibration.json # CHANGE_ME: path to LeKiwiCalibration JSON
 
   action_source:
-    class_path: physicalai_lekiwi_plugin.teleop.KeyboardTeleop
+    class_path: physicalai_common_extras.KeyboardTeleop
     init_args:
       vx: 0.15 # forward/backward speed, m/s
       vy: 0.10 # strafe speed, m/s

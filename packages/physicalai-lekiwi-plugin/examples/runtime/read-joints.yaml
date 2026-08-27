@@ -17,10 +17,10 @@ runtime:
       calibration: ./calibration.json # CHANGE_ME: path to LeKiwiCalibration JSON
 
   action_source:
-    class_path: physicalai_lekiwi_plugin.motion.HoldPoseSource
+    class_path: physicalai_common_extras.HoldPoseSource
 
   callbacks:
-    - class_path: physicalai_lekiwi_plugin.motion.JointLogger
+    - class_path: physicalai_common_extras.JointLogger
       init_args:
         throttle_steps: 1
 

@@ -12,6 +12,7 @@ via an entry point. Packages are built and released independently with
 
 | Package                                                                                   | Description                                                    | Released          |
 | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ----------------- |
+| [`physicalai-common-extras`](packages/physicalai-common-extras/README.md)                 | Reusable action sources / callbacks (Composite, keyboard, ...) | not yet published |
 | [`physicalai-lekiwi-plugin`](packages/physicalai-lekiwi-plugin/README.md)                 | LeKiwi mobile manipulator (6-DOF arm + 3-wheel holonomic base) | yes               |
 | [`physicalai-rebot-b601-plugin`](packages/physicalai-rebot-b601-plugin/README.md)         | Seeed reBot B601 arm (B601-DM / B601-RS) + Star Arm 102 leader | yes               |
 | [`physicalai-bimanual-so101-plugin`](packages/physicalai-bimanual-so101-plugin/README.md) | Bimanual SO-101 (twin 6-DOF STS3215 arms)                      | yes               |
@@ -28,6 +29,7 @@ via an entry point. Packages are built and released independently with
 
 ```text
 packages/
+  physicalai-common-extras/     # shared action sources / callbacks
   physicalai-bimanual-so101-plugin/
   physicalai-lekiwi-plugin/
   physicalai-lerobot-plugin/
@@ -129,20 +131,22 @@ uv run physicalai run --config packages/physicalai-rebot-b601-plugin/examples/ru
 The only remaining script is the MuJoCo **owner** process (`run_mujoco_owner.py`),
 which starts the simulation server rather than a control loop.
 
-## Teleop action sources
+## Action sources
 
-`physicalai-lekiwi-plugin` bundles reusable
-[action sources](https://github.com/openvinotoolkit/physicalai) that can be
-wired into any `physicalai run` config (or used directly from Python):
+The reusable
+[action sources](https://github.com/openvinotoolkit/physicalai) shipped in the
+[`physicalai-common-extras`](packages/physicalai-common-extras/README.md)
+package can be wired into any `physicalai run` config (or used directly from
+Python):
 
 ```python
-from physicalai_lekiwi_plugin.teleop import CompositeTeleop, KeyboardTeleop
+from physicalai_common_extras import CompositeSource, KeyboardTeleop
 ```
 
-| Source            | Purpose                                                 |
-| ----------------- | ------------------------------------------------------- |
-| `KeyboardTeleop`  | WASD/QE base velocities; arm held at its observed pose  |
-| `CompositeTeleop` | Combine a leader arm with a base source into one action |
+| Source            | Purpose                                                |
+| ----------------- | ------------------------------------------------------ |
+| `KeyboardTeleop`  | WASD/QE base velocities; arm held at its observed pose |
+| `CompositeSource` | Combine any number of sources (e.g. leader + keyboard) |
 
 Keyboard controls (single characters, case-insensitive):
 
