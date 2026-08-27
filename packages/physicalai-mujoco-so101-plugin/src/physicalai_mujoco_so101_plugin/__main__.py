@@ -220,7 +220,7 @@ def _resolve_owner_name(args: argparse.Namespace) -> str:
     return DEFAULT_BIMANUAL_MUJOCO_OWNER_NAME if args.bimanual else DEFAULT_MUJOCO_OWNER_NAME
 
 
-def _start(args: argparse.Namespace) -> None:
+def _start(args: argparse.Namespace) -> None:  # noqa: C901, PLR0912, PLR0915
     model_path, scene_config = _resolve_model_and_scene(args.model, args.scene, bimanual=args.bimanual)
     owner_name = _resolve_owner_name(args)
 

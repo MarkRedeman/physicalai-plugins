@@ -51,6 +51,7 @@ class EpisodeAutoReset:
     """
 
     def __init__(self, config: EpisodeAutoResetConfig, rng: np.random.Generator | None = None) -> None:
+        """Initialize with the given config and an optional RNG for cube respawn placement."""
         self._config = config
         self._rng = rng if rng is not None else np.random.default_rng()
         self._runtime: _Runtime | None = None
@@ -170,7 +171,7 @@ class EpisodeAutoReset:
             remaining = max(0.0, self._config.success_dwell_s - elapsed)
             self._last_countdown_s = remaining
             if remaining <= 0.0:
-                self._respawn_cube(model, data, runtime)
+                self._respawn_cube(data, runtime)
                 runtime.episode_count += 1
                 runtime.phase = "idle"
                 runtime.success_since = None
@@ -225,7 +226,7 @@ class EpisodeAutoReset:
         )
         return positions[0]
 
-    def _respawn_cube(self, model: object, data: object, runtime: _Runtime) -> None:
+    def _respawn_cube(self, data: object, runtime: _Runtime) -> None:
         target_xy = (
             float(data.xpos[runtime.target_body_id][0]),
             float(data.xpos[runtime.target_body_id][1]),

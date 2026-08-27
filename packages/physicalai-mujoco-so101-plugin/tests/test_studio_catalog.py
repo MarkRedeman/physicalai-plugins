@@ -125,9 +125,9 @@ class TestSharedRobotAdapter:
     def test_has_no_owned_devices(self) -> None:
         robot = _SharedSO101Robot(
             DEFAULT_MUJOCO_OWNER_NAME,
-            False,
-            10.0,
-            SO101_JOINT_ORDER,
+            allow_remote=False,
+            connect_timeout=10.0,
+            joint_names=SO101_JOINT_ORDER,
         )
         assert robot.device_ids == ()
         assert robot.joint_names == list(SO101_JOINT_ORDER)
@@ -135,18 +135,18 @@ class TestSharedRobotAdapter:
     def test_bimanual_joint_names(self) -> None:
         robot = _SharedSO101Robot(
             DEFAULT_MUJOCO_OWNER_NAME,
-            False,
-            10.0,
-            BIMANUAL_SO101_JOINT_ORDER,
+            allow_remote=False,
+            connect_timeout=10.0,
+            joint_names=BIMANUAL_SO101_JOINT_ORDER,
         )
         assert robot.joint_names == list(BIMANUAL_SO101_JOINT_ORDER)
 
     def test_exports_owner_name_recipe(self) -> None:
         robot = _SharedSO101Robot(
             DEFAULT_MUJOCO_OWNER_NAME,
-            False,
-            5.0,
-            SO101_JOINT_ORDER,
+            allow_remote=False,
+            connect_timeout=5.0,
+            joint_names=SO101_JOINT_ORDER,
         )
 
         assert to_config(robot) == {

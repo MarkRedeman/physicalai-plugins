@@ -177,6 +177,7 @@ class _SharedSO101Robot:
     def __init__(
         self,
         owner_name: str,
+        *,
         allow_remote: bool,
         connect_timeout: float,
         joint_names: list[str] | tuple[str, ...],
@@ -253,9 +254,9 @@ def _mujoco_robot_builder(
 
         return _SharedSO101Robot(
             validated.name,
-            validated.allow_remote,
-            validated.connect_timeout,
-            joint_order,
+            allow_remote=validated.allow_remote,
+            connect_timeout=validated.connect_timeout,
+            joint_names=joint_order,
         )
 
     return build

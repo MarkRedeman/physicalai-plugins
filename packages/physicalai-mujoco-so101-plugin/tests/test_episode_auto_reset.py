@@ -35,7 +35,13 @@ def _make_helper(*, dwell_s: float = 5.0) -> EpisodeAutoReset:
     return helper
 
 
-def _fake_model_data(*, cube_xy: tuple[float, float], target_xy: tuple[float, float], z: float = 0.02, speed: float = 0.0):
+def _fake_model_data(
+    *,
+    cube_xy: tuple[float, float],
+    target_xy: tuple[float, float],
+    z: float = 0.02,
+    speed: float = 0.0,
+) -> tuple[MagicMock, SimpleNamespace]:
     xpos = np.zeros((3, 3), dtype=np.float64)
     xpos[1, :2] = cube_xy
     xpos[1, 2] = z

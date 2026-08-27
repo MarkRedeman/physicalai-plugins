@@ -650,7 +650,11 @@ class MuJoCoSO101:
             self._native_viewer = None
 
     def _launch_viser_viewer(self) -> bool:
-        """Start a browser-based 3D viewer via mjviser/viser (works on macOS)."""
+        """Start a browser-based 3D viewer via mjviser/viser (works on macOS).
+
+        Returns:
+            Whether the viewer was launched.
+        """
         if self._viser_port <= 0:
             return False
         try:
@@ -737,7 +741,11 @@ class MuJoCoSO101:
             handle.wxyz = np.asarray(data.xquat[body_id], dtype=np.float64)
 
     def _launch_native_viewer(self) -> bool:
-        """Start the native MuJoCo viewer (Linux/Windows only; broken on macOS)."""
+        """Start the native MuJoCo viewer (Linux/Windows only; broken on macOS).
+
+        Returns:
+            Whether the viewer was launched.
+        """
         try:
             import mujoco.viewer  # noqa: PLC0415
 
@@ -779,12 +787,11 @@ class MuJoCoSO101:
         get_sim = getattr(self._native_viewer, "_get_sim", None)
         if not callable(lock) or not callable(get_sim):
             return
-        with contextlib.suppress(Exception):
-            with lock():
-                sim = get_sim()
-                if sim is not None:
-                    sim.m = model
-                    sim.d = data
+        with contextlib.suppress(Exception), lock():
+            sim = get_sim()
+            if sim is not None:
+                sim.m = model
+                sim.d = data
 
     def _check_pending_scene_switch(self) -> None:
         if not self._pending_scene_switch:
