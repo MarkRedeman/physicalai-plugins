@@ -69,11 +69,14 @@ uv run physicalai run --config packages/physicalai-rebot-b601-plugin/examples/ru
 
 Press `Ctrl+C` to stop.
 
-### Standalone scripts
+### Sinusoidal motion and joint reading
 
 ```bash
-uv run python packages/physicalai-rebot-b601-plugin/examples/move_joints.py --duration 10
-uv run python packages/physicalai-rebot-b601-plugin/examples/read_joints.py
+uv run physicalai run --config packages/physicalai-rebot-b601-plugin/examples/runtime/move-joints-dm.yaml
+uv run physicalai run --config packages/physicalai-rebot-b601-plugin/examples/runtime/move-joints-rs.yaml
+uv run physicalai run --config packages/physicalai-rebot-b601-plugin/examples/runtime/read-joints-dm.yaml
+uv run physicalai run --config packages/physicalai-rebot-b601-plugin/examples/runtime/read-joints-rs.yaml
+uv run physicalai run --config packages/physicalai-rebot-b601-plugin/examples/runtime/read-joints-leader.yaml
 ```
 
 ## URDF Models

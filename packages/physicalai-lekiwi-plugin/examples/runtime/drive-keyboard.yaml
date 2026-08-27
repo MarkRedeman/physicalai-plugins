@@ -8,8 +8,8 @@
 # Keys: W/S forward/backward, A/D rotate left/right, Q/E strafe left/right,
 # SPACE stop. Stop the run with Ctrl+C.
 #
-# Either point `calibration` at a LeKiwiCalibration JSON (required for
-# normalized units), or set `_allow_uncalibrated: true` for raw-ticks bringup.
+# `calibration` must point at a LeKiwiCalibration JSON — LeKiwi requires it
+# (raw-ticks bringup is not config-expressible).
 
 runtime:
   robot:

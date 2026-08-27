@@ -141,11 +141,11 @@ from physicalai_lekiwi_plugin.teleop import CompositeTeleop, KeyboardTeleop
 | `KeyboardTeleop`  | WASD/QE base velocities; arm held at its observed pose  |
 | `CompositeTeleop` | Combine a leader arm with a base source into one action |
 
-### Standalone scripts
+### Sinusoidal motion and joint reading
 
 ```bash
-uv run python packages/physicalai-lekiwi-plugin/examples/move_joints.py --duration 10
-uv run python packages/physicalai-lekiwi-plugin/examples/read_joints.py --calibration calibration.json
+uv run physicalai run --config packages/physicalai-lekiwi-plugin/examples/runtime/move-joints.yaml
+uv run physicalai run --config packages/physicalai-lekiwi-plugin/examples/runtime/read-joints.yaml
 ```
 
 ## URDF Model

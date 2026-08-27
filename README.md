@@ -117,15 +117,17 @@ uv run python packages/physicalai-mujoco-so101-plugin/examples/run_mujoco_owner.
 uv run physicalai run --config packages/physicalai-mujoco-so101-plugin/examples/runtime/teleop.yaml
 ```
 
-### Standalone scripts
-
-Read-only and periodic-motion examples are not control-loop native and stay
-as plain scripts:
+### Sinusoidal motion and joint reading
 
 ```bash
-uv run python packages/physicalai-lekiwi-plugin/examples/read_joints.py
-uv run python packages/physicalai-rebot-b601-plugin/examples/move_joints.py --duration 10
+uv run physicalai run --config packages/physicalai-lekiwi-plugin/examples/runtime/move-joints.yaml
+uv run physicalai run --config packages/physicalai-lekiwi-plugin/examples/runtime/read-joints.yaml
+uv run physicalai run --config packages/physicalai-rebot-b601-plugin/examples/runtime/move-joints-dm.yaml
+uv run physicalai run --config packages/physicalai-rebot-b601-plugin/examples/runtime/read-joints-leader.yaml
 ```
+
+The only remaining script is the MuJoCo **owner** process (`run_mujoco_owner.py`),
+which starts the simulation server rather than a control loop.
 
 ## Teleop action sources
 

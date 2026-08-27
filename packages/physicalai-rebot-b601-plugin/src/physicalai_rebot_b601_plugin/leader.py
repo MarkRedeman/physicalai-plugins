@@ -250,19 +250,18 @@ class ReBotArm102Leader:
 
         return positions, raw_positions, reliable
 
-    def send_action(self, action: np.ndarray, *, goal_time: float = 0.1) -> None:  # noqa: PLR6301
-        """Raise an error — leader arms are read-only.
+    def send_action(self, action: np.ndarray, *, goal_time: float = 0.1) -> None:
+        """Ignore commands — leader arms are manually positioned and read-only.
+
+        The leader has no actuation, so ``send_action`` is a deliberate no-op.
+        This lets a leader be used as a passive device (e.g. inside a
+        ``physicalai run`` runtime that always sends an action) while the
+        operator moves it freely by hand.
 
         Args:
             action: Ignored; present for protocol compatibility.
             goal_time: Ignored; present for protocol compatibility.
-
-        Raises:
-            RuntimeError: Always raised.
         """
-        _ = action, goal_time
-        msg = "Cannot send actions to ReBotArm102Leader. Leader arms are read-only for teleoperation."
-        raise RuntimeError(msg)
 
     @staticmethod
     def _round_to_valid_range(value: float, min_value: float, max_value: float) -> tuple[float, int]:

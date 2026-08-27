@@ -1,0 +1,27 @@
+# reBot Star Arm 102 leader read-joints runtime config.
+#
+# Reads and logs the leader arm's joint positions. The leader is passive
+# (send_action is a no-op), so the arm can be moved freely by hand. Run from
+# the repo root with:
+#
+#   uv run physicalai run --config packages/physicalai-rebot-b601-plugin/examples/runtime/read-joints-leader.yaml
+
+runtime:
+  robot:
+    class_path: physicalai_rebot_b601_plugin.leader.ReBotArm102Leader
+    init_args:
+      port: /dev/ttyUSB0 # CHANGE_ME: leader arm serial port
+      baudrate: 1000000
+
+  action_source:
+    class_path: physicalai_rebot_b601_plugin.motion.HoldPoseSource
+
+  callbacks:
+    - class_path: physicalai_rebot_b601_plugin.motion.JointLogger
+      init_args:
+        throttle_steps: 1
+
+  fps: 10
+
+run:
+  duration_s: 30
