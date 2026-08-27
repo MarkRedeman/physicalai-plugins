@@ -181,8 +181,6 @@ class TestKeyboardTeleop:
             KeyboardTeleop(num_base_joints=0)
 
     def test_export_config_roundtrip(self) -> None:
-        from physicalai_lekiwi_plugin.teleop import KeyboardTeleop
-
         cfg = to_config(KeyboardTeleop(vx=0.2, vy=0.1, vtheta=0.5))
         assert cfg["class_path"] == "physicalai_lekiwi_plugin.teleop.KeyboardTeleop"
         assert cfg["init_args"]["vx"] == 0.2

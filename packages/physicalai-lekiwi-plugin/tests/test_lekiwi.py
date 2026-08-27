@@ -68,9 +68,11 @@ def _make_mock_scservo_sdk() -> MagicMock:
 def mock_scservo_sdk() -> Generator[MagicMock]:
     module = _make_mock_scservo_sdk()
 
-    for mod_name in list(sys.modules):
-        if "physicalai_lekiwi_plugin" in mod_name:
-            sys.modules.pop(mod_name, None)
+    # Only physicalai_lekiwi_plugin.lekiwi imports scservo_sdk, so only it
+    # needs to be re-imported to bind the fresh mock. Re-importing the whole
+    # package would invalidate class objects that other test modules (motion,
+    # teleop, ...) cached at import time, breaking their to_config round-trips.
+    sys.modules.pop("physicalai_lekiwi_plugin.lekiwi", None)
 
     with patch.dict(sys.modules, {"scservo_sdk": module}):
         import_module("physicalai_lekiwi_plugin.lekiwi")

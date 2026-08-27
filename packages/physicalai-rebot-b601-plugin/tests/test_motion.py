@@ -66,8 +66,6 @@ class TestSineWaveSource:
             SineWaveSource(frequency=0.0)
 
     def test_export_config_roundtrip(self) -> None:
-        from physicalai_rebot_b601_plugin.motion import SineWaveSource
-
         cfg = to_config(SineWaveSource(frequency=0.5))
         assert cfg["class_path"] == "physicalai_rebot_b601_plugin.motion.SineWaveSource"
         assert cfg["init_args"]["frequency"] == 0.5
@@ -88,8 +86,6 @@ class TestHoldPoseSource:
         source.disconnect()
 
     def test_export_config_roundtrip(self) -> None:
-        from physicalai_rebot_b601_plugin.motion import HoldPoseSource
-
         cfg = to_config(HoldPoseSource())
         assert cfg["class_path"] == "physicalai_rebot_b601_plugin.motion.HoldPoseSource"
 
@@ -114,8 +110,6 @@ class TestJointLogger:
             JointLogger(throttle_steps=0)
 
     def test_export_config_roundtrip(self) -> None:
-        from physicalai_rebot_b601_plugin.motion import JointLogger
-
         cfg = to_config(JointLogger(throttle_steps=3))
         assert cfg["class_path"] == "physicalai_rebot_b601_plugin.motion.JointLogger"
         assert cfg["init_args"]["throttle_steps"] == 3
