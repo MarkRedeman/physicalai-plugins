@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling", "hatch-vcs"]
+requires = ["hatchling<1.30", "hatch-vcs"]  # cap <1.30: hatchling>=1.30 emits Metadata 2.5, rejected by PyPI/twine (pypi/warehouse#19083)
 build-backend = "hatchling.build"
 
 [project]
