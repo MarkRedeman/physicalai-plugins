@@ -544,6 +544,25 @@ class TestRecreateViserScene:
         assert robot._viser_scene is None  # noqa: SLF001
 
 
+class TestLaunchViserViewer:
+    def test_stops_partially_created_server_on_scene_failure(self, mock_mujoco: MagicMock) -> None:
+        """A server created before the scene build fails must not leak the port/thread."""
+        _ = mock_mujoco
+        robot = MuJoCoSO101(model_path="/fake/model.xml")
+        robot.connect()
+        server = MagicMock()
+
+        with (
+            patch("viser.ViserServer", return_value=server),
+            patch("mjviser.ViserMujocoScene", side_effect=RuntimeError("boom")),
+        ):
+            launched = robot._launch_viser_viewer()  # noqa: SLF001
+
+        assert launched is False
+        server.stop.assert_called_once()
+        assert robot._viser_server is None  # noqa: SLF001
+
+
 class TestViserControlGui:
     @staticmethod
     def _build(mock_mujoco: MagicMock) -> tuple[MuJoCoSO101, MagicMock, MagicMock]:
