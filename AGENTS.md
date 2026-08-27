@@ -38,6 +38,5 @@ Third-party robot plugins monorepo for the [PhysicalAI](https://github.com/openv
 
 ## Agent Gotchas
 
-- The lekiwi test suite pops `physicalai_lekiwi_plugin*` modules from `sys.modules`; when asserting a `to_config` round-trip, import the class fresh inside the test.
 - Package READMEs double as PyPI long descriptions — use absolute `raw.githubusercontent.com` URLs for images, never relative paths.
 - Follow the PhysicalAI runtime's own conventions (see the [`physicalai` repo's AGENTS.md](https://github.com/openvinotoolkit/physicalai/blob/main/AGENTS.md)).
