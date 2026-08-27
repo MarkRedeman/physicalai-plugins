@@ -54,8 +54,15 @@ jobs:
             DEV_VERSION="${BASE_VERSION}.dev${TIMESTAMP}"
             echo "  Version: $DEV_VERSION (base: $BASE_VERSION, from tag: ${LATEST_TAG:-none})"
 
-            SETUPTOOLS_SCM_PRETEND_VERSION="$DEV_VERSION" uv build --directory "$PKG"
-            cp "$PKG"dist/*.whl "$PKG"dist/*.tar.gz dist_all/
+            SETUPTOOLS_SCM_PRETEND_VERSION="$DEV_VERSION" uv build --directory "$PKG" --out-dir "$PKG"dist
+            shopt -s nullglob
+            artifacts=("$PKG"dist/*.whl "$PKG"dist/*.tar.gz)
+            shopt -u nullglob
+            if [ ${#artifacts[@]} -eq 0 ]; then
+              echo "::error::No distribution artifacts were built for $PKG_NAME"
+              exit 1
+            fi
+            cp "${artifacts[@]}" dist_all/
           done
           uvx twine check dist_all/*
 
