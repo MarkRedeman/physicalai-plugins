@@ -49,3 +49,6 @@ include = [
     "pyproject.toml",
     "LICENSE",
 ]
+exclude = [
+    "examples/**",
+]
