@@ -664,6 +664,7 @@ class MuJoCoSO101:
             logger.warning("mjviser/viser unavailable, web viewer disabled: {}", exc)
             return False
 
+        server = None
         try:
             server = viser.ViserServer(port=self._viser_port, verbose=False)
             scene = ViserMujocoScene(server, self._model, num_envs=1)
@@ -671,6 +672,9 @@ class MuJoCoSO101:
             self._add_viser_control_gui(server, viser)
         except Exception as exc:  # noqa: BLE001
             logger.warning("Failed to start viser viewer on port {}: {}", self._viser_port, exc)
+            if server is not None:
+                with contextlib.suppress(Exception):
+                    server.stop()
             return False
         else:
             self._viser_server = server
@@ -755,9 +759,11 @@ class MuJoCoSO101:
     def _sync_viser_fixed_bodies(self) -> None:
         """Push current ``data.xpos`` into mjviser's fixed-geometry handles.
 
-        Reset randomizes the green placement disc by writing ``model.body_pos``
-        (it is a fixed world body, not a freejoint). MuJoCo cameras pick that up
-        after ``mj_forward``, but mjviser only places fixed meshes at create time.
+        The scene XML watch (see ``_reset_scene_xml_watch``) can move fixed
+        world bodies — e.g. camera rigs — by writing ``model.body_pos``
+        outside a normal sim step. MuJoCo cameras pick that up after
+        ``mj_forward``, but mjviser only places fixed meshes at create time,
+        so it needs this explicit resync to reflect the change.
 
         Handles live under ``/fixed_bodies``, whose frame already carries
         mjviser's camera-tracking offset, so store world ``xpos`` as-is.

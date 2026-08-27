@@ -99,7 +99,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--no-gui",
         action="store_true",
         default=False,
-        help="Disable the browser-based 3D viewer (viser/mjviser)",
+        help="Disable all viewers: the browser-based one (viser/mjviser) and the native MuJoCo fallback",
     )
     start.add_argument(
         "--viser-port",
@@ -530,9 +530,9 @@ def _stop(args: argparse.Namespace) -> None:
     # would stop the wrong simulation whenever two owners run concurrently.
     owner_pid = _owner_pid(args.name)
     if owner_pid is not None:
-        stopped = _terminate(owner_pid, f"owner '{args.name}'")
-        if not stopped:
-            logger.warning("No running MuJoCo SO-101 simulation found for name '{}'", args.name)
+        # `_terminate` already logs the specific reason on failure (e.g. the
+        # process was unsignalable), so there is nothing useful to add here.
+        _terminate(owner_pid, f"owner '{args.name}'")
         return
 
     logger.warning(

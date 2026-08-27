@@ -243,7 +243,7 @@ uv run --no-sync physicalai-mujoco-so101 start --scene pick_place
 
 - Loads the new scene XML
 - Updates the existing viewer with the new environment
-- Resets block joints, target bodies, and spawn parameters
+- Respawns the scene's free-object joints clear of their target, using the new spawn parameters (target bodies stay fixed)
 
 A scene that does not declare the joints the running robot drives is rejected and the current scene is kept, so a single-arm simulation will not accept `garment_fold` and a bimanual one will not accept the single-arm scenes.
 
