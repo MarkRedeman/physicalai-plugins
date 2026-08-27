@@ -2,15 +2,19 @@
 
 The simulation thread renders camera frames into per-camera
 :class:`FrameBuffer` slots and enqueues no work itself; the HTTP thread
-reads the latest frame per client and encodes it as JPEG. Control
-requests (reset, scene switch, shutdown) are enqueued onto a command
-queue that the simulation thread drains, so MuJoCo state is only ever
-touched by one thread.
+reads the latest frame per client and encodes it as JPEG. Streams wait
+for new frames on the event loop (:meth:`FrameBuffer.async_waiter`), so a
+client costs a task rather than a pooled thread. Control requests (reset,
+scene switch, shutdown) are enqueued onto a command queue that the
+simulation thread drains, so MuJoCo *stepping* only ever happens on the
+simulation thread; the status callback passed to :func:`build_app` runs on
+the HTTP thread and is responsible for its own locking.
 """
 
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import threading
 import time
 from dataclasses import dataclass
@@ -24,7 +28,7 @@ from loguru import logger
 
 if TYPE_CHECKING:
     import queue
-    from collections.abc import AsyncIterator, Callable, Mapping
+    from collections.abc import AsyncIterator, Callable, Iterator, Mapping
 
     import numpy as np
 
@@ -72,6 +76,7 @@ class FrameBuffer:
         self._cond = threading.Condition()
         self._sample: FrameSample | None = None
         self._seq = 0
+        self._async_waiters: set[tuple[asyncio.AbstractEventLoop, asyncio.Event]] = set()
 
     def put(self, frame: np.ndarray) -> None:
         """Publish a new frame (sim thread)."""
@@ -79,6 +84,30 @@ class FrameBuffer:
             self._seq += 1
             self._sample = FrameSample(frame=frame, seq=self._seq, timestamp=time.time())
             self._cond.notify_all()
+            waiters = tuple(self._async_waiters)
+        for loop, event in waiters:
+            # The loop is gone if the client's task was torn down mid-publish.
+            with contextlib.suppress(RuntimeError):
+                loop.call_soon_threadsafe(event.set)
+
+    @contextlib.contextmanager
+    def async_waiter(self) -> Iterator[asyncio.Event]:
+        """Yield an event set from the sim thread whenever a frame is published.
+
+        Lets an async consumer wait for frames on its own event loop instead of
+        parking a worker thread per client in ``wait_newer_than``.
+
+        Yields:
+            An :class:`asyncio.Event` signalled on every :meth:`put`.
+        """
+        entry = (asyncio.get_running_loop(), asyncio.Event())
+        with self._cond:
+            self._async_waiters.add(entry)
+        try:
+            yield entry[1]
+        finally:
+            with self._cond:
+                self._async_waiters.discard(entry)
 
     def snapshot(self) -> FrameSample | None:
         """Return the newest frame without blocking (HTTP thread).
@@ -125,10 +154,33 @@ def encode_jpeg(rgb: np.ndarray, quality: int) -> bytes:
     return buf.tobytes()
 
 
+async def _await_newer_than(buffer: FrameBuffer, new_frame: asyncio.Event, seq: int) -> FrameSample | None:
+    """Wait on the event loop for a frame newer than *seq*.
+
+    On timeout the current (possibly stale) sample is returned so the stream can
+    re-emit it as a keep-alive, matching :meth:`FrameBuffer.wait_newer_than`.
+
+    Returns:
+        The newest sample, or ``None`` when nothing was ever published.
+    """
+    new_frame.clear()
+    sample = buffer.snapshot()
+    if sample is not None and sample.seq > seq:
+        return sample
+    with contextlib.suppress(TimeoutError):
+        await asyncio.wait_for(new_frame.wait(), _FRAME_WAIT_TIMEOUT_S)
+    return buffer.snapshot()
+
+
 async def _mjpeg_stream(buffer: FrameBuffer, quality: int) -> AsyncIterator[bytes]:
     seq = 0
     while True:
-        sample = await asyncio.to_thread(buffer.wait_newer_than, seq, _FRAME_WAIT_TIMEOUT_S)
+        # The waiter is registered per frame rather than held across the yield:
+        # an abandoned generator would otherwise leave it in the buffer, and
+        # _await_newer_than re-checks the latest sample before waiting, so a
+        # frame published between iterations is never missed.
+        with buffer.async_waiter() as new_frame:
+            sample = await _await_newer_than(buffer, new_frame, seq)
         if sample is None:
             continue
         seq = sample.seq
