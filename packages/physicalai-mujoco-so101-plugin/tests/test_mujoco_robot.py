@@ -544,6 +544,67 @@ class TestRecreateViserScene:
         assert robot._viser_scene is None  # noqa: SLF001
 
 
+class TestViserControlGui:
+    @staticmethod
+    def _build(mock_mujoco: MagicMock) -> tuple[MuJoCoSO101, MagicMock, MagicMock]:
+        _ = mock_mujoco
+        robot = MuJoCoSO101(model_path="/fake/model.xml")
+        robot.connect()
+        reset_button, shutdown_button = MagicMock(), MagicMock()
+        server = MagicMock()
+        server.gui.add_button.side_effect = [reset_button, shutdown_button]
+        viser_module = MagicMock()
+
+        robot._add_viser_control_gui(server, viser_module)  # noqa: SLF001
+
+        return robot, reset_button, shutdown_button
+
+    def test_reset_button_enqueues_reset_command(self, mock_mujoco: MagicMock) -> None:
+        robot, reset_button, _ = self._build(mock_mujoco)
+        on_reset = reset_button.on_click.call_args.args[0]
+
+        on_reset(MagicMock())
+
+        assert isinstance(robot._commands.get_nowait(), ResetCommand)  # noqa: SLF001
+
+    def test_shutdown_confirm_enqueues_shutdown_command_and_closes_modal(self, mock_mujoco: MagicMock) -> None:
+        robot, _, shutdown_button = self._build(mock_mujoco)
+        on_shutdown_click = shutdown_button.on_click.call_args.args[0]
+
+        client = MagicMock()
+        confirm_button, cancel_button = MagicMock(), MagicMock()
+        client.gui.add_button.side_effect = [confirm_button, cancel_button]
+
+        on_shutdown_click(MagicMock(client=client))
+        on_confirm = confirm_button.on_click.call_args.args[0]
+        on_confirm(MagicMock())
+
+        assert isinstance(robot._commands.get_nowait(), ShutdownCommand)  # noqa: SLF001
+        client.gui.add_modal.return_value.__exit__.assert_called_once()
+
+    def test_shutdown_cancel_closes_modal_without_enqueueing(self, mock_mujoco: MagicMock) -> None:
+        robot, _, shutdown_button = self._build(mock_mujoco)
+        on_shutdown_click = shutdown_button.on_click.call_args.args[0]
+
+        client = MagicMock()
+        confirm_button, cancel_button = MagicMock(), MagicMock()
+        client.gui.add_button.side_effect = [confirm_button, cancel_button]
+
+        on_shutdown_click(MagicMock(client=client))
+        on_cancel = cancel_button.on_click.call_args.args[0]
+        on_cancel(MagicMock())
+
+        assert robot._commands.empty()  # noqa: SLF001
+
+    def test_shutdown_click_without_client_is_a_noop(self, mock_mujoco: MagicMock) -> None:
+        robot, _, shutdown_button = self._build(mock_mujoco)
+        on_shutdown_click = shutdown_button.on_click.call_args.args[0]
+
+        on_shutdown_click(MagicMock(client=None))
+
+        assert robot._commands.empty()  # noqa: SLF001
+
+
 class TestSceneXmlWatch:
     def test_include_graph_is_walked_once_per_poll(self, mock_mujoco: MagicMock) -> None:
         _ = mock_mujoco

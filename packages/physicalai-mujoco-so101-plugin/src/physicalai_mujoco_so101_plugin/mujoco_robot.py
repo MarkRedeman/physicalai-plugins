@@ -668,6 +668,7 @@ class MuJoCoSO101:
             server = viser.ViserServer(port=self._viser_port, verbose=False)
             scene = ViserMujocoScene(server, self._model, num_envs=1)
             scene.create_visualization_gui()
+            self._add_viser_control_gui(server, viser)
         except Exception as exc:  # noqa: BLE001
             logger.warning("Failed to start viser viewer on port {}: {}", self._viser_port, exc)
             return False
@@ -676,6 +677,42 @@ class MuJoCoSO101:
             self._viser_scene = scene
             logger.info("3D viewer: http://127.0.0.1:{}", self._viser_port)
             return True
+
+    def _add_viser_control_gui(self, server: object, viser_module: object) -> None:
+        """Add Reset/Shutdown controls, independent of the per-scene GUI tabs.
+
+        Placed outside the tab group created by ``create_visualization_gui``
+        so a scene hot-swap (which rebuilds that tab group from scratch) does
+        not duplicate these controls.
+        """
+        from physicalai_mujoco_so101_plugin.http_server import ResetCommand, ShutdownCommand  # noqa: PLC0415
+
+        reset_button = server.gui.add_button("Reset Scene", icon=viser_module.Icon.REFRESH)
+
+        @reset_button.on_click
+        def _on_reset(_: object) -> None:
+            self._commands.put(ResetCommand())
+
+        shutdown_button = server.gui.add_button("Shutdown", icon=viser_module.Icon.POWER, color="red")
+
+        @shutdown_button.on_click
+        def _on_shutdown_click(event: object) -> None:
+            client = event.client
+            if client is None:
+                return
+            with client.gui.add_modal("Confirm shutdown") as modal:
+                client.gui.add_markdown("Stop the simulation owner? This disconnects all viewers.")
+                confirm_button = client.gui.add_button("Shutdown", color="red")
+                cancel_button = client.gui.add_button("Cancel")
+
+                @confirm_button.on_click
+                def _on_confirm(_: object) -> None:
+                    self._commands.put(ShutdownCommand())
+                    modal.close()
+
+                @cancel_button.on_click
+                def _on_cancel(_: object) -> None:
+                    modal.close()
 
     def _recreate_viser_scene(self) -> None:
         """Rebuild the viser scene after a model hot-swap.
