@@ -22,7 +22,7 @@ jobs:
       packages: ${{ steps.packages.outputs.matrix }}
       rp_outputs: ${{ toJSON(steps.release-please.outputs) }}
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -55,19 +55,19 @@ jobs:
         if: ${{ env.RELEASE_CREATED != 'true' }}
         run: echo "No release created for ${{ matrix.package.name }}, skipping."
 
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: ${{ env.RELEASE_CREATED == 'true' }}
         with:
           ref: ${{ fromJSON(needs.release-please.outputs.rp_outputs)[format('{0}--tag_name', matrix.package.path)] }}
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         if: ${{ env.RELEASE_CREATED == 'true' }}
         with:
           python-version: "3.13"
 
-      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         if: ${{ env.RELEASE_CREATED == 'true' }}
         with:
           enable-cache: false
@@ -101,7 +101,7 @@ jobs:
         if: ${{ env.RELEASE_CREATED != 'true' }}
         run: echo "No release created for ${{ matrix.package.name }}, skipping."
 
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         if: ${{ env.RELEASE_CREATED == 'true' }}
         with:
           python-version: "3.13"
@@ -112,12 +112,12 @@ jobs:
           name: ${{ matrix.package.name }}-dist
           path: dist/
 
-      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         if: ${{ env.RELEASE_CREATED == 'true' }}
         with:
           enable-cache: false
 
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: ${{ env.RELEASE_CREATED == 'true' }}
         with:
           sparse-checkout: scripts/
@@ -158,5 +158,5 @@ jobs:
           name: ${{ matrix.package.name }}-dist
           path: dist/
 
-      - uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
         if: ${{ env.RELEASE_CREATED == 'true' }}
