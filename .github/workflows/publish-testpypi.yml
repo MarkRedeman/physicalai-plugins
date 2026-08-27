@@ -33,7 +33,6 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
-          cache: false
           enable-cache: false
 
       - name: Build distributions (dev version)
@@ -55,8 +54,8 @@ jobs:
             DEV_VERSION="${BASE_VERSION}.dev${TIMESTAMP}"
             echo "  Version: $DEV_VERSION (base: $BASE_VERSION, from tag: ${LATEST_TAG:-none})"
 
-            SETUPTOOLS_SCM_PRETEND_VERSION="$DEV_VERSION" uv build --directory "$PKG" --out-dir "$PKG"dist
-            cp "$PKG"dist/*.whl "$PKG"dist/*.tar.gz dist_all/ 2>/dev/null || true
+            SETUPTOOLS_SCM_PRETEND_VERSION="$DEV_VERSION" uv build --directory "$PKG"
+            cp "$PKG"dist/*.whl "$PKG"dist/*.tar.gz dist_all/
           done
           uvx twine check dist_all/*
 
@@ -91,7 +90,6 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
-          cache: false
           enable-cache: false
 
       - name: Verify clean wheel installs
