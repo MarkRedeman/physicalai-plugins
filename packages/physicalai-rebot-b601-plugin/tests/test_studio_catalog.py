@@ -236,6 +236,29 @@ def test_payload_schemas_configure_serial_connection_picker(payload_name: str) -
     _assert_no_retired_ui_keys(schema)
 
 
+_RS_CONNECTION_UI = [
+    {
+        "kind": "connection",
+        "label": "CAN channel",
+        "device_discovery": False,
+        "manual_entry": True,
+        "bind": {"connection": "connection_string"},
+    },
+]
+
+
+def test_rs_payload_schema() -> None:
+    from physicalai_studio_plugin import validate_robot_payload_ui
+
+    from physicalai_rebot_b601_plugin.studio_catalog import ReBotB601RSPayload
+
+    validate_robot_payload_ui(ReBotB601RSPayload)
+    schema = ReBotB601RSPayload.model_json_schema()
+
+    assert schema["x-physicalai-ui"][0] == _RS_CONNECTION_UI[0]
+    _assert_no_retired_ui_keys(schema)
+
+
 @pytest.mark.anyio
 async def test_build_rebot_b601_dm_from_pydantic_payload() -> None:
     from physicalai_rebot_b601_plugin.studio_catalog import (
@@ -370,6 +393,20 @@ async def test_build_rebot_b601_rs_defaults() -> None:
     driver = await _build_rebot_b601_rs_driver(robot, factory)
     assert driver is not None
     assert driver.port == "can0"
+
+
+@pytest.mark.anyio
+async def test_build_rebot_b601_rs_empty_channel_raises() -> None:
+    from physicalai_rebot_b601_plugin.studio_catalog import (
+        ReBotB601RSPayload,
+        _build_rebot_b601_rs_driver,
+    )
+
+    payload = ReBotB601RSPayload(connection_string="")
+    robot = _StubRobot(payload)
+    factory = _StubFactory(port=None)
+    with pytest.raises(ValueError, match="CAN channel"):
+        await _build_rebot_b601_rs_driver(robot, factory)
 
 
 def test_get_rebot_urdf_root_returns_path() -> None:

@@ -228,7 +228,6 @@ class ReBotB601RSPayload(BaseModel):
     """Connection payload for a ReBot B601 RS follower arm."""
 
     connection_string: str = "can0"
-    serial_number: str = ""
     can_adapter: Literal["socketcan", "robstride"] = "socketcan"
     disable_torque_on_disconnect: bool = True
     gripper_mit_kp: float = 12.0
@@ -299,7 +298,8 @@ class ReBotProbe(RobotProbe[ReBotPayload]):
         if payload.connection_string and any(port.connection_string == payload.connection_string for port in ports):
             return True
 
-        return bool(payload.serial_number) and any(port.serial_number == payload.serial_number for port in ports)
+        serial_number = getattr(payload, "serial_number", "")
+        return bool(serial_number) and any(port.serial_number == serial_number for port in ports)
 
 
 _REBOT_PROBE = ReBotProbe()
@@ -374,8 +374,11 @@ async def _build_rebot_b601_rs_driver(  # noqa: RUF029
     if isinstance(raw, BaseModel) and type(raw) is not ReBotB601RSPayload:
         raw = raw.model_dump()
     validated = raw if isinstance(raw, ReBotB601RSPayload) else ReBotB601RSPayload.model_validate(raw)
+    if not validated.connection_string:
+        msg = "connection_string (CAN channel) must be set for the ReBot B601 RS follower"
+        raise ValueError(msg)
     return ReBotB601RS(
-        port=validated.connection_string or "can0",
+        port=validated.connection_string,
         can_adapter=validated.can_adapter,
         role="follower",
         disable_torque_on_disconnect=validated.disable_torque_on_disconnect,
