@@ -8,6 +8,13 @@ These classes implement the `physicalai.runtime.ActionSource` protocol and can
 be wired into any `physicalai run --config` runtime YAML (or used directly in
 Python).
 
+> **Not on PyPI** — this package is installed from the git repository (it may
+> later move into the `physicalai` runtime). Add it with uv:
+
+```bash
+uv add "physicalai-common-extras @ git+https://github.com/MarkRedeman/physicalai-plugins.git#subdirectory=packages/physicalai-common-extras"
+```
+
 ## Sources
 
 | Source                                 | Purpose                                                                                    |

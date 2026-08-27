@@ -131,7 +131,8 @@ Press `Ctrl+C` to stop. Optionally cap the run with `--run.duration_s=60`.
 ### Action sources
 
 The runtime configs above use action sources from the
-[`physicalai-common-extras`](../physicalai-common-extras/README.md) package:
+[`physicalai-common-extras`](../physicalai-common-extras/README.md) package
+(installed from git, not PyPI):
 
 ```python
 from physicalai_common_extras import CompositeSource, KeyboardTeleop

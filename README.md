@@ -12,7 +12,7 @@ via an entry point. Packages are built and released independently with
 
 | Package                                                                                   | Description                                                    | Released          |
 | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ----------------- |
-| [`physicalai-common-extras`](packages/physicalai-common-extras/README.md)                 | Reusable action sources / callbacks (Composite, keyboard, ...) | not yet published |
+| [`physicalai-common-extras`](packages/physicalai-common-extras/README.md)                 | Reusable action sources / callbacks (Composite, keyboard, ...) | git dependency    |
 | [`physicalai-lekiwi-plugin`](packages/physicalai-lekiwi-plugin/README.md)                 | LeKiwi mobile manipulator (6-DOF arm + 3-wheel holonomic base) | yes               |
 | [`physicalai-rebot-b601-plugin`](packages/physicalai-rebot-b601-plugin/README.md)         | Seeed reBot B601 arm (B601-DM / B601-RS) + Star Arm 102 leader | yes               |
 | [`physicalai-bimanual-so101-plugin`](packages/physicalai-bimanual-so101-plugin/README.md) | Bimanual SO-101 (twin 6-DOF STS3215 arms)                      | yes               |

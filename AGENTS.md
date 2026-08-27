@@ -5,7 +5,7 @@ Third-party robot plugins monorepo for the [PhysicalAI](https://github.com/openv
 ## Repository Layout
 
 - `packages/<name>/src/<pkg>/`: per-plugin Python package (src layout).
-- `packages/physicalai-common-extras/`: shared action sources / callbacks reused across plugins.
+- `packages/physicalai-common-extras/`: shared action sources / callbacks reused across plugins (git dependency — not published to PyPI).
 - `packages/<name>/examples/runtime/*.yaml`: `physicalai run --config` runtime configs.
 - `packages/<name>/tests/`: per-plugin pytest tests.
 - `scripts/smoke.py`: import + version smoke test for released wheels.

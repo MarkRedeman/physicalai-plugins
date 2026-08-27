@@ -16,11 +16,6 @@
   ],
   "plugins": ["sentence-case"],
   "packages": {
-    "packages/physicalai-common-extras": {
-      "release-type": "python",
-      "package-name": "physicalai-common-extras",
-      "changelog-path": "CHANGELOG.md"
-    },
     "packages/physicalai-bimanual-so101-plugin": {
       "release-type": "python",
       "package-name": "physicalai-bimanual-so101-plugin",
