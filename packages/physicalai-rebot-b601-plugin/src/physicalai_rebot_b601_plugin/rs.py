@@ -130,6 +130,11 @@ class ReBotB601RS:
         return self._port
 
     @property
+    def device_ids(self) -> tuple[str, ...]:
+        """Configured CAN transport identity without opening it."""
+        return (f"rebot-rs:{self._can_adapter}:{self._port}",)
+
+    @property
     def can_adapter(self) -> ReBotRSCanAdapter:
         """CAN adapter type (``"socketcan"`` or ``"robstride"``)."""
         return self._can_adapter

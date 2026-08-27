@@ -25,7 +25,12 @@ from physicalai_studio_plugin import (
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 import physicalai_rebot_b601_plugin
-from physicalai_rebot_b601_plugin import ReBotArm102Leader, ReBotB601DM, get_urdf_path
+from physicalai_rebot_b601_plugin import (
+    ReBotArm102Leader,
+    ReBotB601DM,
+    ReBotB601RS,
+    get_urdf_path,
+)
 
 if TYPE_CHECKING:
     from typing import Protocol
@@ -56,6 +61,16 @@ _REBOT_ARM102_TO_URDF: dict[str, list[str]] = {
     "gripper.pos": ["joint7_left", "joint7_right"],
 }
 
+_REBOT_B601_RS_TO_URDF: dict[str, list[str]] = {
+    "shoulder_pan.pos": ["joint1"],
+    "shoulder_lift.pos": ["joint2"],
+    "elbow_flex.pos": ["joint3"],
+    "wrist_flex.pos": ["joint4"],
+    "wrist_yaw.pos": ["joint5"],
+    "wrist_roll.pos": ["joint6"],
+    "gripper.pos": ["joint_left", "joint_right"],
+}
+
 
 def _get_rebot_urdf_root() -> Path:
     configured_root = get_urdf_path()
@@ -84,6 +99,13 @@ _REBOT_ARM102_ASSET = RobotAsset(
     urdf_relative_path=Path("stararm102/urdf/stararm102_description.urdf"),
     packages={"stararm102": Path("stararm102")},
     joint_map=_REBOT_ARM102_TO_URDF,
+    root_resolver=_get_rebot_urdf_root,
+)
+
+_REBOT_B601_RS_ASSET = RobotAsset(
+    urdf_relative_path=Path("rebot-b601-rs/urdf/00-arm-rs_asm-v3.urdf"),
+    packages={"rebot-b601-rs": Path("rebot-b601-rs")},
+    joint_map=_REBOT_B601_RS_TO_URDF,
     root_resolver=_get_rebot_urdf_root,
 )
 
@@ -202,7 +224,43 @@ class ReBotArm102Payload(BaseModel):
         return self
 
 
-type ReBotPayload = ReBotB601DMPayload | ReBotArm102Payload
+class ReBotB601RSPayload(BaseModel):
+    """Connection payload for a ReBot B601 RS follower arm."""
+
+    connection_string: str = "can0"
+    serial_number: str = ""
+    can_adapter: Literal["socketcan", "robstride"] = "socketcan"
+    disable_torque_on_disconnect: bool = True
+    gripper_mit_kp: float = 12.0
+    gripper_mit_kd: float = 0.05
+    gripper_mit_torque_limit: float = 10.0
+
+    model_config = ConfigDict(
+        json_schema_extra=robot_payload_ui(  # pyrefly: ignore[bad-argument-type]
+            [
+                {
+                    "kind": "connection",
+                    "label": "CAN channel",
+                    "device_discovery": False,
+                    "manual_entry": True,
+                    "bind": {"connection": "connection_string"},
+                },
+                {
+                    "kind": "section",
+                    "id": "rs_gripper_gains",
+                    "title": "Gripper MIT gains",
+                    "items": [
+                        {"kind": "field", "name": "gripper_mit_kp"},
+                        {"kind": "field", "name": "gripper_mit_kd"},
+                        {"kind": "field", "name": "gripper_mit_torque_limit"},
+                    ],
+                },
+            ],
+        ),
+    )
+
+
+type ReBotPayload = ReBotB601DMPayload | ReBotArm102Payload | ReBotB601RSPayload
 
 
 class ReBotProbe(RobotProbe[ReBotPayload]):
@@ -307,6 +365,26 @@ async def _build_rebot_arm102_driver(
     )
 
 
+async def _build_rebot_b601_rs_driver(  # noqa: RUF029
+    robot: PayloadContainer[ReBotB601RSPayload],
+    factory: CatalogRobotFactory,
+) -> PhysicalAIRobot:
+    _ = factory
+    raw = robot.payload
+    if isinstance(raw, BaseModel) and type(raw) is not ReBotB601RSPayload:
+        raw = raw.model_dump()
+    validated = raw if isinstance(raw, ReBotB601RSPayload) else ReBotB601RSPayload.model_validate(raw)
+    return ReBotB601RS(
+        port=validated.connection_string or "can0",
+        can_adapter=validated.can_adapter,
+        role="follower",
+        disable_torque_on_disconnect=validated.disable_torque_on_disconnect,
+        gripper_mit_kp=validated.gripper_mit_kp,
+        gripper_mit_kd=validated.gripper_mit_kd,
+        gripper_mit_torque_limit=validated.gripper_mit_torque_limit,
+    )
+
+
 def _definitions() -> list[RobotCatalogDefinition]:
     return [
         RobotCatalogDefinition(
@@ -316,6 +394,16 @@ def _definitions() -> list[RobotCatalogDefinition]:
             robot_builder=_build_rebot_b601_dm_driver,
             robot_payload=ReBotB601DMPayload,
             asset=_REBOT_B601_DM_ASSET,
+            adapter_options=RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
+            probe=_REBOT_PROBE,
+        ),
+        RobotCatalogDefinition(
+            type="ReBot_B601_RS_Follower",
+            display_name="ReBot B601 RS Follower",
+            role="follower",
+            robot_builder=_build_rebot_b601_rs_driver,
+            robot_payload=ReBotB601RSPayload,
+            asset=_REBOT_B601_RS_ASSET,
             adapter_options=RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
             probe=_REBOT_PROBE,
         ),
