@@ -32,9 +32,12 @@ BIMANUAL_SO101_JOINT_ORDER: Final = (
 
 BIMANUAL_NUM_JOINTS: Final = 12
 
-# Zenoh owner name used by ``physicalai-mujoco-so101 start`` (``--name`` default)
-# and the Studio MuJoCo payload ``name`` field default.
+# Zenoh owner names used by ``physicalai-mujoco-so101 start`` (``--name``
+# default) and the Studio MuJoCo payload ``name`` field default. The two arm
+# counts get distinct names so a single-arm and a bimanual simulation can run
+# side by side, and so Studio's online probe reports them independently.
 DEFAULT_MUJOCO_OWNER_NAME: Final = "mujoco-so101-follow"
+DEFAULT_BIMANUAL_MUJOCO_OWNER_NAME: Final = "mujoco-so101-bimanual-follow"
 
 JOINT_LIMITS_DEG: Final = {
     "shoulder_pan": (-110.0, 110.0),

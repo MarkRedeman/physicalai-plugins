@@ -21,7 +21,7 @@ from physicalai_studio_plugin import (
     SerialPortInfo,
     robot_payload_ui,
 )
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 import physicalai_rebot_b601_plugin
 from physicalai_rebot_b601_plugin import ReBotArm102Leader, ReBotB601DM, get_urdf_path
@@ -96,7 +96,9 @@ class ReBotB601DMPayload(BaseModel):
     dm_serial_baud: int = 921600
     disable_torque_on_disconnect: bool = True
     force_pos_torque_ratio: float = 0.1
-    max_velocity: float = 1.0
+    # Scales REBOT_B601_DM_POS_VEL_DEG_S down only: 1.0 is the arm's rated
+    # ceiling, so a configuration must not be able to ask for more.
+    max_velocity: float = Field(default=1.0, gt=0.0, le=1.0)
 
     model_config = ConfigDict(
         json_schema_extra=robot_payload_ui(  # pyrefly: ignore[bad-argument-type]

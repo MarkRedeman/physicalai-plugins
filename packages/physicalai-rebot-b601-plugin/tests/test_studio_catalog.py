@@ -143,6 +143,23 @@ def test_rebot_b601_dm_payload_defaults() -> None:
     assert payload.max_velocity == 1.0
 
 
+@pytest.mark.parametrize("max_velocity", [1.5, 2.0, 0.0, -0.5])
+def test_rebot_b601_dm_payload_rejects_out_of_range_max_velocity(max_velocity: float) -> None:
+    from pydantic import ValidationError
+
+    from physicalai_rebot_b601_plugin.studio_catalog import ReBotB601DMPayload
+
+    # 1.0 is the arm's rated ceiling; a Studio config must not exceed it.
+    with pytest.raises(ValidationError):
+        ReBotB601DMPayload(serial_number="SN-001", max_velocity=max_velocity)
+
+
+def test_rebot_b601_dm_payload_accepts_scaling_down() -> None:
+    from physicalai_rebot_b601_plugin.studio_catalog import ReBotB601DMPayload
+
+    assert ReBotB601DMPayload(serial_number="SN-001", max_velocity=0.25).max_velocity == 0.25
+
+
 def test_rebot_arm102_payload_defaults() -> None:
     from physicalai_rebot_b601_plugin.studio_catalog import ReBotArm102Payload
 

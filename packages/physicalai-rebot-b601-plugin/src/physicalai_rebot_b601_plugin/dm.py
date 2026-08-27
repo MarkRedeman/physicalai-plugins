@@ -21,6 +21,7 @@ from physicalai_rebot_b601_plugin.constants import (
     REBOT_B601_DM_JOINT_DIRECTIONS,
     REBOT_B601_DM_JOINT_LIMITS_DEG,
     REBOT_B601_DM_JOINT_ORDER,
+    REBOT_B601_DM_MIN_POS_VEL_DEG_S,
     REBOT_B601_DM_MOTOR_IDS,
     REBOT_B601_DM_MOTOR_MODELS,
     REBOT_B601_DM_POS_VEL_DEG_S,
@@ -321,7 +322,14 @@ class ReBotB601DM:
         The gripper uses FORCE_POS mode; all other joints use POS_VEL mode
         with a velocity limit calculated to reach the target within ``goal_time``.
         The limit is capped by ``REBOT_B601_DM_POS_VEL_DEG_S`` multiplied by
-        the configured ``max_velocity``.
+        the configured ``max_velocity``, and floored at
+        ``REBOT_B601_DM_MIN_POS_VEL_DEG_S`` so a joint near its target still
+        moves.
+
+        The remaining distance is measured against each motor's live state
+        (:meth:`Motor.get_state`), which the ``motorbridge`` driver's
+        background CAN-read thread keeps updated independently of
+        :meth:`get_observation`.
 
         Args:
             action: Array of 7 joint position targets in degrees.
@@ -351,7 +359,9 @@ class ReBotB601DM:
             max_velocity_rad_s = math.radians(REBOT_B601_DM_POS_VEL_DEG_S[i] * self.max_velocity)
             velocity_rad_s = max_velocity_rad_s
             if state is not None:
-                velocity_rad_s = min(max_velocity_rad_s, abs(target_rad - float(state.pos)) / goal_time)
+                min_velocity_rad_s = min(math.radians(REBOT_B601_DM_MIN_POS_VEL_DEG_S), max_velocity_rad_s)
+                distance_velocity_rad_s = abs(target_rad - float(state.pos)) / goal_time
+                velocity_rad_s = max(min_velocity_rad_s, min(max_velocity_rad_s, distance_velocity_rad_s))
 
             if name == "gripper":
                 motor.send_force_pos(target_rad, velocity_rad_s, self._force_pos_torque_ratio)

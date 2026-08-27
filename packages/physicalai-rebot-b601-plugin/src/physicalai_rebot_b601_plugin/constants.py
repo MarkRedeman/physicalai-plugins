@@ -59,7 +59,18 @@ REBOT_B601_DM_JOINT_DIRECTIONS: Final = {
     "gripper": -6.0,
 }
 
+# Per-joint ceiling on the POS_VEL profile speed, ordered like
+# REBOT_B601_DM_JOINT_ORDER. ``send_action`` normally commands the speed needed
+# to cover the remaining distance within ``goal_time`` and only reaches this
+# ceiling on large steps; ``ReBotB601DM.max_velocity`` scales it down from
+# there, and is capped at 1.0 in the Studio payload so a configuration cannot
+# ask for more than the mechanical limit.
 REBOT_B601_DM_POS_VEL_DEG_S: Final = (250.0, 250.0, 250.0, 200.0, 200.0, 200.0, 200.0)
+
+# Floor for that same profile speed. A joint already at its target computes a
+# distance of zero, and a zero-speed POS_VEL profile tells the motor not to move
+# at all, so it would never close a small residual error.
+REBOT_B601_DM_MIN_POS_VEL_DEG_S: Final = 10.0
 
 VALID_CAN_ADAPTERS: Final = frozenset({"damiao", "socketcan"})
 VALID_RS_CAN_ADAPTERS: Final = frozenset({"socketcan", "robstride"})

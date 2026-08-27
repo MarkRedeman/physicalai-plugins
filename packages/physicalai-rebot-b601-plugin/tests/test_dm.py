@@ -12,7 +12,10 @@ import numpy as np
 import pytest
 from physicalai.config import to_config
 
-from physicalai_rebot_b601_plugin.constants import REBOT_B601_DM_POS_VEL_DEG_S
+from physicalai_rebot_b601_plugin.constants import (
+    REBOT_B601_DM_MIN_POS_VEL_DEG_S,
+    REBOT_B601_DM_POS_VEL_DEG_S,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -275,6 +278,38 @@ class TestReBotB601DMAction:
         assert motors[6].send_force_pos.call_args.args[1] == pytest.approx(
             math.radians(REBOT_B601_DM_POS_VEL_DEG_S[6] * 0.5),
         )
+
+    def test_send_action_floors_velocity_at_the_target(self, mock_motorbridge: MagicMock) -> None:
+        robot = _create_robot(mock_motorbridge)
+        robot.connect()
+        controller = mock_motorbridge.Controller.from_dm_serial.return_value
+        motors = list(controller.mock_motors)
+
+        # Every joint already sits on its commanded target, so the distance-based
+        # velocity is exactly zero and only the floor keeps the profile moving.
+        for motor in motors:
+            motor.get_state.return_value = _MotorState(pos=0.0)
+        robot.send_action(np.zeros(7, dtype=np.float32))
+
+        floor = math.radians(REBOT_B601_DM_MIN_POS_VEL_DEG_S)
+        for motor in motors[:6]:
+            assert motor.send_pos_vel.call_args.args[1] == pytest.approx(floor)
+        assert motors[6].send_force_pos.call_args.args[1] == pytest.approx(floor)
+
+    def test_velocity_floor_never_exceeds_the_ceiling(self, mock_motorbridge: MagicMock) -> None:
+        # A tiny max_velocity scales the ceiling below the floor; the ceiling wins.
+        scale = 0.01
+        robot = _create_robot(mock_motorbridge, max_velocity=scale)
+        robot.connect()
+        controller = mock_motorbridge.Controller.from_dm_serial.return_value
+        motors = list(controller.mock_motors)
+
+        for motor in motors:
+            motor.get_state.return_value = _MotorState(pos=0.0)
+        robot.send_action(np.zeros(7, dtype=np.float32))
+
+        for motor, ceiling in zip(motors[:6], REBOT_B601_DM_POS_VEL_DEG_S[:6], strict=True):
+            assert motor.send_pos_vel.call_args.args[1] == pytest.approx(math.radians(ceiling * scale))
 
     @pytest.mark.parametrize("goal_time", [0.0, -0.1, math.inf, math.nan])
     def test_send_action_rejects_non_positive_goal_time(

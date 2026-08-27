@@ -8,6 +8,8 @@ from typing import Literal
 import numpy as np
 from loguru import logger
 
+from physicalai_mujoco_so101_plugin.spawn import sample_object_positions, write_freejoint_qpos
+
 Phase = Literal["idle", "success_hold"]
 
 
@@ -202,23 +204,26 @@ class EpisodeAutoReset:
         return speed <= config.cube_static_speed
 
     def _sample_spawn_xy(self, target_xy: tuple[float, float]) -> tuple[float, float]:
+        """Sample a cube position at least ``target_min_sep`` from the plate.
+
+        Returns:
+            An ``(x, y)`` position in world coordinates.
+        """
         config = self._config
-        best: tuple[float, float] | None = None
-        for _ in range(config.spawn_attempts):
-            r = float(self._rng.uniform(config.spawn_min_r, config.spawn_max_r))
-            theta = float(
-                self._rng.uniform(
-                    -np.radians(config.spawn_angle_half_deg),
-                    np.radians(config.spawn_angle_half_deg),
-                ),
-            )
-            x = config.spawn_center[0] + r * float(np.cos(theta))
-            y = config.spawn_center[1] + r * float(np.sin(theta))
-            best = (x, y)
-            if np.hypot(x - target_xy[0], y - target_xy[1]) >= config.target_min_sep:
-                return (x, y)
-        assert best is not None
-        return best
+        # Only the cube moves, so there is nothing else to stay clear of.
+        positions = sample_object_positions(
+            1,
+            rng=self._rng,
+            center=config.spawn_center,
+            min_r=config.spawn_min_r,
+            max_r=config.spawn_max_r,
+            angle_half_deg=config.spawn_angle_half_deg,
+            target_xy=target_xy,
+            target_min_sep=config.target_min_sep,
+            object_min_sep=0.0,
+            attempts=config.spawn_attempts,
+        )
+        return positions[0]
 
     def _respawn_cube(self, model: object, data: object, runtime: _Runtime) -> None:
         target_xy = (
@@ -226,10 +231,12 @@ class EpisodeAutoReset:
             float(data.xpos[runtime.target_body_id][1]),
         )
         x, y = self._sample_spawn_xy(target_xy)
-        yaw = float(self._rng.uniform(0.0, 2.0 * np.pi))
-        qadr = runtime.cube_qpos_address
-        dadr = runtime.cube_dof_address
-        data.qpos[qadr : qadr + 3] = [x, y, self._config.cube_spawn_z]
-        data.qpos[qadr + 3 : qadr + 7] = [np.cos(yaw / 2.0), 0.0, 0.0, np.sin(yaw / 2.0)]
-        data.qvel[dadr : dadr + 6] = 0.0
+        write_freejoint_qpos(
+            data,
+            runtime.cube_qpos_address,
+            runtime.cube_dof_address,
+            (x, y),
+            yaw=float(self._rng.uniform(0.0, 2.0 * np.pi)),
+            z=self._config.cube_spawn_z,
+        )
         logger.info("Respawned cube at x={:.3f}, y={:.3f}", x, y)

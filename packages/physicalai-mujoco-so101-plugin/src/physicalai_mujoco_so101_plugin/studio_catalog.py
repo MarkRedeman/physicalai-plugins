@@ -24,11 +24,13 @@ import physicalai_mujoco_so101_plugin
 from physicalai_mujoco_so101_plugin._urdf import get_urdf_path
 from physicalai_mujoco_so101_plugin.constants import (
     BIMANUAL_SO101_JOINT_ORDER,
+    DEFAULT_BIMANUAL_MUJOCO_OWNER_NAME,
     DEFAULT_MUJOCO_OWNER_NAME,
     SO101_JOINT_ORDER,
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
     from typing import Protocol
 
     import numpy as np
@@ -112,6 +114,20 @@ class MuJoCoSO101Payload(BaseModel):
     )
 
 
+class MuJoCoSO101BimanualPayload(MuJoCoSO101Payload):
+    """Connection settings for a bimanual MuJoCo SO-101 simulation owner.
+
+    Identical to the single-arm payload apart from the default owner name, which
+    matches ``physicalai-mujoco-so101 start --bimanual``. Sharing one default
+    would make both catalog entries probe the same owner.
+    """
+
+    name: str = Field(
+        default=DEFAULT_BIMANUAL_MUJOCO_OWNER_NAME,
+        description="Zenoh logical robot name of the running bimanual MuJoCo simulation",
+    )
+
+
 def _check_zenoh_robot_online(name: str) -> bool:
     from physicalai.robot.transport import SharedRobot  # noqa: PLC0415
 
@@ -179,6 +195,8 @@ class _SharedSO101Robot:
     def connect(self) -> None:
         from physicalai.robot.transport import SharedRobot  # noqa: PLC0415
 
+        if self._shared_robot is not None:
+            return
         shared = SharedRobot.attach(
             name=self._owner_name,
             allow_remote=self._allow_remote,
@@ -188,8 +206,13 @@ class _SharedSO101Robot:
         self._shared_robot = shared
 
     def disconnect(self) -> None:
-        if self._shared_robot is not None:
-            self._shared_robot.disconnect()
+        shared = self._shared_robot
+        if shared is None:
+            return
+        # Drop the handle even if teardown fails, so a reconnect attaches a new
+        # session instead of leaking this one and probing a dead transport.
+        self._shared_robot = None
+        shared.disconnect()
 
     def get_observation(self) -> RobotObservation:
         if self._shared_robot is None:
@@ -209,38 +232,37 @@ class _SharedSO101Robot:
         return self._shared_robot.is_connected()
 
 
-async def _build_mujoco_robot(
-    robot: PayloadContainer[MuJoCoSO101Payload],
-    factory: CatalogRobotFactory,
-) -> PhysicalAIRobot:
-    _ = factory
-    await asyncio.sleep(0)
-    raw = robot.payload
-    validated = raw if isinstance(raw, MuJoCoSO101Payload) else MuJoCoSO101Payload.model_validate(raw)
+def _mujoco_robot_builder(
+    payload_model: type[MuJoCoSO101Payload],
+    joint_order: tuple[str, ...],
+) -> Callable[[PayloadContainer[MuJoCoSO101Payload], CatalogRobotFactory], Awaitable[PhysicalAIRobot]]:
+    """Build the catalog builder for one arm count.
 
-    return _SharedSO101Robot(
-        validated.name,
-        validated.allow_remote,
-        validated.connect_timeout,
-        SO101_JOINT_ORDER,
-    )
+    Returns:
+        An async robot builder that attaches to the payload's zenoh owner.
+    """
+
+    async def build(
+        robot: PayloadContainer[MuJoCoSO101Payload],
+        factory: CatalogRobotFactory,
+    ) -> PhysicalAIRobot:
+        _ = factory
+        await asyncio.sleep(0)
+        raw = robot.payload
+        validated = raw if isinstance(raw, payload_model) else payload_model.model_validate(raw)
+
+        return _SharedSO101Robot(
+            validated.name,
+            validated.allow_remote,
+            validated.connect_timeout,
+            joint_order,
+        )
+
+    return build
 
 
-async def _build_bimanual_mujoco_robot(
-    robot: PayloadContainer[MuJoCoSO101Payload],
-    factory: CatalogRobotFactory,
-) -> PhysicalAIRobot:
-    _ = factory
-    await asyncio.sleep(0)
-    raw = robot.payload
-    validated = raw if isinstance(raw, MuJoCoSO101Payload) else MuJoCoSO101Payload.model_validate(raw)
-
-    return _SharedSO101Robot(
-        validated.name,
-        validated.allow_remote,
-        validated.connect_timeout,
-        BIMANUAL_SO101_JOINT_ORDER,
-    )
+_build_mujoco_robot = _mujoco_robot_builder(MuJoCoSO101Payload, SO101_JOINT_ORDER)
+_build_bimanual_mujoco_robot = _mujoco_robot_builder(MuJoCoSO101BimanualPayload, BIMANUAL_SO101_JOINT_ORDER)
 
 
 def _definitions() -> list[RobotCatalogDefinition]:
@@ -263,7 +285,7 @@ def _definitions() -> list[RobotCatalogDefinition]:
             display_name="MuJoCo SO-101 Bimanual Follower",
             role="follower",
             robot_builder=_build_bimanual_mujoco_robot,
-            robot_payload=MuJoCoSO101Payload,
+            robot_payload=MuJoCoSO101BimanualPayload,
             asset=_MUJOCO_SO101_BIMANUAL_ASSET,
             adapter_options=RobotAdapterOptions(
                 include_velocities=False,

@@ -237,15 +237,19 @@ Start with a specific scene:
 uv run --no-sync physicalai-mujoco-so101 start --scene pick_place
 ```
 
-### Keyboard shortcut: cycle scenes
+### Switching scenes at runtime
 
-When the MuJoCo viewer is open, press **`n`** (next scene) to cycle through available scenes. The scene switches at the next control cycle:
+`POST /scenes/{scene_id}` switches a running simulation to another registered scene. The switch happens on the next control cycle:
 
 - Loads the new scene XML
 - Updates the existing viewer with the new environment
 - Resets block joints, target bodies, and spawn parameters
 
-`--model` bypasses scene resolution entirely; only the exported scene XML path is loaded, and scene cycling is unavailable.
+A scene that does not declare the joints the running robot drives is rejected and the current scene is kept, so a single-arm simulation will not accept `garment_fold` and a bimanual one will not accept the single-arm scenes.
+
+The native MuJoCo viewer also binds **`n`** (next scene) to cycle through the compatible scenes. That viewer is only used on Linux/Windows when the browser viewer fails to start; with the default viser viewer (and always on macOS) use the HTTP endpoint instead.
+
+`--model` bypasses scene resolution entirely; only the exported scene XML path is loaded, and scene switching is unavailable.
 
 ## Current status and future improvements
 
