@@ -3,7 +3,7 @@ minimum_prek_version: "0.2.19"
 default_language_version:
   python: python3.13
 
-exclude: ^CHANGELOG\.md$
+exclude: (^|/)CHANGELOG\.md$
 
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
