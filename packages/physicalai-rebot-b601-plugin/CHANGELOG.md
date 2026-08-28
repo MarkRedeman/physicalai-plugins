@@ -1,5 +1,59 @@
 # Changelog
 
+## [0.4.0](https://github.com/MarkRedeman/physicalai-plugins/compare/physicalai-rebot-b601-plugin-v0.3.0...physicalai-rebot-b601-plugin-v0.4.0) (2026-08-28)
+
+
+### Features
+
+* Bimanual so101 plugin ([4d7a509](https://github.com/MarkRedeman/physicalai-plugins/commit/4d7a50954eed1a9773ed5a0c724150d7db24fbcb))
+* Convert read_joints and move_joints examples to physicalai run configs ([fec85a4](https://github.com/MarkRedeman/physicalai-plugins/commit/fec85a4e074eaab5a33d3d6662d11b6cd4e067a6))
+* Run examples via the physicalai CLI with teleop action sources ([f8cf0b6](https://github.com/MarkRedeman/physicalai-plugins/commit/f8cf0b69e48f4b970786e8ff8a0143aa1ff2a1cb))
+* Update bimanual SO101, rebot and kiwi to be compatible with latest changes ([7e04a58](https://github.com/MarkRedeman/physicalai-plugins/commit/7e04a58b416a89f7841e819fe7aa55046ac38812))
+
+
+### Bug Fixes
+
+* Address review feedback on release-please setup ([badc9c6](https://github.com/MarkRedeman/physicalai-plugins/commit/badc9c682f29554301bacd9d7c3d7bf1eb58dee4))
+* Apply code review comments ([836d10d](https://github.com/MarkRedeman/physicalai-plugins/commit/836d10dcd71215a6799ce6a8a0d6bd3958296b64))
+* Export ReBot Studio drivers ([bc2196e](https://github.com/MarkRedeman/physicalai-plugins/commit/bc2196e7b4f052f014f147d3a49c347a3cecc8ba))
+* Forward release-please step outputs as JSON, fix doc paths ([099d57f](https://github.com/MarkRedeman/physicalai-plugins/commit/099d57f5cb91185cf95792396fddbcb8555be485))
+* Ignore semgrep about old python version ([87bfc02](https://github.com/MarkRedeman/physicalai-plugins/commit/87bfc022f8ee3173f2d092d5322c986c8d32a8be))
+* Make release-please workflow run again ([9ab9a70](https://github.com/MarkRedeman/physicalai-plugins/commit/9ab9a70521d4c0078e2afd811de87647f9022e99))
+* Make release-please workflow run again ([715da8f](https://github.com/MarkRedeman/physicalai-plugins/commit/715da8ff8251f99f7331be8b556c3dea9715b97b))
+* Narrow scservo mock fixture so it no longer invalidates plugin classes ([218a667](https://github.com/MarkRedeman/physicalai-plugins/commit/218a667c979a18c622a9b9d4e373f41f664d41c9))
+* Narrow scservo mock fixture so it no longer invalidates plugin classes ([ad62df8](https://github.com/MarkRedeman/physicalai-plugins/commit/ad62df819fd1d5e311d9d44ebf8b4ad7fe04b5e9))
+* **pkg:** Cap hatchling &lt;1.30 to emit Metadata 2.4 ([37b7008](https://github.com/MarkRedeman/physicalai-plugins/commit/37b7008fec6e8999a6acc8eea319742af9cf2bb4))
+* **pkg:** Cap hatchling &lt;1.30 to emit Metadata 2.4 ([bbeaa3c](https://github.com/MarkRedeman/physicalai-plugins/commit/bbeaa3c10103df1ebe6ad7165e2280d4ed9654ec))
+* Rebot linting ([9f50d83](https://github.com/MarkRedeman/physicalai-plugins/commit/9f50d83d17c4ad81f774c2e9215ed09f27a03fa5))
+* Update physicalai library to latest version including new config interfaces ([698f049](https://github.com/MarkRedeman/physicalai-plugins/commit/698f0497ab7a410c182322a40586214383c88625))
+* Use physicalai studio plugin from original repo ([33904d4](https://github.com/MarkRedeman/physicalai-plugins/commit/33904d42c9ed86d18b7647e850ee368f3f7a9fc0))
+* Use physicalai studio plugin from original repo ([99be922](https://github.com/MarkRedeman/physicalai-plugins/commit/99be922a3ab597be18142ff46b72d0608a62962b))
+
+
+### Code Refactoring
+
+* Make probe more strict ([418057b](https://github.com/MarkRedeman/physicalai-plugins/commit/418057bd4ea3e148dc1531c05ef9b86cef329116))
+* Restructure repo into multi-package uv workspace ([349b401](https://github.com/MarkRedeman/physicalai-plugins/commit/349b4016bacc043e8ba8dab965109b9e8b482695))
+* Restructure repo into multi-package uv workspace ([925fa09](https://github.com/MarkRedeman/physicalai-plugins/commit/925fa09a232b302ddcda39a77fe62461d2e38bc8))
+* Use interfaces from plugin package ([39b2d29](https://github.com/MarkRedeman/physicalai-plugins/commit/39b2d29414fdae017d965e7dba4f9db7fe4f4f55))
+* Use interfaces from plugin package ([79f8f84](https://github.com/MarkRedeman/physicalai-plugins/commit/79f8f840f7200a73eb4a6f3521d0dee537cd3f87))
+
+
+### Documentation
+
+* Improve the individual package READMEs ([de27f83](https://github.com/MarkRedeman/physicalai-plugins/commit/de27f831cacea926454364f7712392733e803da9))
+* Update readme and use physicalai runtime for examples ([6876999](https://github.com/MarkRedeman/physicalai-plugins/commit/687699943906f5d0e68e0c9d9464fff86862fd3e))
+
+
+### Chores
+
+* Apply code review suggestions ([acbb99a](https://github.com/MarkRedeman/physicalai-plugins/commit/acbb99a3960837a273148309fab29f670b79b13a))
+* Exclude example files from the PyPI bundle for all packages ([ba9d80b](https://github.com/MarkRedeman/physicalai-plugins/commit/ba9d80b8d980aedd86c89bd3be79958bad756c71))
+* Fix prek hooks - test ruff exclusions and pyrefly paths ([91a08d6](https://github.com/MarkRedeman/physicalai-plugins/commit/91a08d61eb2091490aba1481bb08b58436fd7e8d))
+* Move package files ([5001e6d](https://github.com/MarkRedeman/physicalai-plugins/commit/5001e6d48586a346c7930b7ea85c65712427c6d5))
+* Update repo URLs for rename to physicalai-plugins ([15a2d1e](https://github.com/MarkRedeman/physicalai-plugins/commit/15a2d1ec048f5d06b7ae47c8f8b305e1aa27b98f))
+* Update repo URLs for rename to physicalai-plugins ([064f603](https://github.com/MarkRedeman/physicalai-plugins/commit/064f603125d73c0fb292788d470d14ac290c077e))
+
 ## [0.3.0](https://github.com/MarkRedeman/physicalai-plugins/compare/v0.2.0...v0.3.0) (2026-06-24)
 
 ### Features
