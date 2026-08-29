@@ -15,12 +15,15 @@ from typing import TYPE_CHECKING, ClassVar, Literal
 
 import numpy as np
 from loguru import logger
+from motorbridge import Controller, Mode
 from physicalai.config import export_config
 
 from physicalai_rebot_b601_plugin.constants import (
     REBOT_B601_DM_JOINT_DIRECTIONS,
     REBOT_B601_DM_JOINT_LIMITS_DEG,
     REBOT_B601_DM_JOINT_ORDER,
+    REBOT_B601_DM_MIT_KD,
+    REBOT_B601_DM_MIT_KP,
     REBOT_B601_DM_MOTOR_IDS,
     REBOT_B601_DM_MOTOR_MODELS,
     REBOT_B601_DM_POS_VEL_DEG_S,
@@ -28,12 +31,36 @@ from physicalai_rebot_b601_plugin.constants import (
     VALID_ROLES,
 )
 
+ReBotB601DMControlMode = Literal["pos_vel", "mit"]
+ReBotB601DMGripperControlMode = Literal["force_pos", "mit"]
+DMMITGain = float | dict[str, float]
+
+
+def _validate_per_joint_gains(gains: dict[str, float], name: str) -> None:
+    """Ensure a per-joint gain dict covers exactly the expected joint set.
+
+    Args:
+        gains: Mapping from joint name to gain value.
+        name: Human-readable gain name used in error messages.
+
+    Raises:
+        ValueError: If ``gains`` is missing/extra a joint or any value is invalid.
+    """
+    missing = set(REBOT_B601_DM_JOINT_ORDER) - set(gains)
+    extra = set(gains) - set(REBOT_B601_DM_JOINT_ORDER)
+    if missing or extra:
+        msg = f"{name} must cover exactly {list(REBOT_B601_DM_JOINT_ORDER)}; got {sorted(gains)}"
+        raise ValueError(msg)
+    for joint, value in gains.items():
+        if not math.isfinite(value) or value < 0.0:
+            msg = f"{name}[{joint!r}] must be a non-negative finite value, got {value!r}"
+            raise ValueError(msg)
+
+
 if TYPE_CHECKING:
     from motorbridge import Motor, MotorState
     from physicalai.capture.frame import Frame
     from physicalai.robot.interface import RobotObservation
-
-from motorbridge import Controller, Mode
 
 ReBotCANAdapter = Literal["damiao", "socketcan"]
 ReBotRole = Literal["follower"]
@@ -65,8 +92,12 @@ class ReBotB601DMObservation:
 class ReBotB601DM:
     """Damiao motor driver for the reBot B601 robot arm.
 
-    Controls 7 DM-series motors (6-DOF + gripper) using POS_VEL mode for
-    position joints and FORCE_POS mode for the gripper.
+    Controls 7 DM-series motors (6-DOF + gripper). The position joints run in
+    MIT mode (default) or POS_VEL mode, and the gripper runs in MIT mode
+    (default) or FORCE_POS mode. MIT mode commands a target position with
+    per-joint stiffness/damping gains so the motors drive to the target using
+    available torque instead of a fixed velocity ceiling, giving much snappier
+    motion than the velocity-limited POS_VEL mode.
     """
 
     JOINT_ORDER: ClassVar[list[str]] = list(REBOT_B601_DM_JOINT_ORDER)
@@ -81,7 +112,11 @@ class ReBotB601DM:
         role: ReBotRole = "follower",
         disable_torque_on_disconnect: bool = True,
         force_pos_torque_ratio: float = 0.1,
-        max_velocity: float = 1.0,
+        control_mode: ReBotB601DMControlMode = "mit",
+        gripper_control_mode: ReBotB601DMGripperControlMode = "mit",
+        mit_kp: DMMITGain | None = None,
+        mit_kd: DMMITGain | None = None,
+        max_relative_target: float | None = None,
     ) -> None:
         """Initialize the Damiao motor driver.
 
@@ -92,7 +127,16 @@ class ReBotB601DM:
             role: Currently only ``"follower"`` is supported.
             disable_torque_on_disconnect: Whether to disable all motors on disconnect.
             force_pos_torque_ratio: FORCE_POS torque ratio in ``[0, 1]`` for gripper.
-            max_velocity: Multiplier applied to every joint's maximum velocity.
+            control_mode: ``"mit"`` (default) for stiffness-controlled position, or ``"pos_vel"``
+                for velocity-limited position control on the 6-DOF joints.
+            gripper_control_mode: ``"mit"`` (default) for impedance-controlled gripper, or
+                ``"force_pos"`` for force-limited position control.
+            mit_kp: MIT stiffness gain, either a single value for all joints or a per-joint dict;
+                defaults to :data:`REBOT_B601_DM_MIT_KP` when ``None``.
+            mit_kd: MIT damping gain, either a single value for all joints or a per-joint dict;
+                defaults to :data:`REBOT_B601_DM_MIT_KD` when ``None``.
+            max_relative_target: Optional maximum allowed change (degrees) between the current and
+                commanded position per step; limits how far the arm lunges on a single command.
 
         Raises:
             ValueError: If any parameter has an invalid value.
@@ -109,8 +153,18 @@ class ReBotB601DM:
         if not (0.0 <= force_pos_torque_ratio <= 1.0):
             msg = f"force_pos_torque_ratio must be in [0, 1], got {force_pos_torque_ratio!r}"
             raise ValueError(msg)
-        if not math.isfinite(max_velocity) or max_velocity <= 0.0:
-            msg = f"max_velocity must be a finite positive value, got {max_velocity!r}"
+        if control_mode not in {"pos_vel", "mit"}:
+            msg = f"Invalid control_mode {control_mode!r}. Must be 'pos_vel' or 'mit'."
+            raise ValueError(msg)
+        if gripper_control_mode not in {"force_pos", "mit"}:
+            msg = f"Invalid gripper_control_mode {gripper_control_mode!r}. Must be 'force_pos' or 'mit'."
+            raise ValueError(msg)
+        if mit_kp is not None and isinstance(mit_kp, dict):
+            _validate_per_joint_gains(mit_kp, "mit_kp")
+        if mit_kd is not None and isinstance(mit_kd, dict):
+            _validate_per_joint_gains(mit_kd, "mit_kd")
+        if max_relative_target is not None and (not math.isfinite(max_relative_target) or max_relative_target <= 0.0):
+            msg = f"max_relative_target must be a finite positive value, got {max_relative_target!r}"
             raise ValueError(msg)
 
         self._port = port
@@ -119,7 +173,11 @@ class ReBotB601DM:
         self._role = role
         self._disable_torque_on_disconnect = disable_torque_on_disconnect
         self._force_pos_torque_ratio = force_pos_torque_ratio
-        self._max_velocity = max_velocity
+        self._control_mode: ReBotB601DMControlMode = control_mode
+        self._gripper_control_mode: ReBotB601DMGripperControlMode = gripper_control_mode
+        self._mit_kp = mit_kp
+        self._mit_kd = mit_kd
+        self._max_relative_target: float | None = max_relative_target
         self._controller: Controller | None = None
         self._motors: dict[str, Motor] = {}
 
@@ -158,9 +216,19 @@ class ReBotB601DM:
         self._disable_torque_on_disconnect = value
 
     @property
-    def max_velocity(self) -> float:
-        """Multiplier applied to every joint's maximum velocity."""
-        return self._max_velocity
+    def control_mode(self) -> ReBotB601DMControlMode:
+        """Position-joint control mode (``"mit"`` or ``"pos_vel"``)."""
+        return self._control_mode
+
+    @property
+    def gripper_control_mode(self) -> ReBotB601DMGripperControlMode:
+        """Gripper control mode (``"mit"`` or ``"force_pos"``)."""
+        return self._gripper_control_mode
+
+    @property
+    def max_relative_target(self) -> float | None:
+        """Maximum allowed per-step position change in degrees, if configured."""
+        return self._max_relative_target
 
     def _require_controller(self) -> Controller:
         controller = self._controller
@@ -238,7 +306,10 @@ class ReBotB601DM:
         controller.disable_all()
 
         for name, motor in self._motors.items():
-            target_mode = Mode.FORCE_POS if name == "gripper" else Mode.POS_VEL
+            if name == "gripper":
+                target_mode = Mode.MIT if self._gripper_control_mode == "mit" else Mode.FORCE_POS
+            else:
+                target_mode = Mode.MIT if self._control_mode == "mit" else Mode.POS_VEL
             motor.ensure_mode(target_mode)
 
         controller.enable_all()
@@ -318,14 +389,17 @@ class ReBotB601DM:
     def send_action(self, action: np.ndarray, *, goal_time: float = 0.1) -> None:
         """Send a target position command to each joint.
 
-        The gripper uses FORCE_POS mode; all other joints use POS_VEL mode
-        with a velocity limit calculated to reach the target within ``goal_time``.
-        The limit is capped by ``REBOT_B601_DM_POS_VEL_DEG_S`` multiplied by
-        the configured ``max_velocity``.
+        In MIT mode the 6-DOF joints (and, optionally, the gripper) are sent a
+        target position with per-joint stiffness/damping gains, so the motors
+        drive to the target using available torque rather than a fixed velocity
+        ceiling. In POS_VEL mode the joints are sent a position with a velocity
+        limit calculated to reach the target within ``goal_time`` and capped by
+        ``REBOT_B601_DM_POS_VEL_DEG_S``. The gripper uses
+        FORCE_POS mode unless ``gripper_control_mode`` is ``"mit"``.
 
         Args:
             action: Array of 7 joint position targets in degrees.
-            goal_time: Requested time to reach each target in seconds.
+            goal_time: Requested time to reach each target in seconds (POS_VEL mode only).
 
         Raises:
             ConnectionError: If the robot is not connected.
@@ -343,20 +417,73 @@ class ReBotB601DM:
             msg = f"Expected action shape {expected_shape}, got {action.shape}"
             raise ValueError(msg)
 
+        max_relative_target = self._max_relative_target
+        present_deg: list[float] | None = None
+        if max_relative_target is not None:
+            states = self._read_motor_states()
+            present_deg = [math.degrees(float(s.pos)) for s in states]
+
         for i, name in enumerate(self.JOINT_ORDER):
             target_deg = self._map_and_clip_action(name, float(action[i]))
+            if present_deg is not None and max_relative_target is not None:
+                delta = target_deg - present_deg[i]
+                if abs(delta) > max_relative_target:
+                    limited = present_deg[i] + math.copysign(max_relative_target, delta)
+                    min_deg, max_deg = REBOT_B601_DM_JOINT_LIMITS_DEG[name]
+                    target_deg = float(np.clip(limited, min_deg, max_deg))
             target_rad = math.radians(target_deg)
             motor = self._motors[name]
-            state = motor.get_state()
-            max_velocity_rad_s = math.radians(REBOT_B601_DM_POS_VEL_DEG_S[i] * self.max_velocity)
-            velocity_rad_s = max_velocity_rad_s
-            if state is not None:
-                velocity_rad_s = min(max_velocity_rad_s, abs(target_rad - float(state.pos)) / goal_time)
 
             if name == "gripper":
+                if self._gripper_control_mode == "mit":
+                    motor.send_mit(target_rad, 0.0, self._mit_gain(name, "kp"), self._mit_gain(name, "kd"), 0.0)
+                    continue
+                velocity_rad_s = self._pos_vel_velocity_rad_s(name, target_rad, goal_time)
                 motor.send_force_pos(target_rad, velocity_rad_s, self._force_pos_torque_ratio)
+                continue
+
+            if self._control_mode == "mit":
+                motor.send_mit(target_rad, 0.0, self._mit_gain(name, "kp"), self._mit_gain(name, "kd"), 0.0)
             else:
+                velocity_rad_s = self._pos_vel_velocity_rad_s(name, target_rad, goal_time)
                 motor.send_pos_vel(target_rad, velocity_rad_s)
+
+    def _mit_gain(self, name: str, which: str) -> float:
+        """Resolve the MIT gain for a joint from the configured value or defaults.
+
+        Args:
+            name: Joint name whose gain is requested.
+            which: ``"kp"`` for stiffness or ``"kd"`` for damping.
+
+        Returns:
+            The resolved gain value for the requested joint.
+        """
+        value = self._mit_kp if which == "kp" else self._mit_kd
+        if value is None:
+            source = REBOT_B601_DM_MIT_KP if which == "kp" else REBOT_B601_DM_MIT_KD
+            return source[name]
+        if isinstance(value, dict):
+            return value[name]
+        return value
+
+    def _pos_vel_velocity_rad_s(self, name: str, target_rad: float, goal_time: float) -> float:
+        """Compute the POS_VEL velocity limit (rad/s) for a joint target.
+
+        Args:
+            name: Joint name being commanded.
+            target_rad: Target position in radians.
+            goal_time: Requested time to reach the target in seconds.
+
+        Returns:
+            The velocity limit in rad/s, capped by the joint's maximum and the
+            time-to-target.
+        """
+        idx = self.JOINT_ORDER.index(name)
+        max_velocity_rad_s = math.radians(REBOT_B601_DM_POS_VEL_DEG_S[idx])
+        state = self._motors[name].get_state()
+        if state is None:
+            return max_velocity_rad_s
+        return min(max_velocity_rad_s, abs(target_rad - float(state.pos)) / goal_time)
 
     @staticmethod
     def _map_and_clip_action(name: str, action_deg: float) -> float:

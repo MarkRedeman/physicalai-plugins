@@ -14,6 +14,23 @@ _CONNECTION_UI = [
     },
 ]
 
+_REBOT_B601_DM_UI = [
+    *_CONNECTION_UI,
+    {
+        "kind": "section",
+        "id": "control",
+        "title": "Control mode",
+        "description": (
+            "MIT mode drives joints with torque/stiffness gains for fast, responsive motion; "
+            "POS_VEL / FORCE_POS use velocity-capped position control."
+        ),
+        "items": [
+            {"kind": "field", "name": "control_mode"},
+            {"kind": "field", "name": "gripper_control_mode"},
+        ],
+    },
+]
+
 
 def _assert_no_retired_ui_keys(value: object) -> None:
     if isinstance(value, dict):
@@ -140,7 +157,8 @@ def test_rebot_b601_dm_payload_defaults() -> None:
     assert payload.dm_serial_baud == 921600
     assert payload.disable_torque_on_disconnect is True
     assert payload.force_pos_torque_ratio == 0.1
-    assert payload.max_velocity == 1.0
+    assert payload.control_mode == "mit"
+    assert payload.gripper_control_mode == "mit"
 
 
 def test_rebot_arm102_payload_defaults() -> None:
@@ -194,7 +212,8 @@ def test_payload_schemas_configure_serial_connection_picker(payload_name: str) -
     validate_robot_payload_ui(payload_model)
     schema = payload_model.model_json_schema()
 
-    assert schema["x-physicalai-ui"] == _CONNECTION_UI
+    expected_ui = _REBOT_B601_DM_UI if payload_name == "ReBotB601DMPayload" else _CONNECTION_UI
+    assert schema["x-physicalai-ui"] == expected_ui
     _assert_no_retired_ui_keys(schema)
 
 
@@ -222,13 +241,11 @@ async def test_build_rebot_b601_dm_from_dict_payload() -> None:
         "serial_number": "DM-002",
         "can_adapter": "damiao",
         "force_pos_torque_ratio": 0.2,
-        "max_velocity": 0.5,
     }
     robot = _StubRobot(payload)
     factory = _StubFactory(port="/dev/ttyACM1")
     driver = await _build_rebot_b601_dm_driver(robot, factory)
     assert driver is not None
-    assert driver.max_velocity == 0.5
 
 
 @pytest.mark.anyio

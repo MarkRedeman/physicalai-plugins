@@ -109,7 +109,23 @@ class ReBotB601DMPayload(BaseModel):
         default=0.1,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
-    max_velocity: float = 1.0
+    control_mode: Literal["pos_vel", "mit"] = Field(
+        default="mit",
+        description=(
+            "Position-joint control strategy. 'mit' (default) commands a target position with "
+            "per-joint stiffness/damping gains so the motors drive there using available torque, "
+            "giving fast, responsive motion. 'pos_vel' uses velocity-capped position control, which "
+            "is gentler and more predictable but slower."
+        ),
+    )
+    gripper_control_mode: Literal["force_pos", "mit"] = Field(
+        default="mit",
+        description=(
+            "Gripper control strategy. 'mit' (default) uses impedance (stiffness/damping) control, "
+            "letting the gripper comply if it meets resistance. 'force_pos' uses force-limited "
+            "position control with a fixed torque ratio."
+        ),
+    )
 
     model_config = ConfigDict(
         json_schema_extra=robot_payload_ui(  # pyrefly: ignore[bad-argument-type]
@@ -119,6 +135,17 @@ class ReBotB601DMPayload(BaseModel):
                     "label": "Select robot",
                     "device_discovery": True,
                     "bind": {"connection": "connection_string", "serial_number": "serial_number"},
+                },
+                {
+                    "kind": "section",
+                    "id": "control",
+                    "title": "Control mode",
+                    "description": "MIT mode drives joints with torque/stiffness gains for fast, responsive motion; "
+                    "POS_VEL / FORCE_POS use velocity-capped position control.",
+                    "items": [
+                        {"kind": "field", "name": "control_mode"},
+                        {"kind": "field", "name": "gripper_control_mode"},
+                    ],
                 },
             ],
         ),
@@ -247,7 +274,8 @@ async def _build_rebot_b601_dm_driver(
         role="follower",
         disable_torque_on_disconnect=validated.disable_torque_on_disconnect,
         force_pos_torque_ratio=validated.force_pos_torque_ratio,
-        max_velocity=validated.max_velocity,
+        control_mode=validated.control_mode,
+        gripper_control_mode=validated.gripper_control_mode,
     )
 
 

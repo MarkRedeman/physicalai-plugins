@@ -61,6 +61,26 @@ REBOT_B601_DM_JOINT_DIRECTIONS: Final = {
 
 REBOT_B601_DM_POS_VEL_DEG_S: Final = (250.0, 250.0, 250.0, 200.0, 200.0, 200.0, 200.0)
 
+REBOT_B601_DM_MIT_KP: Final = {
+    "shoulder_pan": 50.0,
+    "shoulder_lift": 150.0,
+    "elbow_flex": 150.0,
+    "wrist_flex": 50.0,
+    "wrist_yaw": 50.0,
+    "wrist_roll": 50.0,
+    "gripper": 12.0,
+}
+
+REBOT_B601_DM_MIT_KD: Final = {
+    "shoulder_pan": 3.0,
+    "shoulder_lift": 10.0,
+    "elbow_flex": 10.0,
+    "wrist_flex": 5.0,
+    "wrist_yaw": 4.0,
+    "wrist_roll": 4.0,
+    "gripper": 0.05,
+}
+
 VALID_CAN_ADAPTERS: Final = frozenset({"damiao", "socketcan"})
 VALID_RS_CAN_ADAPTERS: Final = frozenset({"socketcan", "robstride"})
 VALID_ROLES: Final = frozenset({"follower"})
