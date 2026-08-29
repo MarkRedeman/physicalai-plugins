@@ -5,6 +5,10 @@ Third-party Seeed reBot B601 robot arm plugin for [PhysicalAI](https://github.co
 [![PyPI version](https://img.shields.io/pypi/v/physicalai-rebot-b601-plugin.svg)](https://pypi.org/project/physicalai-rebot-b601-plugin/)
 [![Python versions](https://img.shields.io/pypi/pyversions/physicalai-rebot-b601-plugin.svg)](https://pypi.org/project/physicalai-rebot-b601-plugin/)
 
+## Integration
+
+[PhysicalAI](https://github.com/openvinotoolkit/physicalai) is the Python library and runtime for robot control, transport, and CLI workflows. [Physical AI Studio](https://github.com/open-edge-platform/physical-ai-studio) is the application that discovers catalog plugins and provides robot setup, teleoperation, and workflow experiences. This plugin provides the Seeed reBot B601 integration between them.
+
 ## Features
 
 - Concrete implementations of the `Robot` protocol — no inheritance or registration required
