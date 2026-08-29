@@ -33,7 +33,7 @@ For **breaking** changes — add `!` after the type to trigger a MAJOR version b
 1. **Merge PRs to `main`** — merge PRs with conventional PR titles.
 2. **Draft release PR** — `release-please` runs on every push to `main` and automatically creates or updates draft release PRs (one per package) with updated `CHANGELOG.md` files.
 3. **Review and merge the release PR** — once the team is ready to release, review the release PR and merge it. `release-please` then creates the git tag (e.g. `physicalai-lekiwi-plugin-v0.2.0`) and a GitHub Release with generated release notes.
-4. **Automated publish** — after the tag and GitHub Release are created, `publish.yml` builds, smoke-tests and publishes the package to PyPI.
+4. **Automated publish** — after the tag and GitHub Release are created, `release.yml` builds, smoke-tests, and publishes the package to PyPI.
 
 ## Versioning
 
