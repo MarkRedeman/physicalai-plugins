@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/MarkRedeman/physicalai-plugins/compare/physicalai-mujoco-so101-plugin-v0.2.1...physicalai-mujoco-so101-plugin-v0.2.2) (2026-08-29)
+
+
+### Documentation
+
+* Add integration information ([5635312](https://github.com/MarkRedeman/physicalai-plugins/commit/563531217cdbc5224a4d935c5c87d7a9d98d8c34))
+
 ## [0.2.1](https://github.com/MarkRedeman/physicalai-plugins/compare/physicalai-mujoco-so101-plugin-v0.2.0...physicalai-mujoco-so101-plugin-v0.2.1) (2026-08-29)
 
 
