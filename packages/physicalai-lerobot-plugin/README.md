@@ -1,15 +1,9 @@
 # PhysicalAI LeRobot Plugin
 
-Bridges [LeRobot](https://github.com/huggingface/lerobot) robot and teleoperator
-configs into the [PhysicalAI](https://github.com/openvinotoolkit/physicalai)
-Studio catalog. Part of the [physicalai-plugins](https://github.com/MarkRedeman/physicalai-plugins) monorepo.
+Bridges [LeRobot](https://github.com/huggingface/lerobot) robot and teleoperator configs into [PhysicalAI](https://github.com/openvinotoolkit/physicalai), the Python library and runtime for robot control, transport, and CLI workflows. It registers with [Physical AI Studio](https://github.com/open-edge-platform/physical-ai-studio), the application that discovers catalog plugins and provides robot setup, teleoperation, and workflow experiences. Part of the [physicalai-plugins](https://github.com/MarkRedeman/physicalai-plugins) monorepo.
 
 [![PyPI version](https://img.shields.io/pypi/v/physicalai-lerobot-plugin.svg)](https://pypi.org/project/physicalai-lerobot-plugin/)
 [![Python versions](https://img.shields.io/pypi/pyversions/physicalai-lerobot-plugin.svg)](https://pypi.org/project/physicalai-lerobot-plugin/)
-
-## Integration
-
-[PhysicalAI](https://github.com/openvinotoolkit/physicalai) is the Python library and runtime for robot control, transport, and CLI workflows. [Physical AI Studio](https://github.com/open-edge-platform/physical-ai-studio) is the application that discovers catalog plugins and provides robot setup, teleoperation, and workflow experiences. This plugin adapts LeRobot hardware and teleoperators for both integrations.
 
 ## Overview
 
