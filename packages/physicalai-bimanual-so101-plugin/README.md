@@ -1,13 +1,9 @@
 # PhysicalAI Bimanual SO-101 Plugin
 
-Third-party bimanual SO-101 robot arm plugin for [PhysicalAI](https://github.com/openvinotoolkit/physicalai). Part of the [physicalai-plugins](https://github.com/MarkRedeman/physicalai-plugins) monorepo.
+Third-party bimanual SO-101 robot arm plugin for [PhysicalAI](https://github.com/openvinotoolkit/physicalai), the Python library and runtime for robot control, transport, and CLI workflows. It registers with [Physical AI Studio](https://github.com/open-edge-platform/physical-ai-studio), the application that discovers catalog plugins and provides robot setup, teleoperation, and workflow experiences. Part of the [physicalai-plugins](https://github.com/MarkRedeman/physicalai-plugins) monorepo.
 
 [![PyPI version](https://img.shields.io/pypi/v/physicalai-bimanual-so101-plugin.svg)](https://pypi.org/project/physicalai-bimanual-so101-plugin/)
 [![Python versions](https://img.shields.io/pypi/pyversions/physicalai-bimanual-so101-plugin.svg)](https://pypi.org/project/physicalai-bimanual-so101-plugin/)
-
-## Integration
-
-[PhysicalAI](https://github.com/openvinotoolkit/physicalai) is the Python library and runtime for robot control, transport, and CLI workflows. [Physical AI Studio](https://github.com/open-edge-platform/physical-ai-studio) is the application that discovers catalog plugins and provides robot setup, teleoperation, and workflow experiences. This plugin provides the bimanual SO-101 integration between them.
 
 ## Features
 

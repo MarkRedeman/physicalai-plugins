@@ -1,12 +1,6 @@
 # PhysicalAI MuJoCo SO-101 Plugin
 
-MuJoCo SO-101 simulation plugin for PhysicalAI Studio. Part of the [physicalai-plugins](https://github.com/MarkRedeman/physicalai-plugins) monorepo.
-
-This plugin lets you run a virtual SO-101 robot as a PhysicalAI transport owner, then connect to it from Studio exactly like real hardware.
-
-## Integration
-
-[PhysicalAI](https://github.com/openvinotoolkit/physicalai) is the Python library and runtime for robot control, transport, and CLI workflows. [Physical AI Studio](https://github.com/open-edge-platform/physical-ai-studio) is the application that discovers catalog plugins and provides robot setup, teleoperation, and workflow experiences. This plugin provides a MuJoCo SO-101 simulation that integrates with both.
+MuJoCo SO-101 simulation plugin for [PhysicalAI](https://github.com/openvinotoolkit/physicalai), the Python library and runtime for robot control, transport, and CLI workflows. It registers with [Physical AI Studio](https://github.com/open-edge-platform/physical-ai-studio), the application that discovers catalog plugins and provides robot setup, teleoperation, and workflow experiences. This plugin lets you run a virtual SO-101 robot as a PhysicalAI transport owner, then connect to it from Studio exactly like real hardware. Part of the [physicalai-plugins](https://github.com/MarkRedeman/physicalai-plugins) monorepo.
 
 ## Features
 

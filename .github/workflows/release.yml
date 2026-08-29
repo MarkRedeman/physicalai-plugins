@@ -131,7 +131,7 @@ jobs:
         run: |
           uv venv .venv-smoke
           uv pip install dist/*.whl
-          uv run python scripts/smoke.py "$PKG_NAME"
+          uv run --active python scripts/smoke.py "$PKG_NAME"
 
   publish:
     name: Publish ${{ matrix.package.name }} to PyPI
