@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.3](https://github.com/MarkRedeman/physicalai-plugins/compare/physicalai-mujoco-so101-plugin-v0.2.2...physicalai-mujoco-so101-plugin-v0.2.3) (2026-08-29)
+
+
+### Bug Fixes
+
+* **release:** Run smoke checks in installed environment ([af81d4a](https://github.com/MarkRedeman/physicalai-plugins/commit/af81d4a51f45794fe3c8e9dd94e092475b66aec6))
+* **release:** Run smoke checks in installed environment ([ff9834a](https://github.com/MarkRedeman/physicalai-plugins/commit/ff9834ac0237413f3fe2c4efdeae1cb8272ade0c))
+
 ## [0.2.2](https://github.com/MarkRedeman/physicalai-plugins/compare/physicalai-mujoco-so101-plugin-v0.2.1...physicalai-mujoco-so101-plugin-v0.2.2) (2026-08-29)
 
 
