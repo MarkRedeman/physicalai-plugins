@@ -32,8 +32,8 @@ rebot-b601 = "physicalai_rebot_b601_plugin.studio_catalog:register_physicalai_st
 
 [tool.hatch.version]
 source = "vcs"
-tag-pattern = '^(?:packages/[\w-]+-)?[vV]?(?P<version>\d+(?:\.\d+)*)$'
-raw-options = { search_parent_directories = true }
+tag-pattern = '^physicalai-rebot-b601-plugin-v(?P<version>\d+(?:\.\d+)*)$'
+raw-options = { search_parent_directories = true, git_describe_command = "git describe --dirty --tags --long --match physicalai-rebot-b601-plugin-v*" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/physicalai_rebot_b601_plugin"]
