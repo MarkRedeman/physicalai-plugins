@@ -34,7 +34,7 @@ Third-party robot plugins monorepo for the [PhysicalAI](https://github.com/openv
 ## Release Process
 
 - `release-please` runs on every push to `main`; PR titles must be [Conventional Commits](https://www.conventionalcommits.org/) (`pr-title.yml` enforces this).
-- `publish.yml` builds, smoke-tests and publishes each package to PyPI.
+- `release.yml` runs Release Please and builds, smoke-tests, and publishes each released package to PyPI.
 
 ## Agent Gotchas
 

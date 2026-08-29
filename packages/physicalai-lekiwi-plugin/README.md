@@ -5,6 +5,10 @@ Third-party LeKiwi mobile manipulator plugin for [PhysicalAI](https://github.com
 [![PyPI version](https://img.shields.io/pypi/v/physicalai-lekiwi-plugin.svg)](https://pypi.org/project/physicalai-lekiwi-plugin/)
 [![Python versions](https://img.shields.io/pypi/pyversions/physicalai-lekiwi-plugin.svg)](https://pypi.org/project/physicalai-lekiwi-plugin/)
 
+## Integration
+
+[PhysicalAI](https://github.com/openvinotoolkit/physicalai) is the Python library and runtime for robot control, transport, and CLI workflows. [Physical AI Studio](https://github.com/open-edge-platform/physical-ai-studio) is the application that discovers catalog plugins and provides robot setup, teleoperation, and workflow experiences. This plugin provides the LeKiwi integration between them.
+
 ## Features
 
 - Concrete implementation of the `Robot` protocol — no inheritance or registration required
