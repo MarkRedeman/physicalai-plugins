@@ -1,7 +1,7 @@
 {
-  "packages/physicalai-bimanual-so101-plugin": "0.1.0",
-  "packages/physicalai-lekiwi-plugin": "0.1.0",
-  "packages/physicalai-lerobot-plugin": "0.1.0",
-  "packages/physicalai-mujoco-so101-plugin": "0.1.0",
-  "packages/physicalai-rebot-b601-plugin": "0.3.0"
+  "packages/physicalai-bimanual-so101-plugin": "0.2.0",
+  "packages/physicalai-lekiwi-plugin": "0.2.0",
+  "packages/physicalai-lerobot-plugin": "0.2.0",
+  "packages/physicalai-mujoco-so101-plugin": "0.2.0",
+  "packages/physicalai-rebot-b601-plugin": "0.4.0"
 }
