@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.1](https://github.com/MarkRedeman/physicalai-plugins/compare/physicalai-bimanual-so101-plugin-v0.2.0...physicalai-bimanual-so101-plugin-v0.2.1) (2026-08-29)
+
+
+### Bug Fixes
+
+* **release:** Build component-tagged distributions ([b78cc7b](https://github.com/MarkRedeman/physicalai-plugins/commit/b78cc7b0b9eaf837fedec8c3e60180b9920d73ad))
+* **release:** Build component-tagged distributions ([d9e0af6](https://github.com/MarkRedeman/physicalai-plugins/commit/d9e0af6185b8df04be5e3cca4209a770024c4909))
+
 ## [0.2.0](https://github.com/MarkRedeman/physicalai-plugins/compare/physicalai-bimanual-so101-plugin-v0.1.0...physicalai-bimanual-so101-plugin-v0.2.0) (2026-08-28)
 
 
