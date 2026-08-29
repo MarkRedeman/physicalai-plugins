@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.1](https://github.com/MarkRedeman/physicalai-plugins/compare/physicalai-rebot-b601-plugin-v0.4.0...physicalai-rebot-b601-plugin-v0.4.1) (2026-08-29)
+
+
+### Bug Fixes
+
+* **release:** Build component-tagged distributions ([b78cc7b](https://github.com/MarkRedeman/physicalai-plugins/commit/b78cc7b0b9eaf837fedec8c3e60180b9920d73ad))
+* **release:** Build component-tagged distributions ([d9e0af6](https://github.com/MarkRedeman/physicalai-plugins/commit/d9e0af6185b8df04be5e3cca4209a770024c4909))
+
 ## [0.4.0](https://github.com/MarkRedeman/physicalai-plugins/compare/physicalai-rebot-b601-plugin-v0.3.0...physicalai-rebot-b601-plugin-v0.4.0) (2026-08-28)
 
 
