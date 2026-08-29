@@ -5,6 +5,15 @@ on:
     types:
       - published
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing Release Please tag to publish
+        required: true
+        type: string
+      source_ref:
+        description: Ref containing the release-build fix.
+        required: true
+        type: string
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -31,7 +40,7 @@ jobs:
 
       - name: Parse tag
         env:
-          TAG: ${{ github.event.release.tag_name }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
         id: parse
         run: |
           PKG_NAME=$(echo "$TAG" | sed 's/-v[0-9].*//')
@@ -58,9 +67,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.release.tag_name }}
+          ref: ${{ inputs.source_ref || github.event.release.tag_name }}
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Apply recovery tag
+        if: ${{ inputs.source_ref != '' }}
+        env:
+          TAG: ${{ inputs.tag }}
+        run: git tag -f "$TAG"
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0

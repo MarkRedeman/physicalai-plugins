@@ -39,8 +39,8 @@ physicalai-mujoco-so101 = "physicalai_mujoco_so101_plugin.__main__:main"
 
 [tool.hatch.version]
 source = "vcs"
-tag-pattern = '^(?:packages/[\w-]+-)?[vV]?(?P<version>\d+(?:\.\d+)*)$'
-raw-options = { search_parent_directories = true }
+tag-pattern = '^physicalai-mujoco-so101-plugin-v(?P<version>\d+(?:\.\d+)*)$'
+raw-options = { search_parent_directories = true, git_describe_command = "git describe --dirty --tags --long --match physicalai-mujoco-so101-plugin-v*" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/physicalai_mujoco_so101_plugin"]

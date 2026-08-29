@@ -32,8 +32,8 @@ lerobot = "physicalai_lerobot_plugin.studio_catalog:register_physicalai_studio_p
 
 [tool.hatch.version]
 source = "vcs"
-tag-pattern = '^(?:packages/[\w-]+-)?[vV]?(?P<version>\d+(?:\.\d+)*)$'
-raw-options = { search_parent_directories = true }
+tag-pattern = '^physicalai-lerobot-plugin-v(?P<version>\d+(?:\.\d+)*)$'
+raw-options = { search_parent_directories = true, git_describe_command = "git describe --dirty --tags --long --match physicalai-lerobot-plugin-v*" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/physicalai_lerobot_plugin"]
