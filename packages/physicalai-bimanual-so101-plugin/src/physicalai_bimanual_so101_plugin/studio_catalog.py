@@ -15,6 +15,7 @@ from physicalai_studio_plugin import (
     RobotCatalogDefinition,
     RobotProbe,
     SerialPortInfo,
+    robot_field_ui,
 )
 from pydantic import BaseModel, Field
 from serial.tools import list_ports
@@ -71,11 +72,23 @@ class BimanualSO101Payload(BaseModel):
 
     left_serial_number: str = Field(...)
     right_serial_number: str = Field(...)
-    left_calibration: dict[str, SO101JointCalibration] | None = None
-    right_calibration: dict[str, SO101JointCalibration] | None = None
-    baudrate: int = 1_000_000
+    left_calibration: dict[str, SO101JointCalibration] | None = Field(
+        default=None,
+        json_schema_extra=robot_field_ui({"advanced_configuration": True}),
+    )
+    right_calibration: dict[str, SO101JointCalibration] | None = Field(
+        default=None,
+        json_schema_extra=robot_field_ui({"advanced_configuration": True}),
+    )
+    baudrate: int = Field(
+        default=1_000_000,
+        json_schema_extra=robot_field_ui({"advanced_configuration": True}),
+    )
     role: Literal["follower", "leader"] = "follower"
-    disable_torque_on_disconnect: bool = True
+    disable_torque_on_disconnect: bool = Field(
+        default=True,
+        json_schema_extra=robot_field_ui({"advanced_configuration": True}),
+    )
 
 
 class BimanualSO101Probe(RobotProbe[BimanualSO101Payload]):

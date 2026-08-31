@@ -119,6 +119,12 @@ _REQUIRED_SENTINEL: Any = object()
 _PAYLOAD_MODEL_CACHE: dict[type, type[BaseModel]] = {}
 _PAIR_LEN: int = 2
 _NON_SERIAL_PORT_MODULES: frozenset[str] = frozenset({"reachy2", "yam_follower"})
+_ADVANCED_CONFIGURATION_NAME_MARKERS: frozenset[str] = frozenset({
+    "calibration",
+    "baudrate",
+    "offset",
+    "can_adapter",
+})
 
 
 def _is_dataclass_type(annotation: object) -> bool:
@@ -368,6 +374,8 @@ def _make_payload_model(config_cls: type) -> type[BaseModel]:
         ui_options: dict[str, object] = {}
         if f.name == "id":
             ui_options["required"] = True
+        if any(marker in f.name for marker in _ADVANCED_CONFIGURATION_NAME_MARKERS):
+            ui_options["advanced_configuration"] = True
         extra = robot_field_ui(ui_options) if ui_options else None
         if default_val is _REQUIRED_SENTINEL:
             field_defs[f.name] = (pydantic_type, Field(..., description=f.name, json_schema_extra=extra))
