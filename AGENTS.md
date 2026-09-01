@@ -5,6 +5,7 @@ Third-party robot plugins monorepo for the [PhysicalAI](https://github.com/openv
 ## Repository Layout
 
 - `packages/<name>/src/<pkg>/`: per-plugin Python package (src layout).
+- `packages/physicalai-common-extras/`: shared action sources / callbacks reused across plugins (git dependency — not published to PyPI).
 - `packages/<name>/examples/runtime/*.yaml`: `physicalai run --config` runtime configs.
 - `packages/<name>/tests/`: per-plugin pytest tests.
 - `scripts/smoke.py`: import + version smoke test for released wheels.
@@ -13,8 +14,8 @@ Third-party robot plugins monorepo for the [PhysicalAI](https://github.com/openv
 
 ## Setup
 
-- Run `uv sync` from the repo root (installs all 5 packages + dev tooling).
-- `physicalai` and `physicalai-studio-plugin` are git-pinned via `[tool.uv.sources]` in the root `pyproject.toml`.
+- Run `uv sync` from the repo root (installs all packages + dev tooling).
+- `physicalai`, `physicalai-studio-plugin` and `physicalai-common-extras` are wired via `[tool.uv.sources]` in the root `pyproject.toml`.
 
 ## Build, Test, Lint
 
@@ -26,7 +27,7 @@ Third-party robot plugins monorepo for the [PhysicalAI](https://github.com/openv
 ## Code Conventions
 
 - Robots implement the `physicalai.robot.Robot` protocol (no inheritance); use `@export_config(class_path=...)` on config-constructible classes.
-- Action sources / callbacks (`KeyboardTeleop`, `CompositeTeleop`, `SineWaveSource`, `HoldPoseSource`, `JointLogger`) implement the runtime's `ActionSource`/callback seam and are referenced by `class_path` in the runtime YAMLs.
+- Action sources / callbacks (`CompositeSource`, `KeyboardTeleop`, `SineWaveSource`, `HoldPoseSource`, `JointLogger`) live in `physicalai-common-extras`, implement the runtime's `ActionSource`/callback seam, and are referenced by `class_path` in the runtime YAMLs.
 - Studio catalog registration happens via `[project.entry-points."physicalai.studio.catalog_plugins"]`.
 - Versions come from git tags via `hatch-vcs` (per-package `tag-pattern`); never hardcode versions.
 - `examples/**` is excluded from the published wheels/sdists — keep examples dev-only.

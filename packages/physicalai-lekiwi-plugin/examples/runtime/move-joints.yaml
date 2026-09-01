@@ -17,7 +17,7 @@ runtime:
       calibration: ./calibration.json # CHANGE_ME: path to LeKiwiCalibration JSON
 
   action_source:
-    class_path: physicalai_lekiwi_plugin.motion.SineWaveSource
+    class_path: physicalai_common_extras.SineWaveSource
     init_args:
       frequency: 0.25 # Hz
       joint_amplitudes: [10, 10, 10, 10, 10, 10, 0, 0, 15] # arm deg, base vtheta deg/s

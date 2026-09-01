@@ -11,7 +11,7 @@ Third-party LeKiwi mobile manipulator plugin for [PhysicalAI](https://github.com
 - 6-DOF SO-ARM100 arm + 3-wheel holonomic base, in normalized or raw-ticks units
 - Follower and leader (read-only) roles for teleoperation
 - Bundled URDF for kinematics and gravity compensation
-- `KeyboardTeleop` and `CompositeTeleop` action sources for `physicalai run`
+- `KeyboardTeleop` and `CompositeSource` action sources for `physicalai run`
 
 ## Hardware
 
@@ -128,18 +128,20 @@ Press `Ctrl+C` to stop. Optionally cap the run with `--run.duration_s=60`.
 | `q` / `e` | strafe left / right  |
 | `space`   | stop (zero the base) |
 
-### Teleop action sources
+### Action sources
 
-`physicalai-lekiwi-plugin` bundles reusable action sources:
+The runtime configs above use action sources from the
+[`physicalai-common-extras`](../physicalai-common-extras/README.md) package
+(installed from git, not PyPI):
 
 ```python
-from physicalai_lekiwi_plugin.teleop import CompositeTeleop, KeyboardTeleop
+from physicalai_common_extras import CompositeSource, KeyboardTeleop
 ```
 
-| Source            | Purpose                                                 |
-| ----------------- | ------------------------------------------------------- |
-| `KeyboardTeleop`  | WASD/QE base velocities; arm held at its observed pose  |
-| `CompositeTeleop` | Combine a leader arm with a base source into one action |
+| Source            | Purpose                                                |
+| ----------------- | ------------------------------------------------------ |
+| `KeyboardTeleop`  | WASD/QE base velocities; arm held at its observed pose |
+| `CompositeSource` | Combine any number of sources (e.g. leader + keyboard) |
 
 ### Sinusoidal motion and joint reading
 

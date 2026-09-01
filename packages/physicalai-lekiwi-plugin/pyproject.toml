@@ -12,6 +12,7 @@ license = "Apache-2.0"
 dependencies = [
     "physicalai>=0.1.1",
     "physicalai-studio-plugin",
+    "physicalai-common-extras @ git+https://github.com/MarkRedeman/physicalai-plugins.git#subdirectory=packages/physicalai-common-extras",
     "numpy>=1.24",
     "loguru>=0.7",
     "pydantic>=2.0",
@@ -21,6 +22,9 @@ dependencies = [
 
 [project.optional-dependencies]
 tests = ["pytest"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [project.urls]
 Homepage = "https://github.com/MarkRedeman/physicalai-plugins"

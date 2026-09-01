@@ -13,10 +13,10 @@ runtime:
       can_adapter: socketcan
 
   action_source:
-    class_path: physicalai_rebot_b601_plugin.motion.HoldPoseSource
+    class_path: physicalai_common_extras.HoldPoseSource
 
   callbacks:
-    - class_path: physicalai_rebot_b601_plugin.motion.JointLogger
+    - class_path: physicalai_common_extras.JointLogger
       init_args:
         throttle_steps: 1
 
