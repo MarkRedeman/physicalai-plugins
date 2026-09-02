@@ -220,7 +220,5 @@ class OpenArmLeader(_OpenArmBase):
         return self._observation()
 
     def send_action(self, action: np.ndarray, *, goal_time: float = 0.1) -> None:
-        """Reject writes because OpenArm leader feedback is not implemented."""
+        """Ignore runtime writes because OpenArm leader feedback is unsupported."""
         _ = action, goal_time
-        msg = "Cannot send actions to an OpenArm leader. Bilateral feedback is not implemented."
-        raise RuntimeError(msg)
