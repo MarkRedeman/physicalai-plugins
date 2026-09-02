@@ -7,8 +7,14 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import numpy as np
+from loguru import logger
 
 from physicalai_mujoco_so101_plugin._urdf import get_urdf_path
+from physicalai_mujoco_so101_plugin.spawn import (
+    place_freejoint,
+    read_body_xy,
+    sample_scene_positions,
+)
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -26,10 +32,10 @@ class SceneConfig:
     scene_xml_relpath: str
     free_joints: tuple[str, ...] = ()
     target_bodies: tuple[str, ...] = ()
-    spawn_center: tuple[float, float] = (0.24, 0.0)
-    spawn_min_r: float = 0.08
-    spawn_max_r: float = 0.34
-    spawn_angle_half_deg: float = 125.0
+    spawn_center: tuple[float, float] = (0.22, 0.0)
+    spawn_min_r: float = 0.05
+    spawn_max_r: float = 0.14
+    spawn_angle_half_deg: float = 50.0
     block_min_sep: float = 0.09
     target_min_sep: float = 0.11
 
@@ -44,148 +50,30 @@ class SceneConfig:
 # ---------------------------------------------------------------------------
 
 
-def _pick_lift_reset(model: object, data: object, rng: np.random.Generator) -> None:  # noqa: PLR0914
-    import mujoco  # noqa: PLC0415
+def _freejoint_spawn_reset(scene_id: str) -> ResetFn:
+    """Build a reset that respawns a scene's free objects clear of its target.
 
-    block_joints = [f"block{i}:joint" for i in range(1, 4)]
-    target_body = "target"
-    center = (0.24, 0.0)
-    min_r, max_r = 0.08, 0.34
-    angle_half_deg = 125.0
-    block_min_sep, target_min_sep = 0.09, 0.11
+    The target body itself is left where it is; only the freejoints listed in
+    the scene's ``free_joints`` are randomized, using that scene's spawn arc.
 
-    def sample_xy() -> tuple[float, float]:
-        r = float(rng.uniform(min_r, max_r))
-        theta = float(rng.uniform(-np.radians(angle_half_deg), np.radians(angle_half_deg)))
-        return (center[0] + r * np.cos(theta), center[1] + r * np.sin(theta))
+    Returns:
+        A reset callback for `scene_id`.
+    """
 
-    tx, ty = sample_xy()
-    tid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, target_body)
-    if tid >= 0:
-        model.body_pos[tid] = [tx, ty, 0.001]
+    def reset(model: object, data: object, rng: np.random.Generator) -> None:
+        import mujoco  # noqa: PLC0415
 
-    positions: list[tuple[float, float]] = []
-    for _ in block_joints:
-        best: tuple[float, float] | None = None
-        for _ in range(200):
-            x, y = sample_xy()
-            best = (x, y)
-            far_from_target = np.hypot(x - tx, y - ty) >= target_min_sep
-            if far_from_target and all(np.hypot(x - px, y - py) >= block_min_sep for px, py in positions):
-                positions.append((x, y))
-                break
-        else:
-            if best is not None:
-                positions.append(best)
+        scene = get_scene(scene_id)
+        target_body = scene.target_bodies[0] if scene.target_bodies else ""
+        target_xy = read_body_xy(model, data, target_body, scene.spawn_center)
+        positions = sample_scene_positions(scene, len(scene.free_joints), rng=rng, target_xy=target_xy)
 
-    for joint_name, (x, y) in zip(block_joints, positions, strict=True):
-        jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, joint_name)
-        if jid < 0:
-            continue
-        qpos_adr = int(model.jnt_qposadr[jid])
-        dof_adr = int(model.jnt_dofadr[jid])
-        yaw = float(rng.uniform(0.0, 2.0 * np.pi))
-        data.qpos[qpos_adr : qpos_adr + 3] = [x, y, 0.02]
-        data.qpos[qpos_adr + 3 : qpos_adr + 7] = [np.cos(yaw / 2.0), 0.0, 0.0, np.sin(yaw / 2.0)]
-        data.qvel[dof_adr : dof_adr + 6] = 0.0
+        for joint_name, xy in zip(scene.free_joints, positions, strict=True):
+            place_freejoint(model, data, joint_name, xy, rng)
 
-    mujoco.mj_forward(model, data)
+        mujoco.mj_forward(model, data)
 
-
-def _pick_place_reset(model: object, data: object, rng: np.random.Generator) -> None:  # noqa: PLR0914
-    import mujoco  # noqa: PLC0415
-
-    block_joints = ("obj1:joint", "obj2:joint")
-    target_body = "target_zone"
-    center = (0.26, 0.0)
-    min_r, max_r = 0.06, 0.30
-    angle_half_deg = 135.0
-    block_min_sep, target_min_sep = 0.10, 0.08
-
-    def sample_xy() -> tuple[float, float]:
-        r = float(rng.uniform(min_r, max_r))
-        theta = float(rng.uniform(-np.radians(angle_half_deg), np.radians(angle_half_deg)))
-        return (center[0] + r * np.cos(theta), center[1] + r * np.sin(theta))
-
-    tx, ty = sample_xy()
-    tid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, target_body)
-    if tid >= 0:
-        model.body_pos[tid] = [tx, ty, 0.001]
-
-    positions: list[tuple[float, float]] = []
-    for _ in block_joints:
-        best: tuple[float, float] | None = None
-        for _ in range(200):
-            x, y = sample_xy()
-            best = (x, y)
-            far_from_target = np.hypot(x - tx, y - ty) >= target_min_sep
-            if far_from_target and all(np.hypot(x - px, y - py) >= block_min_sep for px, py in positions):
-                positions.append((x, y))
-                break
-        else:
-            if best is not None:
-                positions.append(best)
-
-    for joint_name, (x, y) in zip(block_joints, positions, strict=True):
-        jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, joint_name)
-        if jid < 0:
-            continue
-        qpos_adr = int(model.jnt_qposadr[jid])
-        dof_adr = int(model.jnt_dofadr[jid])
-        yaw = float(rng.uniform(0.0, 2.0 * np.pi))
-        data.qpos[qpos_adr : qpos_adr + 3] = [x, y, 0.02]
-        data.qpos[qpos_adr + 3 : qpos_adr + 7] = [np.cos(yaw / 2.0), 0.0, 0.0, np.sin(yaw / 2.0)]
-        data.qvel[dof_adr : dof_adr + 6] = 0.0
-
-    mujoco.mj_forward(model, data)
-
-
-def _single_pick_place_reset(model: object, data: object, rng: np.random.Generator) -> None:  # noqa: PLR0914
-    import mujoco  # noqa: PLC0415
-
-    block_joints = ("block1:joint",)
-    target_body = "target"
-    center = (0.24, 0.0)
-    min_r, max_r = 0.08, 0.30
-    angle_half_deg = 125.0
-    _block_min_sep, target_min_sep = 0.09, 0.11
-
-    def sample_xy() -> tuple[float, float]:
-        r = float(rng.uniform(min_r, max_r))
-        theta = float(rng.uniform(-np.radians(angle_half_deg), np.radians(angle_half_deg)))
-        return (center[0] + r * np.cos(theta), center[1] + r * np.sin(theta))
-
-    tx, ty = sample_xy()
-    tid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, target_body)
-    if tid >= 0:
-        model.body_pos[tid] = [tx, ty, 0.001]
-
-    positions: list[tuple[float, float]] = []
-    for _ in block_joints:
-        best: tuple[float, float] | None = None
-        for _ in range(200):
-            x, y = sample_xy()
-            best = (x, y)
-            far_from_target = np.hypot(x - tx, y - ty) >= target_min_sep
-            if far_from_target:
-                positions.append((x, y))
-                break
-        else:
-            if best is not None:
-                positions.append(best)
-
-    for joint_name, (x, y) in zip(block_joints, positions, strict=True):
-        jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, joint_name)
-        if jid < 0:
-            continue
-        qpos_adr = int(model.jnt_qposadr[jid])
-        dof_adr = int(model.jnt_dofadr[jid])
-        yaw = float(rng.uniform(0.0, 2.0 * np.pi))
-        data.qpos[qpos_adr : qpos_adr + 3] = [x, y, 0.02]
-        data.qpos[qpos_adr + 3 : qpos_adr + 7] = [np.cos(yaw / 2.0), 0.0, 0.0, np.sin(yaw / 2.0)]
-        data.qvel[dof_adr : dof_adr + 6] = 0.0
-
-    mujoco.mj_forward(model, data)
+    return reset
 
 
 def _garment_fold_reset(model: object, data: object, rng: np.random.Generator) -> None:  # noqa: ARG001
@@ -216,14 +104,15 @@ def _garment_fold_reset(model: object, data: object, rng: np.random.Generator) -
 
     if model.nflex > 0:
         first_vertex_body = int(model.flex_vertbodyid[0])
-        flex_qpos_adr = min(
-            int(model.jnt_qposadr[j]) for j in range(model.njnt) if int(model.jnt_bodyid[j]) == first_vertex_body
-        )
-        flex_dof_adr = min(
-            int(model.jnt_dofadr[j]) for j in range(model.njnt) if int(model.jnt_bodyid[j]) == first_vertex_body
-        )
-        data.qpos[flex_qpos_adr : flex_qpos_adr + 3 * model.nflexvert] = model.flex_vert.ravel()
-        data.qvel[flex_dof_adr : flex_dof_adr + 3 * model.nflexvert] = 0.0
+        vertex_joints = [j for j in range(model.njnt) if int(model.jnt_bodyid[j]) == first_vertex_body]
+        if not vertex_joints:
+            # A pinned first vertex has no DOFs, so there is no flex state to restore.
+            logger.warning("Flex body {} has no joints; skipping garment reset", first_vertex_body)
+        else:
+            flex_qpos_adr = min(int(model.jnt_qposadr[j]) for j in vertex_joints)
+            flex_dof_adr = min(int(model.jnt_dofadr[j]) for j in vertex_joints)
+            data.qpos[flex_qpos_adr : flex_qpos_adr + 3 * model.nflexvert] = model.flex_vert.ravel()
+            data.qvel[flex_dof_adr : flex_dof_adr + 3 * model.nflexvert] = 0.0
 
     mujoco.mj_forward(model, data)
 
@@ -284,6 +173,10 @@ _SCENES: dict[str, SceneConfig] = {
         scene_xml_relpath="scenes/pick_lift/scene.xml",
         free_joints=("block1:joint", "block2:joint", "block3:joint"),
         target_bodies=("target",),
+        spawn_center=(0.24, 0.0),
+        spawn_min_r=0.08,
+        spawn_max_r=0.34,
+        spawn_angle_half_deg=125.0,
     ),
     "single_pick_place": SceneConfig(
         scene_id="single_pick_place",
@@ -292,6 +185,12 @@ _SCENES: dict[str, SceneConfig] = {
         scene_xml_relpath="scenes/single_pick_place/scene.xml",
         free_joints=("block1:joint",),
         target_bodies=("target",),
+        # Keep spawns inside comfortable SO-101 teleop reach (was up to ~0.5 m).
+        spawn_center=(0.22, 0.0),
+        spawn_min_r=0.05,
+        spawn_max_r=0.14,
+        spawn_angle_half_deg=50.0,
+        target_min_sep=0.11,
     ),
     "pick_place": SceneConfig(
         scene_id="pick_place",
@@ -330,9 +229,9 @@ _SCENES: dict[str, SceneConfig] = {
 }
 
 _RESET_FUNCTIONS: dict[str, ResetFn] = {
-    "pick_lift": _pick_lift_reset,
-    "single_pick_place": _single_pick_place_reset,
-    "pick_place": _pick_place_reset,
+    "pick_lift": _freejoint_spawn_reset("pick_lift"),
+    "single_pick_place": _freejoint_spawn_reset("single_pick_place"),
+    "pick_place": _freejoint_spawn_reset("pick_place"),
     "yahtzee": _yahtzee_reset,
     "garment_fold": _garment_fold_reset,
 }
