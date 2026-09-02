@@ -101,8 +101,10 @@ python-version = "3.12"
 search-path = [
     "packages/physicalai-bimanual-so101-plugin/src",
     "packages/physicalai-rebot-b601-plugin/src",
+    "packages/physicalai-openarm-plugin/src",
 ]
 project-includes = [
     "packages/physicalai-bimanual-so101-plugin/src",
     "packages/physicalai-rebot-b601-plugin/src",
+    "packages/physicalai-openarm-plugin/src",
 ]

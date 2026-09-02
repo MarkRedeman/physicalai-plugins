@@ -40,6 +40,11 @@
       "release-type": "python",
       "package-name": "physicalai-mujoco-so101-plugin",
       "changelog-path": "CHANGELOG.md"
+    },
+    "packages/physicalai-openarm-plugin": {
+      "release-type": "python",
+      "package-name": "physicalai-openarm-plugin",
+      "changelog-path": "CHANGELOG.md"
     }
   }
 }
