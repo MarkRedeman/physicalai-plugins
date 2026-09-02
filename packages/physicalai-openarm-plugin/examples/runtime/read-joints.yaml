@@ -5,7 +5,9 @@ runtime:
   robot:
     class_path: physicalai_openarm_plugin.OpenArmLeader
     init_args:
-      port: can0 # CHANGE_ME: leader SocketCAN interface
+      # SocketCAN: can0. Experimental Damiao USB-CAN: /dev/ttyACM0 plus
+      # can_adapter: damiao. It has not yet been validated on OpenArm hardware.
+      port: can0 # CHANGE_ME
       manual_control: true
   action_source:
     class_path: physicalai_openarm_plugin.motion.HoldPoseSource

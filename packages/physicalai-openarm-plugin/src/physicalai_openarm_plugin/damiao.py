@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import can
+from motorbridge import Controller, Mode
 
 from physicalai_openarm_plugin.constants import (
     CAN_CMD_DISABLE,
@@ -195,3 +196,105 @@ class DamiaoSocketCAN:
         velocity = self._uint_to_float((data[3] << 4) | (data[4] >> 4), -vmax, vmax, 12)
         torque = self._uint_to_float(((data[4] & 0xF) << 8) | data[5], -tmax, tmax, 12)
         return MotorState(math.degrees(position), math.degrees(velocity), torque, float(data[6]), float(data[7]))
+
+
+class DamiaoSerial:
+    """Experimental Damiao USB-CAN serial transport backed by ``motorbridge``."""
+
+    def __init__(
+        self,
+        port: str,
+        motors: Mapping[str, tuple[int, int, str]],
+        *,
+        baud: int = 921_600,
+        _controller_factory: object | None = None,
+    ) -> None:
+        if baud <= 0:
+            msg = "baud must be positive"
+            raise ValueError(msg)
+        self.port = port
+        self.motors = dict(motors)
+        self.baud = baud
+        self._controller: Controller | None = None
+        self._motors: dict[str, object] = {}
+        self._controller_factory = _controller_factory or Controller.from_dm_serial
+
+    @property
+    def is_connected(self) -> bool:
+        """Whether the Damiao USB-CAN serial controller is open."""
+        return self._controller is not None
+
+    def connect(self) -> None:
+        """Open, register, validate, and enable all documented OpenArm motors."""
+        if self.is_connected:
+            return
+        try:
+            self._controller = self._controller_factory(serial_port=self.port, baud=self.baud)  # type: ignore[operator]
+            self._motors = {
+                name: self._controller.add_damiao_motor(send_id, recv_id, motor_type)
+                for name, (send_id, recv_id, motor_type) in self.motors.items()
+            }
+            for motor in self._motors.values():
+                motor.ensure_mode(Mode.MIT)
+            self._controller.enable_all()
+            self.read_states()
+        except Exception:
+            self.disconnect(disable_torque=True)
+            raise
+
+    def disconnect(self, *, disable_torque: bool) -> None:
+        """Optionally disable torque, close all motor handles, and release the adapter."""
+        controller = self._controller
+        if controller is None:
+            return
+        try:
+            if disable_torque:
+                with contextlib.suppress(Exception):
+                    controller.disable_all()
+            for motor in self._motors.values():
+                with contextlib.suppress(Exception):
+                    motor.close()
+        finally:
+            self._controller = None
+            self._motors = {}
+            controller.close()
+
+    def enable_torque(self) -> None:
+        """Enable torque for all registered motors."""
+        self._require_controller().enable_all()
+
+    def disable_torque(self) -> None:
+        """Disable torque for all registered motors."""
+        self._require_controller().disable_all()
+
+    def read_states(self) -> dict[str, MotorState]:
+        """Poll and return states from every configured motor."""
+        controller = self._require_controller()
+        for motor in self._motors.values():
+            motor.request_feedback()
+        controller.poll_feedback_once()
+        states: dict[str, MotorState] = {}
+        for name, motor in self._motors.items():
+            state = motor.get_state()
+            if state is None:
+                msg = f"No state response from OpenArm motor {name} on {self.port}"
+                raise ConnectionError(msg)
+            states[name] = MotorState(
+                math.degrees(state.pos),
+                math.degrees(state.vel),
+                state.torq,
+                state.t_mos,
+                state.t_rotor,
+            )
+        return states
+
+    def send_positions(self, commands: Mapping[str, tuple[float, float, float]]) -> None:
+        """Send MIT position targets, converting the degree contract to radians."""
+        for name, (kp, kd, position_deg) in commands.items():
+            self._motors[name].send_mit(math.radians(position_deg), 0.0, kp, kd, 0.0)
+
+    def _require_controller(self) -> Controller:
+        if self._controller is None:
+            msg = "OpenArm is not connected. Call connect() first."
+            raise ConnectionError(msg)
+        return self._controller

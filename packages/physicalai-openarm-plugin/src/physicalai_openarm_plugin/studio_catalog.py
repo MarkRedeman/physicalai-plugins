@@ -58,10 +58,18 @@ _BIMANUAL_ASSET = RobotAsset(
 
 
 class OpenArmPayload(BaseModel):
-    """Direct OpenArm SocketCAN connection settings."""
+    """Direct OpenArm SocketCAN or experimental Damiao USB-CAN settings."""
 
     port: str
     side: Literal["left", "right"] | None = None
+    can_adapter: Literal["socketcan", "damiao"] = Field(
+        default="socketcan",
+        json_schema_extra=robot_field_ui({"advanced_configuration": True}),
+    )
+    dm_serial_baud: int = Field(
+        default=921_600,
+        json_schema_extra=robot_field_ui({"advanced_configuration": True}),
+    )
     use_can_fd: bool = Field(default=True, json_schema_extra=robot_field_ui({"advanced_configuration": True}))
     can_bitrate: int = Field(default=1_000_000, json_schema_extra=robot_field_ui({"advanced_configuration": True}))
     can_data_bitrate: int = Field(default=5_000_000, json_schema_extra=robot_field_ui({"advanced_configuration": True}))
@@ -83,10 +91,12 @@ class OpenArmPayload(BaseModel):
 
 
 class BimanualOpenArmPayload(BaseModel):
-    """Direct bimanual OpenArm SocketCAN connection settings."""
+    """Direct bimanual OpenArm SocketCAN or experimental Damiao USB-CAN settings."""
 
     left_port: str
     right_port: str
+    can_adapter: Literal["socketcan", "damiao"] = "socketcan"
+    dm_serial_baud: int = 921_600
     use_can_fd: bool = True
     can_bitrate: int = 1_000_000
     can_data_bitrate: int = 5_000_000
@@ -139,6 +149,8 @@ async def _build_single(
     _ = factory
     payload = OpenArmPayload.model_validate(robot.payload)
     shared = {
+        "can_adapter": payload.can_adapter,
+        "dm_serial_baud": payload.dm_serial_baud,
         "use_can_fd": payload.use_can_fd,
         "can_bitrate": payload.can_bitrate,
         "can_data_bitrate": payload.can_data_bitrate,
@@ -174,6 +186,8 @@ async def _build_bimanual(
     _ = factory
     payload = BimanualOpenArmPayload.model_validate(robot.payload)
     shared = {
+        "can_adapter": payload.can_adapter,
+        "dm_serial_baud": payload.dm_serial_baud,
         "use_can_fd": payload.use_can_fd,
         "can_bitrate": payload.can_bitrate,
         "can_data_bitrate": payload.can_data_bitrate,
