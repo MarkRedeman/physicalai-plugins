@@ -26,6 +26,27 @@ uv add physicalai-openarm-plugin
 The package requires `python-can` and Linux SocketCAN. OpenArm's default
 configuration uses CAN-FD at 1 Mbps arbitration and 5 Mbps data rate.
 
+## CAN adapters
+
+`can_adapter: socketcan` is the default and supported route. Use a Linux
+SocketCAN channel such as `can0`; a USB-CAN adapter is supported when the host
+exposes it as a SocketCAN interface. This includes adapters configured through
+`slcand`, which usually appear as `slcan0` rather than `/dev/ttyUSB0`.
+
+An experimental `can_adapter: damiao` proof of concept uses `motorbridge` to
+open a Damiao USB-CAN serial adapter directly. Set `port` to its device path
+and optionally set `dm_serial_baud` (default `921600`):
+
+```yaml
+port: /dev/ttyACM0
+can_adapter: damiao
+dm_serial_baud: 921600
+```
+
+This serial path has not been tested with OpenArm's eight-motor topology or
+CAN-FD timing. Do not use it for unattended motion, and retain SocketCAN as the
+recommended path until an adapter-specific hardware acceptance test succeeds.
+
 ## Runtime contract
 
 Positions are **degrees**, in this fixed order:
