@@ -53,6 +53,12 @@ For two leaders and two followers on independent CAN interfaces:
 uv run physicalai run --config packages/physicalai-openarm-plugin/examples/runtime/bimanual-teleop.yaml
 ```
 
+To read and print a leader's joint positions without sending CAN position targets:
+
+```bash
+uv run physicalai run --config packages/physicalai-openarm-plugin/examples/runtime/read-joints.yaml
+```
+
 ## Studio assets
 
 The plugin includes lightweight parallel-link gripper URDF visualization models

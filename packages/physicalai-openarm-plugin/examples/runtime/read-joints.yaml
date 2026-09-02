@@ -1,0 +1,18 @@
+# Read and print a hand-guided OpenArm leader's joint states. This sends no CAN
+# position targets. Hardware must already be configured and zeroed.
+# uv run physicalai run --config packages/physicalai-openarm-plugin/examples/runtime/read-joints.yaml
+runtime:
+  robot:
+    class_path: physicalai_openarm_plugin.OpenArmLeader
+    init_args:
+      port: can0 # CHANGE_ME: leader SocketCAN interface
+      manual_control: true
+  action_source:
+    class_path: physicalai_openarm_plugin.motion.HoldPoseSource
+  callbacks:
+    - class_path: physicalai_openarm_plugin.motion.JointLogger
+      init_args:
+        throttle_steps: 3
+  fps: 30.0
+run:
+  duration_s: 30
