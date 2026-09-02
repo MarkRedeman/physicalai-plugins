@@ -17,6 +17,7 @@ from physicalai_studio_plugin import (
     RobotCatalogDefinition,
     RobotProbe,
     SerialPortInfo,
+    robot_field_ui,
 )
 from pydantic import BaseModel, Field
 
@@ -101,10 +102,12 @@ class MuJoCoSO101Payload(BaseModel):
     allow_remote: bool = Field(
         default=False,
         description="Allow connecting to a zenoh owner beyond localhost",
+        json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
     connect_timeout: float = Field(
         default=10.0,
         description="Timeout in seconds for connecting to the zenoh owner",
+        json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
 
 

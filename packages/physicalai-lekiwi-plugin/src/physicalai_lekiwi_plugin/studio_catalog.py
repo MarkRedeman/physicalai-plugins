@@ -14,9 +14,10 @@ from physicalai_studio_plugin import (
     RobotCatalogDefinition,
     RobotProbe,
     SerialPortInfo,
+    robot_field_ui,
     robot_payload_ui,
 )
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from serial.tools import list_ports
 
 import physicalai_lekiwi_plugin
@@ -66,9 +67,18 @@ class LeKiwiPayload(BaseModel):
 
     connection_string: str = ""
     serial_number: str = ""
-    calibration: dict[str, LeKiwiJointCalibrationPayload] | None = None
-    baudrate: int = 1_000_000
-    disable_torque_on_disconnect: bool = True
+    calibration: dict[str, LeKiwiJointCalibrationPayload] | None = Field(
+        default=None,
+        json_schema_extra=robot_field_ui({"advanced_configuration": True}),
+    )
+    baudrate: int = Field(
+        default=1_000_000,
+        json_schema_extra=robot_field_ui({"advanced_configuration": True}),
+    )
+    disable_torque_on_disconnect: bool = Field(
+        default=True,
+        json_schema_extra=robot_field_ui({"advanced_configuration": True}),
+    )
 
     model_config = ConfigDict(
         json_schema_extra=robot_payload_ui(
