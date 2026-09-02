@@ -1,0 +1,21 @@
+# Direct bimanual unilateral OpenArm teleoperation. Use four independent CAN interfaces.
+# uv run physicalai run --config packages/physicalai-openarm-plugin/examples/runtime/bimanual-teleop.yaml
+runtime:
+  robot:
+    class_path: physicalai_openarm_plugin.BimanualOpenArmFollower
+    init_args:
+      left:
+        class_path: physicalai_openarm_plugin.OpenArmFollower
+        init_args: {port: can2, side: left, max_relative_target: 5.0} # CHANGE_ME
+      right:
+        class_path: physicalai_openarm_plugin.OpenArmFollower
+        init_args: {port: can3, side: right, max_relative_target: 5.0} # CHANGE_ME
+  action_source:
+    class_path: physicalai.runtime.TeleopSource
+    init_args:
+      leader:
+        class_path: physicalai_openarm_plugin.BimanualOpenArmLeader
+        init_args:
+          left: {class_path: physicalai_openarm_plugin.OpenArmLeader, init_args: {port: can0}} # CHANGE_ME
+          right: {class_path: physicalai_openarm_plugin.OpenArmLeader, init_args: {port: can1}} # CHANGE_ME
+  fps: 30.0
