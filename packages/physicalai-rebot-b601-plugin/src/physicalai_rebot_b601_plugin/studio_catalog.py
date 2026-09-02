@@ -93,19 +93,19 @@ class ReBotB601DMPayload(BaseModel):
 
     connection_string: str = ""
     serial_number: str = ""
-    can_adapter: Literal["damiao", "socketcan"] = Field(
+    can_adapter: Literal["damiao", "socketcan"] = Field(  # pyrefly: ignore [bad-argument-type, no-matching-overload]
         default="damiao",
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
-    dm_serial_baud: int = Field(
+    dm_serial_baud: int = Field(  # pyrefly: ignore [bad-argument-type, no-matching-overload]
         default=921600,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
-    disable_torque_on_disconnect: bool = Field(
+    disable_torque_on_disconnect: bool = Field(  # pyrefly: ignore [bad-argument-type, no-matching-overload]
         default=True,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
-    force_pos_torque_ratio: float = Field(
+    force_pos_torque_ratio: float = Field(  # pyrefly: ignore [bad-argument-type, no-matching-overload]
         default=0.1,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
@@ -137,19 +137,19 @@ class ReBotArm102Payload(BaseModel):
 
     connection_string: str = ""
     serial_number: str = ""
-    baudrate: int = Field(
+    baudrate: int = Field(  # pyrefly: ignore [bad-argument-type, no-matching-overload]
         default=1_000_000,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
-    unlock_on_connect: bool = Field(
+    unlock_on_connect: bool = Field(  # pyrefly: ignore [bad-argument-type, no-matching-overload]
         default=True,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
-    reset_multi_turn_on_connect: bool = Field(
+    reset_multi_turn_on_connect: bool = Field(  # pyrefly: ignore [bad-argument-type, no-matching-overload]
         default=True,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
-    zero_on_connect: bool = Field(
+    zero_on_connect: bool = Field(  # pyrefly: ignore [bad-argument-type, no-matching-overload]
         default=False,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )

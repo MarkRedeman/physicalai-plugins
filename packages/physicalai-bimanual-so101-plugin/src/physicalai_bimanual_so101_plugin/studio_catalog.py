@@ -72,20 +72,20 @@ class BimanualSO101Payload(BaseModel):
 
     left_serial_number: str = Field(...)
     right_serial_number: str = Field(...)
-    left_calibration: dict[str, SO101JointCalibration] | None = Field(
+    left_calibration: dict[str, SO101JointCalibration] | None = Field(  # pyrefly: ignore [no-matching-overload]
         default=None,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
-    right_calibration: dict[str, SO101JointCalibration] | None = Field(
+    right_calibration: dict[str, SO101JointCalibration] | None = Field(  # pyrefly: ignore [no-matching-overload]
         default=None,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
-    baudrate: int = Field(
+    baudrate: int = Field(  # pyrefly: ignore [no-matching-overload]
         default=1_000_000,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
     role: Literal["follower", "leader"] = "follower"
-    disable_torque_on_disconnect: bool = Field(
+    disable_torque_on_disconnect: bool = Field(  # pyrefly: ignore [no-matching-overload]
         default=True,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
