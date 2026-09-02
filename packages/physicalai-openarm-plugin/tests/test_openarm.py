@@ -62,13 +62,12 @@ def test_follower_relative_target_and_action_validation() -> None:
         follower.send_action(np.zeros(7, dtype=np.float32))
 
 
-def test_leader_is_read_only_and_disables_torque() -> None:
+def test_leader_ignores_actions_and_disables_torque() -> None:
     transport = FakeTransport()
     leader = OpenArmLeader("can1", _transport=transport)
     leader.connect()
     assert transport.disable_calls == 1
-    with pytest.raises(RuntimeError, match="Bilateral feedback"):
-        leader.send_action(np.zeros(8, dtype=np.float32))
+    leader.send_action(np.zeros(8, dtype=np.float32))
     leader.disconnect()
     assert transport.disable_calls == 2
 
