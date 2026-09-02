@@ -21,13 +21,14 @@ from physicalai_openarm_plugin.constants import (
     OPENARM_MOTOR_CONFIG,
     RIGHT_JOINT_LIMITS_DEG,
 )
-from physicalai_openarm_plugin.damiao import DamiaoSocketCAN
+from physicalai_openarm_plugin.damiao import DamiaoSerial, DamiaoSocketCAN
 
 if TYPE_CHECKING:
     from physicalai.capture.frame import Frame
     from physicalai.robot.interface import RobotObservation
 
 OpenArmSide = Literal["left", "right"]
+OpenArmCANAdapter = Literal["socketcan", "damiao"]
 
 
 @dataclass
@@ -53,20 +54,49 @@ class _OpenArmBase:
         self,
         port: str,
         *,
+        can_adapter: OpenArmCANAdapter = "socketcan",
+        dm_serial_baud: int = 921_600,
         use_can_fd: bool = True,
         can_bitrate: int = 1_000_000,
         can_data_bitrate: int = 5_000_000,
         response_timeout: float = 0.02,
-        _transport: DamiaoSocketCAN | None = None,
+        _transport: DamiaoSocketCAN | DamiaoSerial | None = None,
     ) -> None:
         if not port:
-            msg = "port must be a non-empty SocketCAN interface name"
+            msg = "port must be a non-empty CAN interface or Damiao USB serial device"
             raise ValueError(msg)
         if can_bitrate <= 0 or can_data_bitrate <= 0 or response_timeout <= 0:
             msg = "CAN bitrates and response_timeout must be positive"
             raise ValueError(msg)
+        if can_adapter not in {"socketcan", "damiao"}:
+            msg = "can_adapter must be 'socketcan' or 'damiao'"
+            raise ValueError(msg)
         self._port = port
-        self._transport = _transport or DamiaoSocketCAN(
+        self._can_adapter = can_adapter
+        self._transport = _transport or self._make_transport(
+            port=port,
+            can_adapter=can_adapter,
+            dm_serial_baud=dm_serial_baud,
+            use_can_fd=use_can_fd,
+            can_bitrate=can_bitrate,
+            can_data_bitrate=can_data_bitrate,
+            response_timeout=response_timeout,
+        )
+
+    @staticmethod
+    def _make_transport(
+        *,
+        port: str,
+        can_adapter: OpenArmCANAdapter,
+        dm_serial_baud: int,
+        use_can_fd: bool,
+        can_bitrate: int,
+        can_data_bitrate: int,
+        response_timeout: float,
+    ) -> DamiaoSocketCAN | DamiaoSerial:
+        if can_adapter == "damiao":
+            return DamiaoSerial(port, OPENARM_MOTOR_CONFIG, baud=dm_serial_baud)
+        return DamiaoSocketCAN(
             port,
             OPENARM_MOTOR_CONFIG,
             use_can_fd=use_can_fd,
@@ -77,7 +107,7 @@ class _OpenArmBase:
 
     @property
     def port(self) -> str:
-        """Configured SocketCAN interface."""
+        """Configured SocketCAN channel or Damiao USB serial device."""
         return self._port
 
     @property
@@ -88,7 +118,7 @@ class _OpenArmBase:
     @property
     def device_ids(self) -> tuple[str, ...]:
         """Stable identity of the exclusively owned CAN interface."""
-        return (f"openarm:socketcan:{self.port}",)
+        return (f"openarm:{self._can_adapter}:{self.port}",)
 
     def is_connected(self) -> bool:
         """Return whether the CAN transport is connected."""
@@ -111,6 +141,8 @@ class OpenArmFollower(_OpenArmBase):
         port: str,
         *,
         side: OpenArmSide,
+        can_adapter: OpenArmCANAdapter = "socketcan",
+        dm_serial_baud: int = 921_600,
         disable_torque_on_disconnect: bool = True,
         use_can_fd: bool = True,
         can_bitrate: int = 1_000_000,
@@ -119,7 +151,7 @@ class OpenArmFollower(_OpenArmBase):
         max_relative_target: float | None = None,
         position_kp: tuple[float, ...] = DEFAULT_POSITION_KP,
         position_kd: tuple[float, ...] = DEFAULT_POSITION_KD,
-        _transport: DamiaoSocketCAN | None = None,
+        _transport: DamiaoSocketCAN | DamiaoSerial | None = None,
     ) -> None:
         if side not in {"left", "right"}:
             msg = "side must be 'left' or 'right'; OpenArm followers require explicit safety limits"
@@ -132,6 +164,8 @@ class OpenArmFollower(_OpenArmBase):
             raise ValueError(msg)
         super().__init__(
             port,
+            can_adapter=can_adapter,
+            dm_serial_baud=dm_serial_baud,
             use_can_fd=use_can_fd,
             can_bitrate=can_bitrate,
             can_data_bitrate=can_data_bitrate,
@@ -189,14 +223,18 @@ class OpenArmLeader(_OpenArmBase):
         port: str,
         *,
         manual_control: bool = True,
+        can_adapter: OpenArmCANAdapter = "socketcan",
+        dm_serial_baud: int = 921_600,
         use_can_fd: bool = True,
         can_bitrate: int = 1_000_000,
         can_data_bitrate: int = 5_000_000,
         response_timeout: float = 0.02,
-        _transport: DamiaoSocketCAN | None = None,
+        _transport: DamiaoSocketCAN | DamiaoSerial | None = None,
     ) -> None:
         super().__init__(
             port,
+            can_adapter=can_adapter,
+            dm_serial_baud=dm_serial_baud,
             use_can_fd=use_can_fd,
             can_bitrate=can_bitrate,
             can_data_bitrate=can_data_bitrate,
