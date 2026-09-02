@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<robot name="openarm_parallel_gripper">
+  <link name="base_link"/>
+  <link name="link_1"/><link name="link_2"/><link name="link_3"/><link name="link_4"/>
+  <link name="link_5"/><link name="link_6"/><link name="link_7"/><link name="finger_left"/><link name="finger_right"/>
+  <joint name="openarm_joint1" type="revolute"><parent link="base_link"/><child link="link_1"/><axis xyz="0 0 1"/><limit lower="-1.4" upper="3.49" effort="54" velocity="1"/></joint>
+  <joint name="openarm_joint2" type="revolute"><parent link="link_1"/><child link="link_2"/><axis xyz="0 1 0"/><limit lower="-1.75" upper="1.75" effort="54" velocity="1"/></joint>
+  <joint name="openarm_joint3" type="revolute"><parent link="link_2"/><child link="link_3"/><axis xyz="1 0 0"/><limit lower="-1.57" upper="1.57" effort="28" velocity="1"/></joint>
+  <joint name="openarm_joint4" type="revolute"><parent link="link_3"/><child link="link_4"/><axis xyz="0 1 0"/><limit lower="0" upper="2.44" effort="28" velocity="1"/></joint>
+  <joint name="openarm_joint5" type="revolute"><parent link="link_4"/><child link="link_5"/><axis xyz="1 0 0"/><limit lower="-1.57" upper="1.57" effort="10" velocity="1"/></joint>
+  <joint name="openarm_joint6" type="revolute"><parent link="link_5"/><child link="link_6"/><axis xyz="0 1 0"/><limit lower="-0.79" upper="0.79" effort="10" velocity="1"/></joint>
+  <joint name="openarm_joint7" type="revolute"><parent link="link_6"/><child link="link_7"/><axis xyz="1 0 0"/><limit lower="-1.57" upper="1.57" effort="10" velocity="1"/></joint>
+  <joint name="openarm_finger_joint1" type="prismatic"><parent link="link_7"/><child link="finger_left"/><axis xyz="0 1 0"/><limit lower="0" upper="0.044" effort="10" velocity="0.1"/></joint>
+  <joint name="openarm_finger_joint2" type="prismatic"><parent link="link_7"/><child link="finger_right"/><axis xyz="0 -1 0"/><limit lower="0" upper="0.044" effort="10" velocity="0.1"/></joint>
+</robot>

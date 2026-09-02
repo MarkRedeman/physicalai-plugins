@@ -1,0 +1,18 @@
+# Direct unilateral OpenArm teleoperation. Hardware must already be zeroed and configured.
+# uv run physicalai run --config packages/physicalai-openarm-plugin/examples/runtime/teleop.yaml
+runtime:
+  robot:
+    class_path: physicalai_openarm_plugin.OpenArmFollower
+    init_args:
+      port: can0 # CHANGE_ME: follower SocketCAN interface
+      side: right
+      max_relative_target: 5.0
+  action_source:
+    class_path: physicalai.runtime.TeleopSource
+    init_args:
+      leader:
+        class_path: physicalai_openarm_plugin.OpenArmLeader
+        init_args:
+          port: can1 # CHANGE_ME: leader SocketCAN interface
+          manual_control: true
+  fps: 30.0
