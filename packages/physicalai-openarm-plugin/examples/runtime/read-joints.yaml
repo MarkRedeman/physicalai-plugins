@@ -5,9 +5,11 @@ runtime:
   robot:
     class_path: physicalai_openarm_plugin.OpenArmLeader
     init_args:
-      # SocketCAN: can0. Experimental Damiao USB-CAN: /dev/ttyACM0 plus
-      # can_adapter: damiao. It has not yet been validated on OpenArm hardware.
-      port: can0 # CHANGE_ME
+      # Experimental Damiao USB-CAN transport. This path has not yet been
+      # validated on OpenArm hardware.
+      port: /dev/ttyACM0 # CHANGE_ME: leader Damiao USB-CAN adapter
+      can_adapter: damiao
+      dm_serial_baud: 921600
       manual_control: true
   action_source:
     class_path: physicalai_openarm_plugin.motion.HoldPoseSource
