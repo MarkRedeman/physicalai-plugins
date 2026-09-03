@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from physicalai.config import to_config
-from physicalai.robot.transport import SharedRobot
+from physicalai.robot.transport import RobotOwnerConfig, SharedRobot
 
 from physicalai_mujoco_so101_plugin.constants import BIMANUAL_SO101_JOINT_ORDER, SO101_JOINT_ORDER
 from physicalai_mujoco_so101_plugin.studio_catalog import (
@@ -128,6 +128,22 @@ class TestSharedRobotAdapter:
                 "joint_names": list(SO101_JOINT_ORDER),
             },
         }
+
+    def test_owner_build_constructs_attach_only_shared_robot(self) -> None:
+        recipe = to_config(
+            _SharedSO101Robot(
+                SharedRobot.attach("mujoco-so101", connect_timeout=5.0),
+                SO101_JOINT_ORDER,
+            ),
+        )
+
+        built = RobotOwnerConfig(name="studio-owner", robot=recipe).build()
+
+        assert isinstance(built, _SharedSO101Robot)
+        assert isinstance(built._shared_robot, SharedRobot)  # noqa: SLF001
+        assert built._shared_robot._name == "mujoco-so101"  # noqa: SLF001
+        assert built._shared_robot._robot is None  # noqa: SLF001
+        assert built.joint_names == list(SO101_JOINT_ORDER)
 
 
 class TestProbe:
