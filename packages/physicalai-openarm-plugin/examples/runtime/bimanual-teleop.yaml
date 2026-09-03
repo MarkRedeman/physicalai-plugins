@@ -1,4 +1,4 @@
-# Direct bimanual unilateral OpenArm teleoperation. Use four independent CAN interfaces.
+# Direct bimanual unilateral OpenArm teleoperation. Use four independent Damiao USB-CAN adapters.
 # uv run physicalai run --config packages/physicalai-openarm-plugin/examples/runtime/bimanual-teleop.yaml
 runtime:
   robot:
@@ -6,16 +6,36 @@ runtime:
     init_args:
       left:
         class_path: physicalai_openarm_plugin.OpenArmFollower
-        init_args: {port: can2, side: left, max_relative_target: 5.0} # CHANGE_ME
+        init_args:
+          port: /dev/ttyACM2 # CHANGE_ME: left follower Damiao USB-CAN adapter
+          side: left
+          can_adapter: damiao
+          dm_serial_baud: 921600
+          max_relative_target: 5.0
       right:
         class_path: physicalai_openarm_plugin.OpenArmFollower
-        init_args: {port: can3, side: right, max_relative_target: 5.0} # CHANGE_ME
+        init_args:
+          port: /dev/ttyACM3 # CHANGE_ME: right follower Damiao USB-CAN adapter
+          side: right
+          can_adapter: damiao
+          dm_serial_baud: 921600
+          max_relative_target: 5.0
   action_source:
     class_path: physicalai.runtime.TeleopSource
     init_args:
       leader:
         class_path: physicalai_openarm_plugin.BimanualOpenArmLeader
         init_args:
-          left: {class_path: physicalai_openarm_plugin.OpenArmLeader, init_args: {port: can0}} # CHANGE_ME
-          right: {class_path: physicalai_openarm_plugin.OpenArmLeader, init_args: {port: can1}} # CHANGE_ME
+          left:
+            class_path: physicalai_openarm_plugin.OpenArmLeader
+            init_args:
+              port: /dev/ttyACM0 # CHANGE_ME: left leader Damiao USB-CAN adapter
+              can_adapter: damiao
+              dm_serial_baud: 921600
+          right:
+            class_path: physicalai_openarm_plugin.OpenArmLeader
+            init_args:
+              port: /dev/ttyACM1 # CHANGE_ME: right leader Damiao USB-CAN adapter
+              can_adapter: damiao
+              dm_serial_baud: 921600
   fps: 30.0

@@ -4,7 +4,9 @@ runtime:
   robot:
     class_path: physicalai_openarm_plugin.OpenArmFollower
     init_args:
-      port: can0 # CHANGE_ME: follower SocketCAN interface
+      port: /dev/ttyACM0 # CHANGE_ME: follower Damiao USB-CAN adapter
+      can_adapter: damiao
+      dm_serial_baud: 921600
       side: right
       max_relative_target: 5.0
   action_source:
@@ -13,6 +15,8 @@ runtime:
       leader:
         class_path: physicalai_openarm_plugin.OpenArmLeader
         init_args:
-          port: can1 # CHANGE_ME: leader SocketCAN interface
+          port: /dev/ttyACM1 # CHANGE_ME: leader Damiao USB-CAN adapter
+          can_adapter: damiao
+          dm_serial_baud: 921600
           manual_control: true
   fps: 30.0
