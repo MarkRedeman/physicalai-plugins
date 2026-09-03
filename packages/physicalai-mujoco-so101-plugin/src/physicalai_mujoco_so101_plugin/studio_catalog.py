@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from loguru import logger
 from physicalai.config import export_config
+from physicalai.robot.transport import SharedRobot
 from physicalai_studio_plugin import (
     CatalogRobotFactory,
     PayloadContainer,
@@ -140,8 +141,6 @@ class MuJoCoSO101Probe(RobotProbe[MuJoCoSO101Payload]):
 
 
 def _check_zenoh_robot_online(name: str) -> bool:
-    from physicalai.robot.transport import SharedRobot  # noqa: PLC0415
-
     try:
         robot = SharedRobot.attach(name=name, connect_timeout=2.0)
         robot.connect()
@@ -157,7 +156,7 @@ _MUJOCO_PROBE = MuJoCoSO101Probe()
 
 @export_config(class_path="physicalai_mujoco_so101_plugin.studio_catalog._SharedSO101Robot")
 class _SharedSO101Robot:
-    def __init__(self, shared_robot: object, joint_names: list[str] | tuple[str, ...]) -> None:
+    def __init__(self, shared_robot: SharedRobot, joint_names: list[str] | tuple[str, ...]) -> None:
         self._shared_robot = shared_robot
         self.joint_names = list(joint_names)
 
@@ -191,8 +190,6 @@ async def _build_mujoco_robot(
     raw = robot.payload
     validated = raw if isinstance(raw, MuJoCoSO101Payload) else MuJoCoSO101Payload.model_validate(raw)
 
-    from physicalai.robot.transport import SharedRobot  # noqa: PLC0415
-
     shared = SharedRobot.attach(
         name=validated.name,
         allow_remote=validated.allow_remote,
@@ -209,8 +206,6 @@ async def _build_bimanual_mujoco_robot(
     await asyncio.sleep(0)
     raw = robot.payload
     validated = raw if isinstance(raw, MuJoCoSO101Payload) else MuJoCoSO101Payload.model_validate(raw)
-
-    from physicalai.robot.transport import SharedRobot  # noqa: PLC0415
 
     shared = SharedRobot.attach(
         name=validated.name,
