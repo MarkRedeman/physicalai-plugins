@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.5.0](https://github.com/MarkRedeman/physicalai-plugins/compare/physicalai-rebot-b601-plugin-v0.4.3...physicalai-rebot-b601-plugin-v0.5.0) (2026-09-04)
+
+
+### Features
+
+* Mark advanced fields as advanced configuration ([817999b](https://github.com/MarkRedeman/physicalai-plugins/commit/817999bc0133f92755bca5fd22e043d4b4faf136))
+* Mark advanced fields as advanced configuration ([55e8b0b](https://github.com/MarkRedeman/physicalai-plugins/commit/55e8b0be1fcadc88274d1db4df73e437cd33710d))
+* **rebot-b601-dm:** Add selectable MIT control mode for faster motion ([b564110](https://github.com/MarkRedeman/physicalai-plugins/commit/b564110265c713b1b629ce5cd03f7c9821f5dae3))
+
+
+### Bug Fixes
+
+* Docs and tests ([28f374b](https://github.com/MarkRedeman/physicalai-plugins/commit/28f374b899fe6c3d7c4f8f5911fe9b9b898c32e0))
+* **rebot:** Allow switching to mit mode ([0a800ee](https://github.com/MarkRedeman/physicalai-plugins/commit/0a800ee6139df5baa4e3b939d47a90e4a0efb5cb))
+* Temporarily igonre pyrefly warnings ([197916e](https://github.com/MarkRedeman/physicalai-plugins/commit/197916e5f80e653144b8ce1946d98aa2dfcc6b59))
+
+
+### Documentation
+
+* Add example using custom gains ([2e23d99](https://github.com/MarkRedeman/physicalai-plugins/commit/2e23d99dc29da6cd017fd19bc08c9204b7bacdfd))
+
+
+### Chores
+
+* Colorize rebot and stararm amrs ([4b41cb1](https://github.com/MarkRedeman/physicalai-plugins/commit/4b41cb18e765492774146d94de802eeb2191ea9e))
+* Colorize rebot and stararm amrs ([84fa7c7](https://github.com/MarkRedeman/physicalai-plugins/commit/84fa7c7ca3f9e30cc0665d5c0e6922b4202d1032))
+* Use pos_vel and force_pos until we've finished more testing ([cba1c22](https://github.com/MarkRedeman/physicalai-plugins/commit/cba1c22e1c10ab092e0604799675be3008431540))
+
 ## [0.4.3](https://github.com/MarkRedeman/physicalai-plugins/compare/physicalai-rebot-b601-plugin-v0.4.2...physicalai-rebot-b601-plugin-v0.4.3) (2026-08-29)
 
 

@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.0](https://github.com/MarkRedeman/physicalai-plugins/compare/physicalai-bimanual-so101-plugin-v0.2.3...physicalai-bimanual-so101-plugin-v0.3.0) (2026-09-04)
+
+
+### Features
+
+* Mark advanced fields as advanced configuration ([817999b](https://github.com/MarkRedeman/physicalai-plugins/commit/817999bc0133f92755bca5fd22e043d4b4faf136))
+* Mark advanced fields as advanced configuration ([55e8b0b](https://github.com/MarkRedeman/physicalai-plugins/commit/55e8b0be1fcadc88274d1db4df73e437cd33710d))
+
+
+### Bug Fixes
+
+* Temporarily igonre pyrefly warnings ([197916e](https://github.com/MarkRedeman/physicalai-plugins/commit/197916e5f80e653144b8ce1946d98aa2dfcc6b59))
+
 ## [0.2.3](https://github.com/MarkRedeman/physicalai-plugins/compare/physicalai-bimanual-so101-plugin-v0.2.2...physicalai-bimanual-so101-plugin-v0.2.3) (2026-08-29)
 
 

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.0](https://github.com/MarkRedeman/physicalai-plugins/compare/physicalai-mujoco-so101-plugin-v0.2.3...physicalai-mujoco-so101-plugin-v0.3.0) (2026-09-04)
+
+
+### Features
+
+* Mark advanced fields as advanced configuration ([817999b](https://github.com/MarkRedeman/physicalai-plugins/commit/817999bc0133f92755bca5fd22e043d4b4faf136))
+* Mark advanced fields as advanced configuration ([55e8b0b](https://github.com/MarkRedeman/physicalai-plugins/commit/55e8b0be1fcadc88274d1db4df73e437cd33710d))
+
+
+### Bug Fixes
+
+* **mujoco:** Type shared robot catalog config ([dba79f1](https://github.com/MarkRedeman/physicalai-plugins/commit/dba79f1cc028a8c11a9ab3d5728461968277ca0e))
+* **mujoco:** Type shared robot catalog config ([affe78f](https://github.com/MarkRedeman/physicalai-plugins/commit/affe78fa7e9dd61bc1496a88abeb45dd034def66))
+
 ## [0.2.3](https://github.com/MarkRedeman/physicalai-plugins/compare/physicalai-mujoco-so101-plugin-v0.2.2...physicalai-mujoco-so101-plugin-v0.2.3) (2026-08-29)
 
 
