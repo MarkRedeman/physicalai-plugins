@@ -42,13 +42,17 @@ def _make_mock_smart_servo() -> MagicMock:
 @pytest.fixture
 def mock_smart_servo() -> Generator[MagicMock]:
     module = _make_mock_smart_servo()
-    sys.modules.pop("physicalai_stararm_plugin.leader", None)
+    sys.modules.pop("physicalai_stararm_plugin.stararm102hd", None)
+    sys.modules.pop("physicalai_stararm_plugin.stararm102ld", None)
     sys.modules.pop("physicalai_stararm_plugin", None)
     pkg = sys.modules.get("physicalai_stararm_plugin")
-    if pkg is not None and hasattr(pkg, "leader"):
-        del pkg.leader
+    if pkg is not None and hasattr(pkg, "stararm102hd"):
+        del pkg.stararm102hd
+    if pkg is not None and hasattr(pkg, "stararm102ld"):
+        del pkg.stararm102ld
     with patch.dict(sys.modules, {"motorbridge_smart_servo": module}):
-        import_module("physicalai_stararm_plugin.leader")
+        import_module("physicalai_stararm_plugin.stararm102hd")
+        import_module("physicalai_stararm_plugin.stararm102ld")
         yield module
 
 

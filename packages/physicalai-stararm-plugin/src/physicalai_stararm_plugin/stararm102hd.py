@@ -1,8 +1,4 @@
-"""Star Arm 102-HD leader driver for teleoperation.
-
-Uses the ``motorbridge_smart_servo`` SDK to communicate with FashionStar
-UART servos on the Star Arm 102-HD leader arm. This driver is read-only.
-"""
+"""Star Arm 102-HD leader driver."""
 
 from __future__ import annotations
 
@@ -50,14 +46,7 @@ class _FashionStarBus(Protocol):
 
 @dataclass
 class StarArm102HDLeaderObservation:
-    """Observation data for the Star Arm 102-HD leader.
-
-    Attributes:
-        joint_positions: Measured joint positions in degrees.
-        timestamp: Monotonic time of the observation.
-        sensor_data: Optional dict of raw positions and reliability flags.
-        images: Optional camera frames.
-    """
+    """Observation data for the Star Arm 102-HD leader."""
 
     joint_positions: np.ndarray
     timestamp: float
@@ -98,17 +87,8 @@ class StarArm102HDLeader:
     ) -> None:
         """Initialize the FashionStar leader arm driver.
 
-        Args:
-            port: UART serial port (e.g. ``/dev/ttyUSB0``).
-            baudrate: Serial baud rate for the FashionStar bus.
-            unlock_on_connect: Whether to unlock servos on connect.
-            reset_multi_turn_on_connect: Whether to reset multi-turn counters on connect.
-            zero_on_connect: Whether to set the current position as origin point.
-            control_mode: ``"passive"`` (read-only, default) or ``"assist"`` (accepts actions).
-            command_interval_ms: Minimum command duration for assist/hold commands.
-
         Raises:
-            ValueError: If any parameter has an invalid value.
+            ValueError: If baudrate/control_mode/command_interval_ms is invalid.
         """
         if baudrate <= 0:
             msg = f"baudrate must be a positive integer, got {baudrate!r}"
@@ -232,15 +212,11 @@ class StarArm102HDLeader:
     def get_observation(self) -> RobotObservation:
         """Read joint positions from all servos.
 
-        Falls back to the last valid sample if a read fails, as long as at
-        least one successful read has occurred.
-
         Returns:
-            A ``StarArm102HDLeaderObservation`` with joint positions in degrees
-            and sensor data including raw positions and reliability flags.
+            Observation containing filtered/raw positions and reliability flags.
 
         Raises:
-            ConnectionError: If no prior sample exists and the read fails.
+            ConnectionError: If no prior sample exists and reading fails.
         """
         bus = self._require_bus()
         try:
@@ -283,17 +259,7 @@ class StarArm102HDLeader:
         return positions, raw_positions, reliable
 
     def send_action(self, action: np.ndarray, *, goal_time: float = 0.1) -> None:
-        """Optionally command the HD leader in assist mode.
-
-        In ``passive`` mode this is a no-op so teleoperation defaults remain
-        safe and manually backdrivable. In ``assist`` mode this sends absolute
-        position targets in degrees to all joints.
-
-        Args:
-            action: Joint target vector in degrees.
-            goal_time: Optional target motion time in seconds.
-
-        """
+        """Optionally command the HD leader in assist mode."""
         if self._control_mode != "assist":
             return
         self._send_action_internal(action, goal_time=goal_time)
@@ -340,31 +306,3 @@ class StarArm102HDLeader:
             if low <= candidate_minus <= high:
                 return candidate_minus, k
         return value - round((value - center) / 360.0) * 360.0, 4096
-
-
-@export_config
-class StarArm102LDLeader(StarArm102HDLeader):
-    """FashionStar UART leader arm driver for Star Arm 102-LD."""
-
-    MODEL_NAME: ClassVar[str] = "Star Arm 102-LD"
-    DEVICE_PREFIX: ClassVar[str] = "stararm102-ld"
-
-    def __init__(
-        self,
-        port: str = "/dev/ttyUSB0",
-        *,
-        baudrate: int = 1_000_000,
-        unlock_on_connect: bool = True,
-        reset_multi_turn_on_connect: bool = True,
-        zero_on_connect: bool = False,
-    ) -> None:
-        """Initialize the Star Arm 102-LD leader driver."""
-        super().__init__(
-            port=port,
-            baudrate=baudrate,
-            unlock_on_connect=unlock_on_connect,
-            reset_multi_turn_on_connect=reset_multi_turn_on_connect,
-            zero_on_connect=zero_on_connect,
-            control_mode="passive",
-            command_interval_ms=10,
-        )

@@ -2,7 +2,7 @@
 
 runtime:
   robot:
-    class_path: physicalai_stararm_plugin.follower.StarArm102FLFollower
+    class_path: physicalai_stararm_plugin.stararm102fl.StarArm102FLFollower
     init_args:
       port: /dev/ttyUSB1 # CHANGE_ME: FL follower serial port
       baudrate: 1000000
@@ -11,7 +11,7 @@ runtime:
     class_path: physicalai.runtime.TeleopSource
     init_args:
       leader:
-        class_path: physicalai_stararm_plugin.leader.StarArm102HDLeader
+        class_path: physicalai_stararm_plugin.stararm102hd.StarArm102HDLeader
         init_args:
           port: /dev/ttyUSB0 # CHANGE_ME: HD leader serial port
           baudrate: 1000000

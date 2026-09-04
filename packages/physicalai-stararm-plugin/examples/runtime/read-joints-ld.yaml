@@ -2,7 +2,7 @@
 
 runtime:
   robot:
-    class_path: physicalai_stararm_plugin.leader.StarArm102LDLeader
+    class_path: physicalai_stararm_plugin.stararm102ld.StarArm102LDLeader
     init_args:
       port: /dev/ttyUSB0 # CHANGE_ME: LD leader serial port
       baudrate: 1000000

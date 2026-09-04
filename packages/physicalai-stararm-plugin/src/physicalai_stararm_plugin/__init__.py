@@ -13,11 +13,15 @@ from typing import TYPE_CHECKING
 from physicalai_stararm_plugin._urdf import get_urdf_path as get_urdf_path
 
 if TYPE_CHECKING:
-    from physicalai_stararm_plugin.follower import StarArm102FLFollower as StarArm102FLFollower
-    from physicalai_stararm_plugin.follower import StarArm102FLFollowerObservation as StarArm102FLFollowerObservation
-    from physicalai_stararm_plugin.leader import StarArm102HDLeader as StarArm102HDLeader
-    from physicalai_stararm_plugin.leader import StarArm102HDLeaderObservation as StarArm102HDLeaderObservation
-    from physicalai_stararm_plugin.leader import StarArm102LDLeader as StarArm102LDLeader
+    from physicalai_stararm_plugin.stararm102fl import StarArm102FLFollower as StarArm102FLFollower
+    from physicalai_stararm_plugin.stararm102fl import (
+        StarArm102FLFollowerObservation as StarArm102FLFollowerObservation,
+    )
+    from physicalai_stararm_plugin.stararm102hd import StarArm102HDLeader as StarArm102HDLeader
+    from physicalai_stararm_plugin.stararm102hd import (
+        StarArm102HDLeaderObservation as StarArm102HDLeaderObservation,
+    )
+    from physicalai_stararm_plugin.stararm102ld import StarArm102LDLeader as StarArm102LDLeader
 
 __all__ = [
     "StarArm102FLFollower",
@@ -31,23 +35,23 @@ __all__ = [
 
 def __getattr__(name: str) -> object:
     if name == "StarArm102HDLeader":
-        from physicalai_stararm_plugin.leader import StarArm102HDLeader
+        from physicalai_stararm_plugin.stararm102hd import StarArm102HDLeader
 
         return StarArm102HDLeader
     if name == "StarArm102HDLeaderObservation":
-        from physicalai_stararm_plugin.leader import StarArm102HDLeaderObservation
+        from physicalai_stararm_plugin.stararm102hd import StarArm102HDLeaderObservation
 
         return StarArm102HDLeaderObservation
     if name == "StarArm102LDLeader":
-        from physicalai_stararm_plugin.leader import StarArm102LDLeader
+        from physicalai_stararm_plugin.stararm102ld import StarArm102LDLeader
 
         return StarArm102LDLeader
     if name == "StarArm102FLFollower":
-        from physicalai_stararm_plugin.follower import StarArm102FLFollower
+        from physicalai_stararm_plugin.stararm102fl import StarArm102FLFollower
 
         return StarArm102FLFollower
     if name == "StarArm102FLFollowerObservation":
-        from physicalai_stararm_plugin.follower import StarArm102FLFollowerObservation
+        from physicalai_stararm_plugin.stararm102fl import StarArm102FLFollowerObservation
 
         return StarArm102FLFollowerObservation
     msg = f"module {__name__!r} has no attribute {name!r}"

@@ -1,8 +1,4 @@
-"""Star Arm 102-FL follower driver.
-
-Uses the ``motorbridge_smart_servo`` SDK to command a Star Arm 102-FL over
-UART. Commands are position-only with optional motion interval shaping.
-"""
+"""Star Arm 102-FL follower driver."""
 
 from __future__ import annotations
 
@@ -78,16 +74,8 @@ class StarArm102FLFollower:
     ) -> None:
         """Initialize the Star Arm 102-FL follower driver.
 
-        Args:
-            port: UART serial port (e.g. ``/dev/ttyUSB0``).
-            baudrate: Serial baud rate for the FashionStar bus.
-            unlock_on_connect: Whether to unlock servos on connect.
-            reset_multi_turn_on_connect: Whether to reset multi-turn counters on connect.
-            zero_on_connect: Whether to set the current position as origin point.
-            command_interval_ms: Minimum command duration sent to each joint.
-
         Raises:
-            ValueError: If any parameter has an invalid value.
+            ValueError: If baudrate or command_interval_ms is invalid.
         """
         if baudrate <= 0:
             msg = f"baudrate must be a positive integer, got {baudrate!r}"
@@ -188,8 +176,7 @@ class StarArm102FLFollower:
         """Read and return the current follower joint positions.
 
         Returns:
-            A ``StarArm102FLFollowerObservation`` with joint positions in degrees
-            and sensor data including raw positions and reliability flags.
+            Observation containing filtered/raw positions and reliability flags.
         """
         bus = self._require_bus()
         positions = np.empty(self.NUM_JOINTS, dtype=np.float32)
