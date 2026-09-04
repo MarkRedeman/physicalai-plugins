@@ -83,6 +83,8 @@ class TestReBotB601DMConstruction:
         assert robot.port == "/dev/ttyACM0"
         assert robot.can_adapter == "damiao"
         assert robot.role == "follower"
+        assert robot.control_mode == "pos_vel"
+        assert robot.gripper_control_mode == "force_pos"
         assert robot.joint_names == [
             "shoulder_pan",
             "shoulder_lift",
@@ -142,21 +144,21 @@ class TestReBotB601DMLifecycle:
         controller.disable_all.assert_called_once()
         controller.enable_all.assert_called_once()
         motors = list(controller.mock_motors)
-        assert motors[0].ensure_mode.call_args == call(mock_motorbridge.Mode.MIT)
-        assert motors[6].ensure_mode.call_args == call(mock_motorbridge.Mode.MIT)
+        assert motors[0].ensure_mode.call_args == call(mock_motorbridge.Mode.POS_VEL)
+        assert motors[6].ensure_mode.call_args == call(mock_motorbridge.Mode.FORCE_POS)
 
-    def test_connect_pos_vel_modes(self, mock_motorbridge: MagicMock) -> None:
+    def test_connect_mit_modes(self, mock_motorbridge: MagicMock) -> None:
         robot = _create_robot(
             mock_motorbridge,
-            control_mode="pos_vel",
-            gripper_control_mode="force_pos",
+            control_mode="mit",
+            gripper_control_mode="mit",
         )
         robot.connect()
 
         controller = mock_motorbridge.Controller.from_dm_serial.return_value
         motors = list(controller.mock_motors)
-        assert motors[0].ensure_mode.call_args == call(mock_motorbridge.Mode.POS_VEL)
-        assert motors[6].ensure_mode.call_args == call(mock_motorbridge.Mode.FORCE_POS)
+        assert motors[0].ensure_mode.call_args == call(mock_motorbridge.Mode.MIT)
+        assert motors[6].ensure_mode.call_args == call(mock_motorbridge.Mode.MIT)
 
     def test_connect_socketcan(self, mock_motorbridge: MagicMock) -> None:
         robot = _create_robot(mock_motorbridge, can_adapter="socketcan", port="can1")
@@ -228,7 +230,7 @@ class TestReBotB601DMObservation:
 
 class TestReBotB601DMAction:
     def test_send_action_mit_maps_clips_and_sends(self, mock_motorbridge: MagicMock) -> None:
-        robot = _create_robot(mock_motorbridge)
+        robot = _create_robot(mock_motorbridge, control_mode="mit", gripper_control_mode="mit")
         robot.connect()
         controller = mock_motorbridge.Controller.from_dm_serial.return_value
         motors = list(controller.mock_motors)
@@ -289,7 +291,7 @@ class TestReBotB601DMAction:
         )
 
     def test_send_action_mit_custom_gains(self, mock_motorbridge: MagicMock) -> None:
-        robot = _create_robot(mock_motorbridge, mit_kp=5.0, mit_kd=1.0)
+        robot = _create_robot(mock_motorbridge, control_mode="mit", gripper_control_mode="mit", mit_kp=5.0, mit_kd=1.0)
         robot.connect()
         controller = mock_motorbridge.Controller.from_dm_serial.return_value
         motors = list(controller.mock_motors)
@@ -300,7 +302,7 @@ class TestReBotB601DMAction:
             motor.send_mit.assert_called_once_with(0.0, 0.0, 5.0, 1.0, 0.0)
 
     def test_send_action_max_relative_target_clamps(self, mock_motorbridge: MagicMock) -> None:
-        robot = _create_robot(mock_motorbridge, max_relative_target=5.0)
+        robot = _create_robot(mock_motorbridge, control_mode="mit", max_relative_target=5.0)
         robot.connect()
         controller = mock_motorbridge.Controller.from_dm_serial.return_value
         motors = list(controller.mock_motors)
@@ -336,6 +338,17 @@ class TestReBotB601DMAction:
     def test_invalid_mit_kp_dict_raises(self, mock_motorbridge: MagicMock) -> None:
         with pytest.raises(ValueError, match="mit_kp"):
             _create_robot(mock_motorbridge, mit_kp={"shoulder_pan": 1.0})
+
+    @pytest.mark.parametrize("gain", [-1.0, math.inf, math.nan])
+    @pytest.mark.parametrize("gain_name", ["mit_kp", "mit_kd"])
+    def test_invalid_mit_scalar_gain_raises(
+        self,
+        mock_motorbridge: MagicMock,
+        gain_name: str,
+        gain: float,
+    ) -> None:
+        with pytest.raises(ValueError, match=gain_name):
+            _create_robot(mock_motorbridge, **{gain_name: gain})
 
     @pytest.mark.parametrize("max_relative_target", [0.0, -1.0, math.inf, math.nan])
     def test_invalid_max_relative_target_raises(

@@ -1,8 +1,8 @@
 """Damiao motor driver for the reBot B601 robot arm.
 
 Uses the ``motorbridge`` SDK to communicate with Damiao DM-series motors over
-serial (Damiao CAN adapter) or native SocketCAN. The gripper runs in
-FORCE_POS mode; all other joints run in POS_VEL mode.
+serial (Damiao CAN adapter) or native SocketCAN. By default, the gripper runs
+in FORCE_POS mode and all other joints run in POS_VEL mode.
 """
 
 from __future__ import annotations
@@ -93,8 +93,8 @@ class ReBotB601DM:
     """Damiao motor driver for the reBot B601 robot arm.
 
     Controls 7 DM-series motors (6-DOF + gripper). The position joints run in
-    MIT mode (default) or POS_VEL mode, and the gripper runs in MIT mode
-    (default) or FORCE_POS mode. MIT mode commands a target position with
+    POS_VEL mode (default) or MIT mode, and the gripper runs in FORCE_POS mode
+    (default) or MIT mode. MIT mode commands a target position with
     per-joint stiffness/damping gains so the motors drive to the target using
     available torque instead of a fixed velocity ceiling, giving much snappier
     motion than the velocity-limited POS_VEL mode.
@@ -127,10 +127,10 @@ class ReBotB601DM:
             role: Currently only ``"follower"`` is supported.
             disable_torque_on_disconnect: Whether to disable all motors on disconnect.
             force_pos_torque_ratio: FORCE_POS torque ratio in ``[0, 1]`` for gripper.
-            control_mode: ``"mit"`` (default) for stiffness-controlled position, or ``"pos_vel"``
-                for velocity-limited position control on the 6-DOF joints.
-            gripper_control_mode: ``"mit"`` (default) for impedance-controlled gripper, or
-                ``"force_pos"`` for force-limited position control.
+            control_mode: ``"pos_vel"`` (default) for velocity-limited position control, or
+                ``"mit"`` for stiffness-controlled position on the 6-DOF joints.
+            gripper_control_mode: ``"force_pos"`` (default) for force-limited position control,
+                or ``"mit"`` for impedance-controlled gripper control.
             mit_kp: MIT stiffness gain, either a single value for all joints or a per-joint dict;
                 defaults to :data:`REBOT_B601_DM_MIT_KP` when ``None``.
             mit_kd: MIT damping gain, either a single value for all joints or a per-joint dict;
@@ -159,10 +159,14 @@ class ReBotB601DM:
         if gripper_control_mode not in {"force_pos", "mit"}:
             msg = f"Invalid gripper_control_mode {gripper_control_mode!r}. Must be 'force_pos' or 'mit'."
             raise ValueError(msg)
-        if mit_kp is not None and isinstance(mit_kp, dict):
-            _validate_per_joint_gains(mit_kp, "mit_kp")
-        if mit_kd is not None and isinstance(mit_kd, dict):
-            _validate_per_joint_gains(mit_kd, "mit_kd")
+        for name, gain in (("mit_kp", mit_kp), ("mit_kd", mit_kd)):
+            if gain is None:
+                continue
+            if isinstance(gain, dict):
+                _validate_per_joint_gains(gain, name)
+            elif not math.isfinite(gain) or gain < 0.0:
+                msg = f"{name} must be a non-negative finite value, got {gain!r}"
+                raise ValueError(msg)
         if max_relative_target is not None and (not math.isfinite(max_relative_target) or max_relative_target <= 0.0):
             msg = f"max_relative_target must be a finite positive value, got {max_relative_target!r}"
             raise ValueError(msg)

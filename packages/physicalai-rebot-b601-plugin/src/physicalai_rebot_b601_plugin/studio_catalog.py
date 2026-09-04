@@ -113,7 +113,7 @@ class ReBotB601DMPayload(BaseModel):
         default="pos_vel",
         description=(
             "Position-joint control strategy. 'mit' commands a target position with "
-            "per-joint stiffness/damping gains giving fast, responsive motion."
+            "per-joint stiffness/damping gains, giving fast, responsive motion. "
             "'pos_vel' uses velocity-capped position control, which is gentler "
             "and more predictable but slower."
         ),
@@ -140,8 +140,8 @@ class ReBotB601DMPayload(BaseModel):
                     "kind": "section",
                     "id": "control",
                     "title": "Control mode",
-                    "description": "Use MIT control mode ofr fast and responsive motion. "
-                    " Use POS_VEL / FORCE_POS for initial testing",
+                    "description": "MIT mode drives joints with torque/stiffness gains for fast, responsive motion; "
+                    "POS_VEL / FORCE_POS use velocity-capped position control.",
                     "items": [
                         {"kind": "field", "name": "control_mode"},
                         {"kind": "field", "name": "gripper_control_mode"},

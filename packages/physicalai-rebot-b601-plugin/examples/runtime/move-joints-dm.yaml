@@ -13,11 +13,11 @@ runtime:
     init_args:
       port: /dev/ttyACM0 # CHANGE_ME: follower serial port (or CAN channel)
       can_adapter: damiao # damiao | socketcan
-      # MIT mode (default) drives joints with torque/stiffness gains for fast,
-      # responsive motion. Switch to pos_vel / force_pos for velocity-limited
-      # control. gripper can be "mit" or "force_pos".
-      control_mode: mit # mit | pos_vel
-      gripper_control_mode: mit # mit | force_pos
+      # POS_VEL / FORCE_POS (default) provides conservative velocity- and
+      # force-limited control. Switch both modes to mit only after validating
+      # the gains for this arm.
+      control_mode: pos_vel # pos_vel | mit
+      gripper_control_mode: force_pos # force_pos | mit
 
   action_source:
     class_path: physicalai_rebot_b601_plugin.motion.SineWaveSource

@@ -157,8 +157,8 @@ def test_rebot_b601_dm_payload_defaults() -> None:
     assert payload.dm_serial_baud == 921600
     assert payload.disable_torque_on_disconnect is True
     assert payload.force_pos_torque_ratio == 0.1
-    assert payload.control_mode == "mit"
-    assert payload.gripper_control_mode == "mit"
+    assert payload.control_mode == "pos_vel"
+    assert payload.gripper_control_mode == "force_pos"
 
 
 def test_rebot_arm102_payload_defaults() -> None:
