@@ -110,18 +110,18 @@ class ReBotB601DMPayload(BaseModel):
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
     control_mode: Literal["pos_vel", "mit"] = Field(
-        default="mit",
+        default="pos_vel",
         description=(
-            "Position-joint control strategy. 'mit' (default) commands a target position with "
-            "per-joint stiffness/damping gains so the motors drive there using available torque, "
-            "giving fast, responsive motion. 'pos_vel' uses velocity-capped position control, which "
-            "is gentler and more predictable but slower."
+            "Position-joint control strategy. 'mit' commands a target position with "
+            "per-joint stiffness/damping gains giving fast, responsive motion."
+            "'pos_vel' uses velocity-capped position control, which is gentler "
+            "and more predictable but slower."
         ),
     )
     gripper_control_mode: Literal["force_pos", "mit"] = Field(
-        default="mit",
+        default="force_pos",
         description=(
-            "Gripper control strategy. 'mit' (default) uses impedance (stiffness/damping) control, "
+            "Gripper control strategy. 'mit' uses impedance (stiffness/damping) control, "
             "letting the gripper comply if it meets resistance. 'force_pos' uses force-limited "
             "position control with a fixed torque ratio."
         ),
@@ -140,8 +140,8 @@ class ReBotB601DMPayload(BaseModel):
                     "kind": "section",
                     "id": "control",
                     "title": "Control mode",
-                    "description": "MIT mode drives joints with torque/stiffness gains for fast, responsive motion; "
-                    "POS_VEL / FORCE_POS use velocity-capped position control.",
+                    "description": "Use MIT control mode ofr fast and responsive motion. "
+                    " Use POS_VEL / FORCE_POS for initial testing",
                     "items": [
                         {"kind": "field", "name": "control_mode"},
                         {"kind": "field", "name": "gripper_control_mode"},
