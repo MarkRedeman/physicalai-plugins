@@ -1,8 +1,7 @@
-"""FashionStar leader arm driver for teleoperation.
+"""Star Arm 102-HD leader driver for teleoperation.
 
 Uses the ``motorbridge_smart_servo`` SDK to communicate with FashionStar
-UART servos on the Star Arm 102 leader arm. This driver is read-only and
-raises :class:`RuntimeError` on any attempt to send actions.
+UART servos on the Star Arm 102-HD leader arm. This driver is read-only.
 """
 
 from __future__ import annotations
@@ -16,10 +15,10 @@ import numpy as np
 from loguru import logger
 from physicalai.config import export_config
 
-from physicalai_rebot_b601_plugin.constants import (
-    REBOT_ARM_102_JOINT_IDS,
-    REBOT_ARM_102_JOINT_ORDER,
-    REBOT_ARM_102_JOINT_RANGES_DEG,
+from physicalai_stararm_plugin.constants import (
+    STAR_ARM_102_JOINT_IDS,
+    STAR_ARM_102_JOINT_ORDER,
+    STAR_ARM_102_JOINT_RANGES_DEG,
 )
 
 if TYPE_CHECKING:
@@ -49,8 +48,8 @@ class _FashionStarBus(Protocol):
 
 
 @dataclass
-class ReBotArm102LeaderObservation:
-    """Observation data for the reBot Arm 102 leader.
+class StarArm102HDLeaderObservation:
+    """Observation data for the Star Arm 102-HD leader.
 
     Attributes:
         joint_positions: Measured joint positions in degrees.
@@ -71,16 +70,18 @@ class ReBotArm102LeaderObservation:
 
 
 @export_config
-class ReBotArm102Leader:
+class StarArm102HDLeader:
     """FashionStar UART leader arm driver (read-only teleoperation).
 
-    Connects to the Star Arm 102 leader arm via a UART-to-USB adapter.
+    Connects to the Star Arm 102-HD leader arm via a UART-to-USB adapter.
     This arm has no torque control; it is manually positioned by the
     operator and the driver only reads joint angles.
     """
 
-    JOINT_ORDER: ClassVar[list[str]] = list(REBOT_ARM_102_JOINT_ORDER)
+    JOINT_ORDER: ClassVar[list[str]] = list(STAR_ARM_102_JOINT_ORDER)
     NUM_JOINTS: ClassVar[int] = len(JOINT_ORDER)
+    MODEL_NAME: ClassVar[str] = "Star Arm 102-HD"
+    DEVICE_PREFIX: ClassVar[str] = "stararm102-hd"
 
     def __init__(
         self,
@@ -125,7 +126,7 @@ class ReBotArm102Leader:
     @property
     def device_ids(self) -> tuple[str, ...]:
         """Configured UART transport identity without opening it."""
-        return (f"rebot-arm102:{self._port}",)
+        return (f"{self.DEVICE_PREFIX}:{self._port}",)
 
     @property
     def port(self) -> str:
@@ -165,7 +166,7 @@ class ReBotArm102Leader:
             self._bus = None
             raise
 
-        logger.info(f"ReBotArm102Leader connected on {self.port}")
+        logger.info(f"{self.__class__.__name__} connected on {self.port}")
 
     def disconnect(self) -> None:
         """Close the UART bus and release resources."""
@@ -174,7 +175,7 @@ class ReBotArm102Leader:
             return
         self._bus = None
         bus.close()
-        logger.info(f"ReBotArm102Leader disconnected from {self.port}")
+        logger.info(f"{self.__class__.__name__} disconnected from {self.port}")
 
     def is_connected(self) -> bool:
         """Return whether the UART bus connection is active."""
@@ -182,14 +183,14 @@ class ReBotArm102Leader:
 
     def _ping_servos(self, bus: _FashionStarBus) -> None:
         for name in self.JOINT_ORDER:
-            servo_id = REBOT_ARM_102_JOINT_IDS[name]
+            servo_id = STAR_ARM_102_JOINT_IDS[name]
             if not bus.ping(servo_id):
                 msg = f"Servo '{name}' (ID {servo_id}) did not respond on {self.port}."
                 raise ConnectionError(msg)
 
     def _configure_servos(self, bus: _FashionStarBus) -> None:
         for name in self.JOINT_ORDER:
-            servo_id = REBOT_ARM_102_JOINT_IDS[name]
+            servo_id = STAR_ARM_102_JOINT_IDS[name]
             if self._unlock_on_connect:
                 bus.unlock(servo_id)
             if self._zero_on_connect:
@@ -204,7 +205,7 @@ class ReBotArm102Leader:
         least one successful read has occurred.
 
         Returns:
-            A ``ReBotArm102LeaderObservation`` with joint positions in degrees
+            A ``StarArm102HDLeaderObservation`` with joint positions in degrees
             and sensor data including raw positions and reliability flags.
 
         Raises:
@@ -218,14 +219,14 @@ class ReBotArm102Leader:
             self._last_reliable = reliable
         except Exception as e:
             if self._last_positions is None or self._last_raw_positions is None or self._last_reliable is None:
-                msg = f"Failed to read reBot Arm 102 leader positions: {e}"
+                msg = f"Failed to read {self.MODEL_NAME} leader positions: {e}"
                 raise ConnectionError(msg) from e
-            logger.warning(f"Failed to read reBot Arm 102 leader positions; using last valid sample: {e}")
+            logger.warning(f"Failed to read {self.MODEL_NAME} leader positions; using last valid sample: {e}")
             positions = self._last_positions.copy()
             raw_positions = self._last_raw_positions.copy()
             reliable = np.zeros(self.NUM_JOINTS, dtype=np.float32)
 
-        return ReBotArm102LeaderObservation(
+        return StarArm102HDLeaderObservation(
             joint_positions=positions,
             timestamp=time.monotonic(),
             sensor_data={
@@ -240,9 +241,9 @@ class ReBotArm102Leader:
         reliable = np.empty(self.NUM_JOINTS, dtype=np.float32)
 
         for i, name in enumerate(self.JOINT_ORDER):
-            servo_id = REBOT_ARM_102_JOINT_IDS[name]
+            servo_id = STAR_ARM_102_JOINT_IDS[name]
             sample = bus.read_angle(servo_id, multi_turn=True)
-            range_min, range_max = REBOT_ARM_102_JOINT_RANGES_DEG[name]
+            range_min, range_max = STAR_ARM_102_JOINT_RANGES_DEG[name]
             unwrapped, _ = self._round_to_valid_range(float(sample.filtered_deg), range_min, range_max)
             positions[i] = float(np.clip(unwrapped, range_min, range_max))
             raw_positions[i] = float(sample.raw_deg)
@@ -276,3 +277,29 @@ class ReBotArm102Leader:
             if low <= candidate_minus <= high:
                 return candidate_minus, k
         return value - round((value - center) / 360.0) * 360.0, 4096
+
+
+@export_config
+class StarArm102LDLeader(StarArm102HDLeader):
+    """FashionStar UART leader arm driver for Star Arm 102-LD."""
+
+    MODEL_NAME: ClassVar[str] = "Star Arm 102-LD"
+    DEVICE_PREFIX: ClassVar[str] = "stararm102-ld"
+
+    def __init__(
+        self,
+        port: str = "/dev/ttyUSB0",
+        *,
+        baudrate: int = 1_000_000,
+        unlock_on_connect: bool = True,
+        reset_multi_turn_on_connect: bool = True,
+        zero_on_connect: bool = False,
+    ) -> None:
+        """Initialize the Star Arm 102-LD leader driver."""
+        super().__init__(
+            port=port,
+            baudrate=baudrate,
+            unlock_on_connect=unlock_on_connect,
+            reset_multi_turn_on_connect=reset_multi_turn_on_connect,
+            zero_on_connect=zero_on_connect,
+        )

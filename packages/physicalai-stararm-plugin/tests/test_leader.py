@@ -42,23 +42,23 @@ def _make_mock_smart_servo() -> MagicMock:
 @pytest.fixture
 def mock_smart_servo() -> Generator[MagicMock]:
     module = _make_mock_smart_servo()
-    sys.modules.pop("physicalai_rebot_b601_plugin.leader", None)
-    sys.modules.pop("physicalai_rebot_b601_plugin", None)
-    pkg = sys.modules.get("physicalai_rebot_b601_plugin")
+    sys.modules.pop("physicalai_stararm_plugin.leader", None)
+    sys.modules.pop("physicalai_stararm_plugin", None)
+    pkg = sys.modules.get("physicalai_stararm_plugin")
     if pkg is not None and hasattr(pkg, "leader"):
         del pkg.leader
     with patch.dict(sys.modules, {"motorbridge_smart_servo": module}):
-        import_module("physicalai_rebot_b601_plugin.leader")
+        import_module("physicalai_stararm_plugin.leader")
         yield module
 
 
 def _create_robot(mock_smart_servo: MagicMock, **kwargs: object) -> object:
-    from physicalai_rebot_b601_plugin import ReBotArm102Leader
+    from physicalai_stararm_plugin import StarArm102HDLeader
 
-    return ReBotArm102Leader(**kwargs)
+    return StarArm102HDLeader(**kwargs)
 
 
-class TestReBotArm102LeaderConstruction:
+class TestStarArm102HDLeaderConstruction:
     def test_defaults(self, mock_smart_servo: MagicMock) -> None:
         robot = _create_robot(mock_smart_servo)
 
@@ -77,17 +77,17 @@ class TestReBotArm102LeaderConstruction:
     def test_exports_recipe_and_device_identity(self, mock_smart_servo: MagicMock) -> None:
         robot = _create_robot(mock_smart_servo, port="/dev/ttyUSB1", baudrate=115200)
 
-        assert robot.device_ids == ("rebot-arm102:/dev/ttyUSB1",)
+        assert robot.device_ids == ("stararm102-hd:/dev/ttyUSB1",)
         assert to_config(robot)["init_args"] == {"port": "/dev/ttyUSB1", "baudrate": 115200}
 
     def test_invalid_baudrate_raises(self, mock_smart_servo: MagicMock) -> None:
-        from physicalai_rebot_b601_plugin import ReBotArm102Leader
+        from physicalai_stararm_plugin import StarArm102HDLeader
 
         with pytest.raises(ValueError, match="baudrate"):
-            ReBotArm102Leader(baudrate=0)
+            StarArm102HDLeader(baudrate=0)
 
 
-class TestReBotArm102LeaderLifecycle:
+class TestStarArm102HDLeaderLifecycle:
     def test_connect_pings_and_configures(self, mock_smart_servo: MagicMock) -> None:
         robot = _create_robot(mock_smart_servo, port="/dev/ttyUSB1")
         robot.connect()
@@ -136,7 +136,7 @@ class TestReBotArm102LeaderLifecycle:
         assert robot.is_connected() is False
 
 
-class TestReBotArm102LeaderObservation:
+class TestStarArm102HDLeaderObservation:
     def test_observation_returns_angles(self, mock_smart_servo: MagicMock) -> None:
         robot = _create_robot(mock_smart_servo)
         robot.connect()
@@ -153,5 +153,20 @@ class TestReBotArm102LeaderObservation:
         robot = _create_robot(mock_smart_servo)
         robot.connect()
 
-        # Leaders are passive: send_action must not raise or actuate anything.
         robot.send_action(np.zeros(7, dtype=np.float32))
+
+
+class TestStarArm102LDLeader:
+    def test_ld_device_identity(self, mock_smart_servo: MagicMock) -> None:
+        from physicalai_stararm_plugin import StarArm102LDLeader
+
+        robot = StarArm102LDLeader(port="/dev/ttyUSB2")
+        assert robot.device_ids == ("stararm102-ld:/dev/ttyUSB2",)
+
+    def test_ld_connect_and_observe(self, mock_smart_servo: MagicMock) -> None:
+        from physicalai_stararm_plugin import StarArm102LDLeader
+
+        robot = StarArm102LDLeader()
+        robot.connect()
+        obs = robot.get_observation()
+        assert obs.joint_positions.shape == (7,)

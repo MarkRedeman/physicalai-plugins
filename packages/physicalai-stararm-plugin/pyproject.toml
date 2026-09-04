@@ -3,9 +3,9 @@ requires = ["hatchling<1.30", "hatch-vcs"]  # cap <1.30: hatchling>=1.30 emits M
 build-backend = "hatchling.build"
 
 [project]
-name = "physicalai-rebot-b601-plugin"
+name = "physicalai-stararm-plugin"
 dynamic = ["version"]
-description = "Third-party Seeed reBot B601 robot arm plugin for PhysicalAI"
+description = "Fashion Star Arm 102 plugin (LD/HD leaders + FL follower) for PhysicalAI"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"
@@ -14,7 +14,7 @@ dependencies = [
     "physicalai-studio-plugin",
     "numpy>=1.24",
     "loguru>=0.7",
-    "motorbridge>=0.4.4",
+    "motorbridge-smart-servo>=0.0.4",
     "pydantic>=2.0",
 ]
 
@@ -27,22 +27,22 @@ Repository = "https://github.com/MarkRedeman/physicalai-plugins"
 Issues = "https://github.com/MarkRedeman/physicalai-plugins/issues"
 
 [project.entry-points."physicalai.studio.catalog_plugins"]
-rebot-b601 = "physicalai_rebot_b601_plugin.studio_catalog:register_physicalai_studio_plugin"
+stararm-102 = "physicalai_stararm_plugin.studio_catalog:register_physicalai_studio_plugin"
 
 [tool.hatch.version]
 source = "vcs"
-tag-pattern = '^physicalai-rebot-b601-plugin-v(?P<version>\d+(?:\.\d+)*)$'
-raw-options = { search_parent_directories = true, git_describe_command = "git describe --dirty --tags --long --match physicalai-rebot-b601-plugin-v*" }
+tag-pattern = '^physicalai-stararm-plugin-v(?P<version>\d+(?:\.\d+)*)$'
+raw-options = { search_parent_directories = true, git_describe_command = "git describe --dirty --tags --long --match physicalai-stararm-plugin-v*" }
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/physicalai_rebot_b601_plugin"]
+packages = ["src/physicalai_stararm_plugin"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "urdf" = "urdf"
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "src/physicalai_rebot_b601_plugin/**",
+    "src/physicalai_stararm_plugin/**",
     "urdf/**",
     "README.md",
     "pyproject.toml",

@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from physicalai.runtime.events import TickEvent
 
 
-@export_config(class_path="physicalai_rebot_b601_plugin.motion.SineWaveSource")
+@export_config(class_path="physicalai_stararm_plugin.motion.SineWaveSource")
 class SineWaveSource:
     """Generate sinusoidal joint targets, one sine per joint.
 
@@ -113,7 +113,7 @@ class SineWaveSource:
         self._start_time = None
 
 
-@export_config(class_path="physicalai_rebot_b601_plugin.motion.HoldPoseSource")
+@export_config(class_path="physicalai_stararm_plugin.motion.HoldPoseSource")
 class HoldPoseSource:
     """Echo the current observation back as the action (hold).
 
@@ -149,7 +149,7 @@ class HoldPoseSource:
         """Nothing to tear down; part of the ``ActionSource`` protocol."""
 
 
-@export_config(class_path="physicalai_rebot_b601_plugin.motion.JointLogger")
+@export_config(class_path="physicalai_stararm_plugin.motion.JointLogger")
 class JointLogger:
     """Print observed joint positions periodically, like ``read_joints``.
 

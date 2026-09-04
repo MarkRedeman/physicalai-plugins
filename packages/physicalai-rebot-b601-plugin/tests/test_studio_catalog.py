@@ -68,14 +68,14 @@ def test_definitions_count() -> None:
     from physicalai_rebot_b601_plugin.studio_catalog import _definitions
 
     defs = _definitions()
-    assert len(defs) == 2
+    assert len(defs) == 1
 
 
 def test_definitions_have_expected_types() -> None:
     from physicalai_rebot_b601_plugin.studio_catalog import _definitions
 
     types = {d.type for d in _definitions()}
-    assert types == {"ReBot_B601_DM_Follower", "ReBot_Arm102_Leader"}
+    assert types == {"ReBot_B601_DM_Follower"}
 
 
 def test_register_physicalai_studio_plugin() -> None:
@@ -83,7 +83,7 @@ def test_register_physicalai_studio_plugin() -> None:
 
     registry = _FakeRegistry()
     register_physicalai_studio_plugin(registry)
-    assert len(registry.definitions) == 2
+    assert len(registry.definitions) == 1
 
 
 def test_dm_follower_structure() -> None:
@@ -100,51 +100,22 @@ def test_dm_follower_structure() -> None:
     assert (dm.asset.root_resolver() / dm.asset.urdf_relative_path).is_file()
 
 
-def test_arm102_leader_structure() -> None:
-    from physicalai_rebot_b601_plugin.studio_catalog import _definitions
-
-    arm102 = next(d for d in _definitions() if d.type == "ReBot_Arm102_Leader")
-
-    assert arm102.display_name == "ReBot Arm102 Leader"
-    assert arm102.role == "leader"
-    assert arm102.asset is not None
-    assert arm102.asset.urdf_relative_path == Path("stararm102/urdf/stararm102_description.urdf")
-    assert arm102.asset.packages == {"stararm102": Path("stararm102")}
-    assert arm102.asset.root_resolver is not None
-    assert (arm102.asset.root_resolver() / arm102.asset.urdf_relative_path).is_file()
-
-
 def test_definition_robot_type_property() -> None:
     from physicalai_rebot_b601_plugin.studio_catalog import _definitions
 
     for d in _definitions():
-        assert d.type in {"ReBot_B601_DM_Follower", "ReBot_Arm102_Leader"}
+        assert d.type == "ReBot_B601_DM_Follower"
 
 
 def test_dm_follower_has_robot_builder() -> None:
-    from physicalai_rebot_b601_plugin.studio_catalog import _definitions
+    from physicalai_rebot_b601_plugin.studio_catalog import ReBotB601DMPayload, _definitions
 
     dm = next(d for d in _definitions() if d.type == "ReBot_B601_DM_Follower")
     assert callable(dm.robot_builder)
-    from physicalai_rebot_b601_plugin.studio_catalog import ReBotB601DMPayload
-
     assert dm.robot_payload is ReBotB601DMPayload
     assert dm.adapter_options.include_velocities is True
     assert dm.adapter_options.external_effort_gain is None
     assert dm.adapter_options.goal_time_scale == 1.0
-
-
-def test_arm102_leader_has_robot_builder() -> None:
-    from physicalai_rebot_b601_plugin.studio_catalog import _definitions
-
-    arm102 = next(d for d in _definitions() if d.type == "ReBot_Arm102_Leader")
-    assert callable(arm102.robot_builder)
-    from physicalai_rebot_b601_plugin.studio_catalog import ReBotArm102Payload
-
-    assert arm102.robot_payload is ReBotArm102Payload
-    assert arm102.adapter_options.include_velocities is False
-    assert arm102.adapter_options.external_effort_gain is None
-    assert arm102.adapter_options.goal_time_scale == 1.0
 
 
 def test_rebot_b601_dm_payload_defaults() -> None:
@@ -161,68 +132,36 @@ def test_rebot_b601_dm_payload_defaults() -> None:
     assert payload.gripper_control_mode == "force_pos"
 
 
-def test_rebot_arm102_payload_defaults() -> None:
-    from physicalai_rebot_b601_plugin.studio_catalog import ReBotArm102Payload
-
-    payload = ReBotArm102Payload(serial_number="SN-002")
-    assert payload.connection_string == ""
-    assert payload.serial_number == "SN-002"
-    assert payload.baudrate == 1_000_000
-    assert payload.unlock_on_connect is True
-    assert payload.reset_multi_turn_on_connect is True
-    assert payload.zero_on_connect is False
-
-
 def test_payload_models_rebuild() -> None:
-    from physicalai_rebot_b601_plugin.studio_catalog import ReBotArm102Payload, ReBotB601DMPayload
+    from physicalai_rebot_b601_plugin.studio_catalog import ReBotB601DMPayload
 
     ReBotB601DMPayload.model_rebuild(raise_errors=True)
-    ReBotArm102Payload.model_rebuild(raise_errors=True)
 
 
-@pytest.mark.parametrize(
-    "payload_cls",
-    ["ReBotB601DMPayload", "ReBotArm102Payload"],
-)
-def test_payload_requires_connection_identifier(payload_cls: str) -> None:
+def test_payload_requires_connection_identifier() -> None:
     from pydantic import ValidationError
 
-    from physicalai_rebot_b601_plugin.studio_catalog import ReBotArm102Payload, ReBotB601DMPayload
+    from physicalai_rebot_b601_plugin.studio_catalog import ReBotB601DMPayload
 
-    payload_models = {
-        "ReBotB601DMPayload": ReBotB601DMPayload,
-        "ReBotArm102Payload": ReBotArm102Payload,
-    }
     with pytest.raises(ValidationError, match="connection_string or serial_number"):
-        payload_models[payload_cls]()
+        ReBotB601DMPayload()
 
 
-@pytest.mark.parametrize("payload_name", ["ReBotB601DMPayload", "ReBotArm102Payload"])
-def test_payload_schemas_configure_serial_connection_picker(payload_name: str) -> None:
+def test_payload_schemas_configure_serial_connection_picker() -> None:
     from physicalai_studio_plugin import validate_robot_payload_ui
 
-    from physicalai_rebot_b601_plugin.studio_catalog import ReBotArm102Payload, ReBotB601DMPayload
+    from physicalai_rebot_b601_plugin.studio_catalog import ReBotB601DMPayload
 
-    payload_models = {
-        "ReBotB601DMPayload": ReBotB601DMPayload,
-        "ReBotArm102Payload": ReBotArm102Payload,
-    }
-    payload_model = payload_models[payload_name]
+    validate_robot_payload_ui(ReBotB601DMPayload)
+    schema = ReBotB601DMPayload.model_json_schema()
 
-    validate_robot_payload_ui(payload_model)
-    schema = payload_model.model_json_schema()
-
-    expected_ui = _REBOT_B601_DM_UI if payload_name == "ReBotB601DMPayload" else _CONNECTION_UI
-    assert schema["x-physicalai-ui"] == expected_ui
+    assert schema["x-physicalai-ui"] == _REBOT_B601_DM_UI
     _assert_no_retired_ui_keys(schema)
 
 
 @pytest.mark.anyio
 async def test_build_rebot_b601_dm_from_pydantic_payload() -> None:
-    from physicalai_rebot_b601_plugin.studio_catalog import (
-        ReBotB601DMPayload,
-        _build_rebot_b601_dm_driver,
-    )
+    from physicalai_rebot_b601_plugin.studio_catalog import ReBotB601DMPayload, _build_rebot_b601_dm_driver
 
     payload = ReBotB601DMPayload(serial_number="DM-001", can_adapter="socketcan")
     robot = _StubRobot(payload)
@@ -233,9 +172,7 @@ async def test_build_rebot_b601_dm_from_pydantic_payload() -> None:
 
 @pytest.mark.anyio
 async def test_build_rebot_b601_dm_from_dict_payload() -> None:
-    from physicalai_rebot_b601_plugin.studio_catalog import (
-        _build_rebot_b601_dm_driver,
-    )
+    from physicalai_rebot_b601_plugin.studio_catalog import _build_rebot_b601_dm_driver
 
     payload: dict[str, object] = {
         "serial_number": "DM-002",
@@ -250,61 +187,13 @@ async def test_build_rebot_b601_dm_from_dict_payload() -> None:
 
 @pytest.mark.anyio
 async def test_build_rebot_b601_dm_port_not_found() -> None:
-    from physicalai_rebot_b601_plugin.studio_catalog import (
-        ReBotB601DMPayload,
-        _build_rebot_b601_dm_driver,
-    )
+    from physicalai_rebot_b601_plugin.studio_catalog import ReBotB601DMPayload, _build_rebot_b601_dm_driver
 
     payload = ReBotB601DMPayload(serial_number="DM-MISSING")
     robot = _StubRobot(payload)
     factory = _StubFactory(port=None)
     with pytest.raises(RuntimeError, match="Robot not found"):
         await _build_rebot_b601_dm_driver(robot, factory)
-
-
-@pytest.mark.anyio
-async def test_build_rebot_arm102_from_pydantic_payload() -> None:
-    from physicalai_rebot_b601_plugin.studio_catalog import (
-        ReBotArm102Payload,
-        _build_rebot_arm102_driver,
-    )
-
-    payload = ReBotArm102Payload(serial_number="LDR-001", baudrate=115200)
-    robot = _StubRobot(payload)
-    factory = _StubFactory(port="/dev/ttyUSB0")
-    driver = await _build_rebot_arm102_driver(robot, factory)
-    assert driver is not None
-
-
-@pytest.mark.anyio
-async def test_build_rebot_arm102_from_dict_payload() -> None:
-    from physicalai_rebot_b601_plugin.studio_catalog import (
-        _build_rebot_arm102_driver,
-    )
-
-    payload: dict[str, object] = {
-        "serial_number": "LDR-002",
-        "baudrate": 1000000,
-        "unlock_on_connect": False,
-    }
-    robot = _StubRobot(payload)
-    factory = _StubFactory(port="/dev/ttyUSB1")
-    driver = await _build_rebot_arm102_driver(robot, factory)
-    assert driver is not None
-
-
-@pytest.mark.anyio
-async def test_build_rebot_arm102_port_not_found() -> None:
-    from physicalai_rebot_b601_plugin.studio_catalog import (
-        ReBotArm102Payload,
-        _build_rebot_arm102_driver,
-    )
-
-    payload = ReBotArm102Payload(serial_number="LDR-MISSING")
-    robot = _StubRobot(payload)
-    factory = _StubFactory(port=None)
-    with pytest.raises(RuntimeError, match="Robot not found"):
-        await _build_rebot_arm102_driver(robot, factory)
 
 
 def test_get_rebot_urdf_root_returns_path() -> None:

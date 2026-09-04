@@ -8,17 +8,16 @@ Third-party Seeed reBot B601 robot arm plugin for [PhysicalAI](https://github.co
 ## Features
 
 - Concrete implementations of the `Robot` protocol — no inheritance or registration required
-- B601-DM (Damiao) and B601-RS (RobStride) followers plus a Star Arm 102 leader
-- Leader → follower teleoperation via the built-in `TeleopSource`
+- B601-DM (Damiao) and B601-RS (RobStride) follower drivers
+- Leader → follower teleoperation with `physicalai-stararm-plugin`
 - Bundled URDFs for gravity compensation and kinematics
 
 ## Hardware
 
-| Class               | Arm              | Motors                                           | Protocol                     |
-| ------------------- | ---------------- | ------------------------------------------------ | ---------------------------- |
-| `ReBotB601DM`       | B601-DM follower | Damiao (via `motorbridge`)                       | POS_VEL / FORCE_POS          |
-| `ReBotB601RS`       | B601-RS follower | RobStride (via `motorbridge`)                    | MIT mode + gripper impedance |
-| `ReBotArm102Leader` | Arm 102 leader   | FashionStar UART (via `motorbridge-smart-servo`) | Read-only                    |
+| Class         | Arm              | Motors                        | Protocol                     |
+| ------------- | ---------------- | ----------------------------- | ---------------------------- |
+| `ReBotB601DM` | B601-DM follower | Damiao (via `motorbridge`)    | POS_VEL / FORCE_POS          |
+| `ReBotB601RS` | B601-RS follower | RobStride (via `motorbridge`) | MIT mode + gripper impedance |
 
 ## Screenshots
 
@@ -36,7 +35,7 @@ _Placeholder images — replace them with real screenshots._
 uv add physicalai-rebot-b601-plugin
 ```
 
-`motorbridge` and `motorbridge-smart-servo` are included as core dependencies.
+`motorbridge` is included as a core dependency.
 
 ## Quick start
 
@@ -59,8 +58,8 @@ required. Use with `physicalai.robot.connect` and `physicalai.robot.verify_robot
 ## Run with the PhysicalAI CLI
 
 The [PhysicalAI CLI](https://github.com/openvinotoolkit/physicalai) `run`
-subcommand executes a `RobotRuntime` from a YAML config. The bundled configs
-relay a `ReBotArm102Leader` to a B601-DM or B601-RS follower:
+subcommand executes a `RobotRuntime` from a YAML config. The bundled teleop configs
+relay a `StarArm102HDLeader` from `physicalai-stararm-plugin` to a B601 follower:
 
 ```bash
 uv run physicalai run --config packages/physicalai-rebot-b601-plugin/examples/runtime/teleop-dm.yaml
@@ -76,7 +75,6 @@ uv run physicalai run --config packages/physicalai-rebot-b601-plugin/examples/ru
 uv run physicalai run --config packages/physicalai-rebot-b601-plugin/examples/runtime/move-joints-rs.yaml
 uv run physicalai run --config packages/physicalai-rebot-b601-plugin/examples/runtime/read-joints-dm.yaml
 uv run physicalai run --config packages/physicalai-rebot-b601-plugin/examples/runtime/read-joints-rs.yaml
-uv run physicalai run --config packages/physicalai-rebot-b601-plugin/examples/runtime/read-joints-leader.yaml
 ```
 
 ## URDF Models
@@ -94,15 +92,12 @@ dm_urdf = urdf_dir / "rebot-b601-dm" / "urdf" / "reBot-DevArm_fixend.urdf"
 # B601-RS arm
 rs_urdf = urdf_dir / "rebot-b601-rs" / "urdf" / "00-arm-rs_asm-v3.urdf"
 
-# Star Arm 102 (leader)
-star_urdf = urdf_dir / "stararm102" / "urdf" / "stararm102_description.urdf"
 ```
 
 | URDF            | Model            | Use                                    |
 | --------------- | ---------------- | -------------------------------------- |
 | `rebot-b601-dm` | B601-DM (fixend) | Gravity compensation for `ReBotB601DM` |
 | `rebot-b601-rs` | B601-RS v3       | Kinematics for `ReBotB601RS`           |
-| `stararm102`    | Star Arm 102     | Kinematics for `ReBotArm102Leader`     |
 
 ## Development
 
@@ -116,6 +111,3 @@ uv run pytest packages/physicalai-rebot-b601-plugin/tests/
 URDF models for the reBot Arm B601 are from the
 [reBotArm_control_py](https://github.com/vectorBH6/reBotArm_control_py) project,
 released under the MIT License by vectorBH6.
-
-The Star Arm 102 URDF is from the
-[Star-Arm-102](https://github.com/servodevelop/Star-Arm-102) project.
