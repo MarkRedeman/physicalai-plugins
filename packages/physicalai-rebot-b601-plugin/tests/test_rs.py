@@ -83,6 +83,11 @@ class TestReBotB601RSConstruction:
             "gripper",
         ]
 
+    def test_device_ids(self, mock_motorbridge: MagicMock) -> None:
+        robot = _create_robot(mock_motorbridge, port="can0", can_adapter="socketcan")
+
+        assert robot.device_ids == ("rebot-rs:socketcan:can0",)
+
     def test_invalid_adapter_raises(self, mock_motorbridge: MagicMock) -> None:
         from physicalai_rebot_b601_plugin import ReBotB601RS
 

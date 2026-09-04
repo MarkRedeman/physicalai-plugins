@@ -68,14 +68,14 @@ def test_definitions_count() -> None:
     from physicalai_rebot_b601_plugin.studio_catalog import _definitions
 
     defs = _definitions()
-    assert len(defs) == 2
+    assert len(defs) == 3
 
 
 def test_definitions_have_expected_types() -> None:
     from physicalai_rebot_b601_plugin.studio_catalog import _definitions
 
     types = {d.type for d in _definitions()}
-    assert types == {"ReBot_B601_DM_Follower", "ReBot_Arm102_Leader"}
+    assert types == {"ReBot_B601_DM_Follower", "ReBot_Arm102_Leader", "ReBot_B601_RS_Follower"}
 
 
 def test_register_physicalai_studio_plugin() -> None:
@@ -83,7 +83,7 @@ def test_register_physicalai_studio_plugin() -> None:
 
     registry = _FakeRegistry()
     register_physicalai_studio_plugin(registry)
-    assert len(registry.definitions) == 2
+    assert len(registry.definitions) == 3
 
 
 def test_dm_follower_structure() -> None:
@@ -114,11 +114,25 @@ def test_arm102_leader_structure() -> None:
     assert (arm102.asset.root_resolver() / arm102.asset.urdf_relative_path).is_file()
 
 
+def test_rs_follower_structure() -> None:
+    from physicalai_rebot_b601_plugin.studio_catalog import _definitions
+
+    rs = next(d for d in _definitions() if d.type == "ReBot_B601_RS_Follower")
+
+    assert rs.display_name == "ReBot B601 RS Follower"
+    assert rs.role == "follower"
+    assert rs.asset is not None
+    assert rs.asset.urdf_relative_path == Path("rebot-b601-rs/urdf/00-arm-rs_asm-v3.urdf")
+    assert rs.asset.packages == {"rebot-b601-rs": Path("rebot-b601-rs")}
+    assert rs.asset.root_resolver is not None
+    assert (rs.asset.root_resolver() / rs.asset.urdf_relative_path).is_file()
+
+
 def test_definition_robot_type_property() -> None:
     from physicalai_rebot_b601_plugin.studio_catalog import _definitions
 
     for d in _definitions():
-        assert d.type in {"ReBot_B601_DM_Follower", "ReBot_Arm102_Leader"}
+        assert d.type in {"ReBot_B601_DM_Follower", "ReBot_Arm102_Leader", "ReBot_B601_RS_Follower"}
 
 
 def test_dm_follower_has_robot_builder() -> None:
@@ -174,10 +188,15 @@ def test_rebot_arm102_payload_defaults() -> None:
 
 
 def test_payload_models_rebuild() -> None:
-    from physicalai_rebot_b601_plugin.studio_catalog import ReBotArm102Payload, ReBotB601DMPayload
+    from physicalai_rebot_b601_plugin.studio_catalog import (
+        ReBotArm102Payload,
+        ReBotB601DMPayload,
+        ReBotB601RSPayload,
+    )
 
     ReBotB601DMPayload.model_rebuild(raise_errors=True)
     ReBotArm102Payload.model_rebuild(raise_errors=True)
+    ReBotB601RSPayload.model_rebuild(raise_errors=True)
 
 
 @pytest.mark.parametrize(
@@ -214,6 +233,29 @@ def test_payload_schemas_configure_serial_connection_picker(payload_name: str) -
 
     expected_ui = _REBOT_B601_DM_UI if payload_name == "ReBotB601DMPayload" else _CONNECTION_UI
     assert schema["x-physicalai-ui"] == expected_ui
+    _assert_no_retired_ui_keys(schema)
+
+
+_RS_CONNECTION_UI = [
+    {
+        "kind": "connection",
+        "label": "CAN channel",
+        "device_discovery": False,
+        "manual_entry": True,
+        "bind": {"connection": "connection_string"},
+    },
+]
+
+
+def test_rs_payload_schema() -> None:
+    from physicalai_studio_plugin import validate_robot_payload_ui
+
+    from physicalai_rebot_b601_plugin.studio_catalog import ReBotB601RSPayload
+
+    validate_robot_payload_ui(ReBotB601RSPayload)
+    schema = ReBotB601RSPayload.model_json_schema()
+
+    assert schema["x-physicalai-ui"][0] == _RS_CONNECTION_UI[0]
     _assert_no_retired_ui_keys(schema)
 
 
@@ -305,6 +347,66 @@ async def test_build_rebot_arm102_port_not_found() -> None:
     factory = _StubFactory(port=None)
     with pytest.raises(RuntimeError, match="Robot not found"):
         await _build_rebot_arm102_driver(robot, factory)
+
+
+def test_rs_follower_has_robot_builder() -> None:
+    from physicalai_rebot_b601_plugin.studio_catalog import (
+        ReBotB601RSPayload,
+        _definitions,
+    )
+
+    rs = next(d for d in _definitions() if d.type == "ReBot_B601_RS_Follower")
+    assert callable(rs.robot_builder)
+    assert rs.robot_payload is ReBotB601RSPayload
+    assert rs.adapter_options.include_velocities is True
+    assert rs.adapter_options.external_effort_gain is None
+    assert rs.adapter_options.goal_time_scale == 1.0
+
+
+@pytest.mark.anyio
+async def test_build_rebot_b601_rs_from_pydantic_payload() -> None:
+    from physicalai_rebot_b601_plugin.studio_catalog import (
+        ReBotB601RSPayload,
+        _build_rebot_b601_rs_driver,
+    )
+
+    payload = ReBotB601RSPayload(connection_string="can1", can_adapter="socketcan", gripper_mit_kp=20.0)
+    robot = _StubRobot(payload)
+    factory = _StubFactory(port=None)
+    driver = await _build_rebot_b601_rs_driver(robot, factory)
+    assert driver is not None
+    assert driver.port == "can1"
+    assert driver.can_adapter == "socketcan"
+    assert driver.disable_torque_on_disconnect is True
+
+
+@pytest.mark.anyio
+async def test_build_rebot_b601_rs_defaults() -> None:
+    from physicalai_rebot_b601_plugin.studio_catalog import (
+        ReBotB601RSPayload,
+        _build_rebot_b601_rs_driver,
+    )
+
+    payload = ReBotB601RSPayload()
+    robot = _StubRobot(payload)
+    factory = _StubFactory(port=None)
+    driver = await _build_rebot_b601_rs_driver(robot, factory)
+    assert driver is not None
+    assert driver.port == "can0"
+
+
+@pytest.mark.anyio
+async def test_build_rebot_b601_rs_empty_channel_raises() -> None:
+    from physicalai_rebot_b601_plugin.studio_catalog import (
+        ReBotB601RSPayload,
+        _build_rebot_b601_rs_driver,
+    )
+
+    payload = ReBotB601RSPayload(connection_string="")
+    robot = _StubRobot(payload)
+    factory = _StubFactory(port=None)
+    with pytest.raises(ValueError, match="CAN channel"):
+        await _build_rebot_b601_rs_driver(robot, factory)
 
 
 def test_get_rebot_urdf_root_returns_path() -> None:
