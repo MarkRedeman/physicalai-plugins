@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Self
+from typing import TYPE_CHECKING, Literal, Self
 
 from physicalai_studio_plugin import (
     CatalogRobotFactory,
@@ -61,8 +61,8 @@ _STAR_ARM_102_ASSET = RobotAsset(
 )
 
 
-class StarArm102LeaderPayload(BaseModel):
-    """Connection payload for a Star Arm 102 leader arm."""
+class StarArm102LDPayload(BaseModel):
+    """Connection payload for a Star Arm 102-LD leader arm."""
 
     connection_string: str = ""
     serial_number: str = ""
@@ -151,7 +151,59 @@ class StarArm102FLPayload(BaseModel):
         return self
 
 
-type StarArmPayload = StarArm102LeaderPayload | StarArm102FLPayload
+class StarArm102HDPayload(BaseModel):
+    """Connection payload for a Star Arm 102-HD leader arm."""
+
+    connection_string: str = ""
+    serial_number: str = ""
+    baudrate: int = Field(
+        default=1_000_000,
+        json_schema_extra=robot_field_ui({"advanced_configuration": True}),
+    )
+    unlock_on_connect: bool = Field(
+        default=True,
+        json_schema_extra=robot_field_ui({"advanced_configuration": True}),
+    )
+    reset_multi_turn_on_connect: bool = Field(
+        default=True,
+        json_schema_extra=robot_field_ui({"advanced_configuration": True}),
+    )
+    zero_on_connect: bool = Field(
+        default=False,
+        json_schema_extra=robot_field_ui({"advanced_configuration": True}),
+    )
+    control_mode: Literal["passive", "assist"] = Field(
+        default="passive",
+        json_schema_extra=robot_field_ui({"advanced_configuration": True}),
+        description="HD leader mode: passive (read-only) or assist (accepts actions and hold).",
+    )
+    command_interval_ms: int = Field(
+        default=10,
+        json_schema_extra=robot_field_ui({"advanced_configuration": True}),
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra=robot_payload_ui(
+            [
+                {
+                    "kind": "connection",
+                    "label": "Select robot",
+                    "device_discovery": True,
+                    "bind": {"connection": "connection_string", "serial_number": "serial_number"},
+                },
+            ],
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _require_connection_identifier(self) -> Self:
+        if not self.connection_string and not self.serial_number:
+            msg = "At least one of connection_string or serial_number must be provided"
+            raise ValueError(msg)
+        return self
+
+
+type StarArmPayload = StarArm102LDPayload | StarArm102HDPayload | StarArm102FLPayload
 
 
 class StarArmProbe(RobotProbe[StarArmPayload]):
@@ -197,13 +249,13 @@ _STAR_ARM_PROBE = StarArmProbe()
 
 
 async def _build_stararm_102_hd_driver(
-    robot: PayloadContainer[StarArm102LeaderPayload],
+    robot: PayloadContainer[StarArm102HDPayload],
     factory: CatalogRobotFactory,
 ) -> PhysicalAIRobot:
     raw = robot.payload
-    if isinstance(raw, BaseModel) and type(raw) is not StarArm102LeaderPayload:
+    if isinstance(raw, BaseModel) and type(raw) is not StarArm102HDPayload:
         raw = raw.model_dump()
-    validated = raw if isinstance(raw, StarArm102LeaderPayload) else StarArm102LeaderPayload.model_validate(raw)
+    validated = raw if isinstance(raw, StarArm102HDPayload) else StarArm102HDPayload.model_validate(raw)
     connection_string = validated.connection_string or None
     serial_number = validated.serial_number or None
     port = await factory.find_port(
@@ -222,6 +274,8 @@ async def _build_stararm_102_hd_driver(
         unlock_on_connect=validated.unlock_on_connect,
         reset_multi_turn_on_connect=validated.reset_multi_turn_on_connect,
         zero_on_connect=validated.zero_on_connect,
+        control_mode=validated.control_mode,
+        command_interval_ms=validated.command_interval_ms,
     )
 
 
@@ -256,13 +310,13 @@ async def _build_stararm_102_fl_driver(
 
 
 async def _build_stararm_102_ld_driver(
-    robot: PayloadContainer[StarArm102LeaderPayload],
+    robot: PayloadContainer[StarArm102LDPayload],
     factory: CatalogRobotFactory,
 ) -> PhysicalAIRobot:
     raw = robot.payload
-    if isinstance(raw, BaseModel) and type(raw) is not StarArm102LeaderPayload:
+    if isinstance(raw, BaseModel) and type(raw) is not StarArm102LDPayload:
         raw = raw.model_dump()
-    validated = raw if isinstance(raw, StarArm102LeaderPayload) else StarArm102LeaderPayload.model_validate(raw)
+    validated = raw if isinstance(raw, StarArm102LDPayload) else StarArm102LDPayload.model_validate(raw)
     connection_string = validated.connection_string or None
     serial_number = validated.serial_number or None
     port = await factory.find_port(
@@ -291,7 +345,7 @@ def _definitions() -> list[RobotCatalogDefinition]:
             display_name="Star Arm 102-LD Leader",
             role="leader",
             robot_builder=_build_stararm_102_ld_driver,
-            robot_payload=StarArm102LeaderPayload,
+            robot_payload=StarArm102LDPayload,
             asset=_STAR_ARM_102_ASSET,
             adapter_options=RobotAdapterOptions(include_velocities=False, external_effort_gain=None),
             probe=_STAR_ARM_PROBE,
@@ -301,7 +355,7 @@ def _definitions() -> list[RobotCatalogDefinition]:
             display_name="Star Arm 102-HD Leader",
             role="leader",
             robot_builder=_build_stararm_102_hd_driver,
-            robot_payload=StarArm102LeaderPayload,
+            robot_payload=StarArm102HDPayload,
             asset=_STAR_ARM_102_ASSET,
             adapter_options=RobotAdapterOptions(include_velocities=False, external_effort_gain=None),
             probe=_STAR_ARM_PROBE,

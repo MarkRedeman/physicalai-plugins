@@ -7,9 +7,10 @@ Fashion Star Star Arm 102 plugin for [PhysicalAI](https://github.com/openvinotoo
 
 ## Features
 
-- Star Arm 102-LD and 102-HD leader drivers (`StarArm102LDLeader`, `StarArm102HDLeader`) for read-only teleoperation input
+- Star Arm 102-LD leader driver (`StarArm102LDLeader`) for read-only teleoperation input
+- Star Arm 102-HD leader driver (`StarArm102HDLeader`) with passive mode (default) and optional assist mode for hold/action commands
 - Star Arm 102-FL follower driver (`StarArm102FLFollower`) for position control
-- Studio catalog plugin entries for both HD leader and FL follower
+- Studio catalog plugin entries for LD leader, HD leader, and FL follower
 - Bundled `stararm102` URDF package
 
 ## Installation
@@ -40,6 +41,8 @@ uv run physicalai run --config packages/physicalai-stararm-plugin/examples/runti
 uv run physicalai run --config packages/physicalai-stararm-plugin/examples/runtime/read-joints-ld.yaml
 uv run physicalai run --config packages/physicalai-stararm-plugin/examples/runtime/read-joints-fl.yaml
 uv run physicalai run --config packages/physicalai-stararm-plugin/examples/runtime/move-joints-fl.yaml
+uv run physicalai run --config packages/physicalai-stararm-plugin/examples/runtime/hold-hd.yaml
+uv run physicalai run --config packages/physicalai-stararm-plugin/examples/runtime/policy-follow-hd.yaml
 ```
 
 ## URDF

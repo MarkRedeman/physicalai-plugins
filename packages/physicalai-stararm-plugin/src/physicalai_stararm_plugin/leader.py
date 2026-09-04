@@ -9,7 +9,7 @@ from __future__ import annotations
 import contextlib
 import time
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, ClassVar, Protocol
+from typing import TYPE_CHECKING, ClassVar, Literal, Protocol
 
 import numpy as np
 from loguru import logger
@@ -44,6 +44,7 @@ class _FashionStarBus(Protocol):
     def reset_multi_turn(self, servo_id: int) -> None: ...
     def set_origin_point(self, servo_id: int) -> None: ...
     def read_angle(self, servo_id: int, *, multi_turn: bool = True) -> _AngleSample: ...
+    def set_angle(self, servo_id: int, angle_deg: float, *, multi_turn: bool = False, interval_ms: int = 0) -> None: ...
     def close(self) -> None: ...
 
 
@@ -71,17 +72,18 @@ class StarArm102HDLeaderObservation:
 
 @export_config
 class StarArm102HDLeader:
-    """FashionStar UART leader arm driver (read-only teleoperation).
+    """FashionStar UART leader arm driver.
 
     Connects to the Star Arm 102-HD leader arm via a UART-to-USB adapter.
-    This arm has no torque control; it is manually positioned by the
-    operator and the driver only reads joint angles.
+    By default this driver runs in passive mode and only reads joint angles.
+    In assist mode it can also accept position commands and hold poses.
     """
 
     JOINT_ORDER: ClassVar[list[str]] = list(STAR_ARM_102_JOINT_ORDER)
     NUM_JOINTS: ClassVar[int] = len(JOINT_ORDER)
     MODEL_NAME: ClassVar[str] = "Star Arm 102-HD"
     DEVICE_PREFIX: ClassVar[str] = "stararm102-hd"
+    VALID_CONTROL_MODES: ClassVar[frozenset[str]] = frozenset({"passive", "assist"})
 
     def __init__(
         self,
@@ -91,6 +93,8 @@ class StarArm102HDLeader:
         unlock_on_connect: bool = True,
         reset_multi_turn_on_connect: bool = True,
         zero_on_connect: bool = False,
+        control_mode: Literal["passive", "assist"] = "passive",
+        command_interval_ms: int = 10,
     ) -> None:
         """Initialize the FashionStar leader arm driver.
 
@@ -100,6 +104,8 @@ class StarArm102HDLeader:
             unlock_on_connect: Whether to unlock servos on connect.
             reset_multi_turn_on_connect: Whether to reset multi-turn counters on connect.
             zero_on_connect: Whether to set the current position as origin point.
+            control_mode: ``"passive"`` (read-only, default) or ``"assist"`` (accepts actions).
+            command_interval_ms: Minimum command duration for assist/hold commands.
 
         Raises:
             ValueError: If any parameter has an invalid value.
@@ -107,16 +113,25 @@ class StarArm102HDLeader:
         if baudrate <= 0:
             msg = f"baudrate must be a positive integer, got {baudrate!r}"
             raise ValueError(msg)
+        if control_mode not in self.VALID_CONTROL_MODES:
+            msg = f"Invalid control_mode {control_mode!r}. Must be one of {sorted(self.VALID_CONTROL_MODES)}."
+            raise ValueError(msg)
+        if command_interval_ms < 0:
+            msg = f"command_interval_ms must be >= 0, got {command_interval_ms!r}"
+            raise ValueError(msg)
 
         self._port = port
         self._baudrate = baudrate
         self._unlock_on_connect = unlock_on_connect
         self._reset_multi_turn_on_connect = reset_multi_turn_on_connect
         self._zero_on_connect = zero_on_connect
+        self._control_mode = control_mode
+        self._command_interval_ms = command_interval_ms
         self._bus: _FashionStarBus | None = None
         self._last_positions: np.ndarray | None = None
         self._last_raw_positions: np.ndarray | None = None
         self._last_reliable: np.ndarray | None = None
+        self._holding = False
 
     @property
     def joint_names(self) -> list[str]:
@@ -142,6 +157,21 @@ class StarArm102HDLeader:
     def zero_on_connect(self) -> bool:
         """Whether the current position is set as origin point on connect."""
         return self._zero_on_connect
+
+    @property
+    def control_mode(self) -> Literal["passive", "assist"]:
+        """Current control mode for this leader."""
+        return self._control_mode
+
+    @property
+    def command_interval_ms(self) -> int:
+        """Minimum command interval in milliseconds for assist/hold commands."""
+        return self._command_interval_ms
+
+    @property
+    def is_holding(self) -> bool:
+        """Whether hold mode is currently active."""
+        return self._holding
 
     def _require_bus(self) -> _FashionStarBus:
         bus = self._bus
@@ -173,6 +203,7 @@ class StarArm102HDLeader:
         bus = self._bus
         if bus is None:
             return
+        self._holding = False
         self._bus = None
         bus.close()
         logger.info(f"{self.__class__.__name__} disconnected from {self.port}")
@@ -252,17 +283,49 @@ class StarArm102HDLeader:
         return positions, raw_positions, reliable
 
     def send_action(self, action: np.ndarray, *, goal_time: float = 0.1) -> None:
-        """Ignore commands — leader arms are manually positioned and read-only.
+        """Optionally command the HD leader in assist mode.
 
-        The leader has no actuation, so ``send_action`` is a deliberate no-op.
-        This lets a leader be used as a passive device (e.g. inside a
-        ``physicalai run`` runtime that always sends an action) while the
-        operator moves it freely by hand.
+        In ``passive`` mode this is a no-op so teleoperation defaults remain
+        safe and manually backdrivable. In ``assist`` mode this sends absolute
+        position targets in degrees to all joints.
 
         Args:
-            action: Ignored; present for protocol compatibility.
-            goal_time: Ignored; present for protocol compatibility.
+            action: Joint target vector in degrees.
+            goal_time: Optional target motion time in seconds.
+
         """
+        if self._control_mode != "assist":
+            return
+        self._send_action_internal(action, goal_time=goal_time)
+
+    def hold_position(self, *, goal_time: float = 0.2) -> None:
+        """Capture the current pose and command the HD leader to hold it."""
+        obs = self.get_observation()
+        self._send_action_internal(np.asarray(obs.joint_positions, dtype=np.float32), goal_time=goal_time)
+        self._holding = True
+
+    def release_hold(self) -> None:
+        """Release hold mode and return to manual guidance."""
+        self._holding = False
+
+    def _send_action_internal(self, action: np.ndarray, *, goal_time: float) -> None:
+        bus = self._require_bus()
+        action_arr = np.asarray(action, dtype=np.float32)
+        if action_arr.shape != (self.NUM_JOINTS,):
+            msg = f"Expected action shape ({self.NUM_JOINTS},), got {tuple(action_arr.shape)}"
+            raise ValueError(msg)
+
+        interval_ms = self._goal_time_to_interval_ms(goal_time)
+        for i, name in enumerate(self.JOINT_ORDER):
+            servo_id = STAR_ARM_102_JOINT_IDS[name]
+            range_min, range_max = STAR_ARM_102_JOINT_RANGES_DEG[name]
+            target = float(np.clip(float(action_arr[i]), range_min, range_max))
+            bus.set_angle(servo_id, target, multi_turn=True, interval_ms=interval_ms)
+
+    def _goal_time_to_interval_ms(self, goal_time: float) -> int:
+        if goal_time <= 0.0:
+            return self._command_interval_ms
+        return max(int(goal_time * 1000.0), self._command_interval_ms)
 
     @staticmethod
     def _round_to_valid_range(value: float, min_value: float, max_value: float) -> tuple[float, int]:
@@ -302,4 +365,6 @@ class StarArm102LDLeader(StarArm102HDLeader):
             unlock_on_connect=unlock_on_connect,
             reset_multi_turn_on_connect=reset_multi_turn_on_connect,
             zero_on_connect=zero_on_connect,
+            control_mode="passive",
+            command_interval_ms=10,
         )

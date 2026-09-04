@@ -64,6 +64,7 @@ class TestStarArm102HDLeaderConstruction:
 
         assert robot.port == "/dev/ttyUSB0"
         assert robot.baudrate == 1_000_000
+        assert robot.control_mode == "passive"
         assert robot.joint_names == [
             "shoulder_pan",
             "shoulder_lift",
@@ -149,11 +150,35 @@ class TestStarArm102HDLeaderObservation:
         assert "raw_positions" in obs.sensor_data
         assert "reliable" in obs.sensor_data
 
-    def test_send_action_is_noop(self, mock_smart_servo: MagicMock) -> None:
+    def test_send_action_is_noop_in_passive_mode(self, mock_smart_servo: MagicMock) -> None:
         robot = _create_robot(mock_smart_servo)
         robot.connect()
+        bus = mock_smart_servo.FashionStarServo.return_value
 
         robot.send_action(np.zeros(7, dtype=np.float32))
+        bus.set_angle.assert_not_called()
+
+    def test_send_action_commands_in_assist_mode(self, mock_smart_servo: MagicMock) -> None:
+        robot = _create_robot(mock_smart_servo, control_mode="assist", command_interval_ms=20)
+        robot.connect()
+        bus = mock_smart_servo.FashionStarServo.return_value
+
+        robot.send_action(np.array([1, 2, 3, 4, 5, 6, 7], dtype=np.float32), goal_time=0.1)
+
+        assert bus.set_angle.call_count == 7
+        assert bus.set_angle.call_args_list[0] == call(0, 1.0, multi_turn=True, interval_ms=100)
+
+    def test_hold_and_release(self, mock_smart_servo: MagicMock) -> None:
+        robot = _create_robot(mock_smart_servo, control_mode="assist")
+        robot.connect()
+        bus = mock_smart_servo.FashionStarServo.return_value
+
+        robot.hold_position(goal_time=0.2)
+        assert robot.is_holding is True
+        assert bus.set_angle.call_count == 7
+
+        robot.release_hold()
+        assert robot.is_holding is False
 
 
 class TestStarArm102LDLeader:

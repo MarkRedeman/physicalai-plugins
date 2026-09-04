@@ -112,22 +112,22 @@ def test_fl_follower_structure() -> None:
 
 
 def test_hd_leader_has_robot_builder() -> None:
-    from physicalai_stararm_plugin.studio_catalog import StarArm102LeaderPayload, _definitions
+    from physicalai_stararm_plugin.studio_catalog import StarArm102HDPayload, _definitions
 
     hd = next(d for d in _definitions() if d.type == "StarArm_102_HD_Leader")
     assert callable(hd.robot_builder)
-    assert hd.robot_payload is StarArm102LeaderPayload
+    assert hd.robot_payload is StarArm102HDPayload
     assert hd.adapter_options.include_velocities is False
     assert hd.adapter_options.external_effort_gain is None
     assert hd.adapter_options.goal_time_scale == 1.0
 
 
 def test_ld_leader_has_robot_builder() -> None:
-    from physicalai_stararm_plugin.studio_catalog import StarArm102LeaderPayload, _definitions
+    from physicalai_stararm_plugin.studio_catalog import StarArm102LDPayload, _definitions
 
     ld = next(d for d in _definitions() if d.type == "StarArm_102_LD_Leader")
     assert callable(ld.robot_builder)
-    assert ld.robot_payload is StarArm102LeaderPayload
+    assert ld.robot_payload is StarArm102LDPayload
     assert ld.adapter_options.include_velocities is False
     assert ld.adapter_options.external_effort_gain is None
     assert ld.adapter_options.goal_time_scale == 1.0
@@ -144,16 +144,30 @@ def test_fl_follower_has_robot_builder() -> None:
     assert fl.adapter_options.goal_time_scale == 1.0
 
 
-def test_stararm_102_leader_payload_defaults() -> None:
-    from physicalai_stararm_plugin.studio_catalog import StarArm102LeaderPayload
+def test_stararm_102_ld_payload_defaults() -> None:
+    from physicalai_stararm_plugin.studio_catalog import StarArm102LDPayload
 
-    payload = StarArm102LeaderPayload(serial_number="SN-HD")
+    payload = StarArm102LDPayload(serial_number="SN-LD")
+    assert payload.connection_string == ""
+    assert payload.serial_number == "SN-LD"
+    assert payload.baudrate == 1_000_000
+    assert payload.unlock_on_connect is True
+    assert payload.reset_multi_turn_on_connect is True
+    assert payload.zero_on_connect is False
+
+
+def test_stararm_102_hd_payload_defaults() -> None:
+    from physicalai_stararm_plugin.studio_catalog import StarArm102HDPayload
+
+    payload = StarArm102HDPayload(serial_number="SN-HD")
     assert payload.connection_string == ""
     assert payload.serial_number == "SN-HD"
     assert payload.baudrate == 1_000_000
     assert payload.unlock_on_connect is True
     assert payload.reset_multi_turn_on_connect is True
     assert payload.zero_on_connect is False
+    assert payload.control_mode == "passive"
+    assert payload.command_interval_ms == 10
 
 
 def test_stararm_102_fl_payload_defaults() -> None:
@@ -169,14 +183,15 @@ def test_stararm_102_fl_payload_defaults() -> None:
     assert payload.command_interval_ms == 10
 
 
-@pytest.mark.parametrize("payload_name", ["StarArm102LeaderPayload", "StarArm102FLPayload"])
+@pytest.mark.parametrize("payload_name", ["StarArm102LDPayload", "StarArm102HDPayload", "StarArm102FLPayload"])
 def test_payload_schemas_configure_serial_connection_picker(payload_name: str) -> None:
     from physicalai_studio_plugin import validate_robot_payload_ui
 
-    from physicalai_stararm_plugin.studio_catalog import StarArm102FLPayload, StarArm102LeaderPayload
+    from physicalai_stararm_plugin.studio_catalog import StarArm102FLPayload, StarArm102HDPayload, StarArm102LDPayload
 
     payload_models = {
-        "StarArm102LeaderPayload": StarArm102LeaderPayload,
+        "StarArm102LDPayload": StarArm102LDPayload,
+        "StarArm102HDPayload": StarArm102HDPayload,
         "StarArm102FLPayload": StarArm102FLPayload,
     }
     payload_model = payload_models[payload_name]
@@ -190,20 +205,21 @@ def test_payload_schemas_configure_serial_connection_picker(payload_name: str) -
 
 @pytest.mark.anyio
 async def test_build_stararm_102_hd_from_pydantic_payload() -> None:
-    from physicalai_stararm_plugin.studio_catalog import StarArm102LeaderPayload, _build_stararm_102_hd_driver
+    from physicalai_stararm_plugin.studio_catalog import StarArm102HDPayload, _build_stararm_102_hd_driver
 
-    payload = StarArm102LeaderPayload(serial_number="HD-001", baudrate=115200)
+    payload = StarArm102HDPayload(serial_number="HD-001", baudrate=115200, control_mode="assist")
     robot = _StubRobot(payload)
     factory = _StubFactory(port="/dev/ttyUSB0")
     driver = await _build_stararm_102_hd_driver(robot, factory)
     assert driver is not None
+    assert driver.control_mode == "assist"
 
 
 @pytest.mark.anyio
 async def test_build_stararm_102_ld_from_pydantic_payload() -> None:
-    from physicalai_stararm_plugin.studio_catalog import StarArm102LeaderPayload, _build_stararm_102_ld_driver
+    from physicalai_stararm_plugin.studio_catalog import StarArm102LDPayload, _build_stararm_102_ld_driver
 
-    payload = StarArm102LeaderPayload(serial_number="LD-001", baudrate=115200)
+    payload = StarArm102LDPayload(serial_number="LD-001", baudrate=115200)
     robot = _StubRobot(payload)
     factory = _StubFactory(port="/dev/ttyUSB2")
     driver = await _build_stararm_102_ld_driver(robot, factory)
@@ -228,9 +244,9 @@ async def test_build_stararm_102_fl_from_dict_payload() -> None:
 
 @pytest.mark.anyio
 async def test_build_stararm_102_hd_port_not_found() -> None:
-    from physicalai_stararm_plugin.studio_catalog import StarArm102LeaderPayload, _build_stararm_102_hd_driver
+    from physicalai_stararm_plugin.studio_catalog import StarArm102HDPayload, _build_stararm_102_hd_driver
 
-    payload = StarArm102LeaderPayload(serial_number="HD-MISSING")
+    payload = StarArm102HDPayload(serial_number="HD-MISSING")
     robot = _StubRobot(payload)
     factory = _StubFactory(port=None)
     with pytest.raises(RuntimeError, match="Robot not found"):
@@ -239,9 +255,9 @@ async def test_build_stararm_102_hd_port_not_found() -> None:
 
 @pytest.mark.anyio
 async def test_build_stararm_102_ld_port_not_found() -> None:
-    from physicalai_stararm_plugin.studio_catalog import StarArm102LeaderPayload, _build_stararm_102_ld_driver
+    from physicalai_stararm_plugin.studio_catalog import StarArm102LDPayload, _build_stararm_102_ld_driver
 
-    payload = StarArm102LeaderPayload(serial_number="LD-MISSING")
+    payload = StarArm102LDPayload(serial_number="LD-MISSING")
     robot = _StubRobot(payload)
     factory = _StubFactory(port=None)
     with pytest.raises(RuntimeError, match="Robot not found"):

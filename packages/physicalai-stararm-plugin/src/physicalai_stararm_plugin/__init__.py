@@ -2,8 +2,8 @@
 
 """Star Arm 102 plugin for PhysicalAI.
 
-Provides Star Arm 102-HD (leader) and Star Arm 102-FL (follower) drivers
-compatible with the ``physicalai.robot.Robot`` protocol.
+Provides Star Arm 102-LD/102-HD leader drivers and a Star Arm 102-FL follower
+driver compatible with the ``physicalai.robot.Robot`` protocol.
 """
 
 from __future__ import annotations
