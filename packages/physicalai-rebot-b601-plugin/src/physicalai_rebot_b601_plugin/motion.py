@@ -118,8 +118,7 @@ class HoldPoseSource:
     """Echo the current observation back as the action (hold).
 
     The runtime always sends an action; this source holds the robot at its
-    current observed pose. For leader arms whose ``send_action`` is a no-op
-    this is effectively read-only, letting the operator move the arm freely.
+    current observed pose.
     """
 
     def __init__(self) -> None:

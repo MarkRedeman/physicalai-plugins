@@ -25,8 +25,6 @@ def get_urdf_path() -> Path:
         >>> urdf_dir = get_urdf_path()
         >>> dm_urdf = urdf_dir / "rebot-b601-dm" / "urdf" / "reBot-DevArm_fixend.urdf"
         >>> rs_urdf = urdf_dir / "rebot-b601-rs" / "urdf" / "00-arm-rs_asm-v3.urdf"
-        >>> star_urdf = urdf_dir / "stararm102" / "urdf" / "stararm102_description.urdf"
-
     """
     traversal = ir.files("physicalai_rebot_b601_plugin")
     with ir.as_file(traversal) as p:

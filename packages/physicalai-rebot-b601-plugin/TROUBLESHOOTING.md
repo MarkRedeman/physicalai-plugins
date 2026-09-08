@@ -123,26 +123,14 @@ ConnectionError: Servo 'shoulder_pan' (ID 1) did not respond on /dev/ttyUSB0
 
 Possible causes:
 
-- **Wrong port or baud rate** — verify with `--baudrate` (leader) or the
-  Damiao serial baud (DM, defaults to 921600).
-- **Power issue** — motors need 24 V (DM/RS) or 12 V (leader). Check the
+- **Wrong port or baud rate** — verify the Damiao serial baud (DM, defaults to 921600).
+- **Power issue** — motors need 24 V (DM/RS). Check the
   power supply LED.
 - **Damaged cable** — try reseating the CAN/RS-485/ UART cable.
 - **Wrong motor ID** — `REBOT_B601_DM_MOTOR_IDS` / `REBOT_B601_RS_MOTOR_IDS`
-  / `REBOT_ARM_102_JOINT_IDS` must match your hardware configuration.
+  must match your hardware configuration.
 - **CAN bus termination** — ensure the CAN bus has proper 120 Ω termination
   at both ends for RS arms.
-
----
-
-### Intermittent read failures
-
-If `get_observation()` occasionally fails for the leader arm, the driver
-falls back to the last valid sample. If this happens frequently:
-
-- Check the UART cable and baud rate.
-- Reduce electrical noise (separate signal and power cables).
-- Increase the read interval (the leader bus is relatively slow).
 
 ---
 
@@ -211,16 +199,6 @@ gripper oscillates or chatters:
 
 ---
 
-### Leader arm skips or jumps (FashionStar)
-
-The multi-turn angle reading can drift over time. If you see sudden jumps:
-
-- Enable `reset_multi_turn_on_connect=True` (the default).
-- Occasionally call `bus.reset_multi_turn(servo_id)` on the relevant servo
-  while the arm is in a known reference pose.
-
----
-
 ## Installation
 
 ### ImportError: No module named 'motorbridge'
@@ -245,17 +223,17 @@ uv add -e packages/physicalai-rebot-b601-plugin
 
 ### Version conflicts with motorbridge
 
-This plugin requires `motorbridge>=0.4.4` and `motorbridge-smart-servo>=0.0.4`.
+This plugin requires `motorbridge>=0.4.4`.
 Check installed versions:
 
 ```bash
-uv pip show motorbridge motorbridge-smart-servo
+uv pip show motorbridge
 ```
 
 Upgrade if needed:
 
 ```bash
-uv add motorbridge@latest motorbridge-smart-servo@latest
+uv add motorbridge@latest
 ```
 
 ---
@@ -286,14 +264,6 @@ finally:
 
 ---
 
-### "Cannot send actions to ReBotArm102Leader"
-
-The leader arm driver is read-only. It raises `RuntimeError` on any call to
-`send_action()`. This is by design — the Arm 102 uses unpowered FashionStar
-servos that cannot be torque-controlled.
-
----
-
 ### verify_robot() fails
 
 If `physicalai.robot.verify_robot(robot)` fails, check:
@@ -303,7 +273,7 @@ If `physicalai.robot.verify_robot(robot)` fails, check:
 2. The observation dataclass has `joint_positions`, `timestamp`, `state`.
 3. `send_action` accepts `(np.ndarray, *, goal_time=0.1)`.
 
-For the plugin drivers, all three satisfy the `Robot` protocol — but if you
+For the plugin drivers, both satisfy the `Robot` protocol — but if you
 have subclassed or wrapped them, re-check with `isinstance(robot, Robot)`.
 
 ---

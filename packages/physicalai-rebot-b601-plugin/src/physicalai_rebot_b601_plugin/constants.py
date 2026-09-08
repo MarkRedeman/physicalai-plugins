@@ -1,8 +1,7 @@
-"""Motor and joint constants for all reBot B601 robot arms.
+"""Motor and joint constants for reBot B601 robot arms.
 
 Defines joint orders, motor IDs, model numbers, joint limits, direction
-signs, and control gains for the Damiao (DM), RobStride (RS), and
-FashionStar leader arm variants.
+signs, and control gains for the Damiao (DM) and RobStride (RS) variants.
 """
 
 from __future__ import annotations
@@ -143,26 +142,4 @@ REBOT_B601_RS_MIT_KD: Final = {
     "wrist_flex": 5.0,
     "wrist_yaw": 4.0,
     "wrist_roll": 4.0,
-}
-
-REBOT_ARM_102_JOINT_ORDER: Final = REBOT_B601_DM_JOINT_ORDER
-
-REBOT_ARM_102_JOINT_IDS: Final = {
-    "shoulder_pan": 0,
-    "shoulder_lift": 1,
-    "elbow_flex": 2,
-    "wrist_flex": 3,
-    "wrist_yaw": 4,
-    "wrist_roll": 5,
-    "gripper": 6,
-}
-
-REBOT_ARM_102_JOINT_RANGES_DEG: Final = {
-    "shoulder_pan": (-150.0, 150.0),
-    "shoulder_lift": (-1.0, 170.0),
-    "elbow_flex": (-200.0, 1.0),
-    "wrist_flex": (-80.0, 90.0),
-    "wrist_yaw": (-90.0, 90.0),
-    "wrist_roll": (-90.0, 90.0),
-    "gripper": (-0.0, 270.0),
 }

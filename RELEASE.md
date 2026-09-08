@@ -7,6 +7,7 @@ This repository uses [release-please](https://github.com/googleapis/release-plea
 - `physicalai-lerobot-plugin`
 - `physicalai-mujoco-so101-plugin`
 - `physicalai-rebot-b601-plugin`
+- `physicalai-stararm-plugin`
 
 ## Pull request title convention
 
@@ -46,6 +47,7 @@ Package versions are **not hardcoded** — they are derived from git tags at bui
 | `physicalai-lerobot-plugin`        | `physicalai-lerobot-plugin-v<semver>`        |
 | `physicalai-mujoco-so101-plugin`   | `physicalai-mujoco-so101-plugin-v<semver>`   |
 | `physicalai-rebot-b601-plugin`     | `physicalai-rebot-b601-plugin-v<semver>`     |
+| `physicalai-stararm-plugin`        | `physicalai-stararm-plugin-v<semver>`        |
 
 ## Testing a Release (TestPyPI)
 

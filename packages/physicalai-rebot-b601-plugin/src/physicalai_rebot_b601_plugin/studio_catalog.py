@@ -25,7 +25,7 @@ from physicalai_studio_plugin import (
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 import physicalai_rebot_b601_plugin
-from physicalai_rebot_b601_plugin import ReBotArm102Leader, ReBotB601DM, get_urdf_path
+from physicalai_rebot_b601_plugin import ReBotB601DM, get_urdf_path
 
 if TYPE_CHECKING:
     from typing import Protocol
@@ -44,16 +44,6 @@ _REBOT_B601_DM_TO_URDF: dict[str, list[str]] = {
     "wrist_yaw.pos": ["joint5"],
     "wrist_roll.pos": ["joint6"],
     "gripper.pos": [],
-}
-
-_REBOT_ARM102_TO_URDF: dict[str, list[str]] = {
-    "shoulder_pan.pos": ["joint1"],
-    "shoulder_lift.pos": ["joint2"],
-    "elbow_flex.pos": ["joint3"],
-    "wrist_flex.pos": ["joint4"],
-    "wrist_yaw.pos": ["joint5"],
-    "wrist_roll.pos": ["joint6"],
-    "gripper.pos": ["joint7_left", "joint7_right"],
 }
 
 
@@ -77,13 +67,6 @@ _REBOT_B601_DM_ASSET = RobotAsset(
     urdf_relative_path=Path("rebot-b601-dm/urdf/reBot-DevArm_fixend.urdf"),
     packages={"rebot-b601-dm": Path("rebot-b601-dm")},
     joint_map=_REBOT_B601_DM_TO_URDF,
-    root_resolver=_get_rebot_urdf_root,
-)
-
-_REBOT_ARM102_ASSET = RobotAsset(
-    urdf_relative_path=Path("stararm102/urdf/stararm102_description.urdf"),
-    packages={"stararm102": Path("stararm102")},
-    joint_map=_REBOT_ARM102_TO_URDF,
     root_resolver=_get_rebot_urdf_root,
 )
 
@@ -159,53 +142,7 @@ class ReBotB601DMPayload(BaseModel):
         return self
 
 
-class ReBotArm102Payload(BaseModel):
-    """Connection payload for a ReBot Arm102 leader arm."""
-
-    connection_string: str = ""
-    serial_number: str = ""
-    baudrate: int = Field(  # pyrefly: ignore [bad-argument-type, no-matching-overload]
-        default=1_000_000,
-        json_schema_extra=robot_field_ui({"advanced_configuration": True}),
-    )
-    unlock_on_connect: bool = Field(  # pyrefly: ignore [bad-argument-type, no-matching-overload]
-        default=True,
-        json_schema_extra=robot_field_ui({"advanced_configuration": True}),
-    )
-    reset_multi_turn_on_connect: bool = Field(  # pyrefly: ignore [bad-argument-type, no-matching-overload]
-        default=True,
-        json_schema_extra=robot_field_ui({"advanced_configuration": True}),
-    )
-    zero_on_connect: bool = Field(  # pyrefly: ignore [bad-argument-type, no-matching-overload]
-        default=False,
-        json_schema_extra=robot_field_ui({"advanced_configuration": True}),
-    )
-
-    model_config = ConfigDict(
-        json_schema_extra=robot_payload_ui(  # pyrefly: ignore[bad-argument-type]
-            [
-                {
-                    "kind": "connection",
-                    "label": "Select robot",
-                    "device_discovery": True,
-                    "bind": {"connection": "connection_string", "serial_number": "serial_number"},
-                },
-            ],
-        ),
-    )
-
-    @model_validator(mode="after")
-    def _require_connection_identifier(self) -> Self:
-        if not self.connection_string and not self.serial_number:
-            msg = "At least one of connection_string or serial_number must be provided"
-            raise ValueError(msg)
-        return self
-
-
-type ReBotPayload = ReBotB601DMPayload | ReBotArm102Payload
-
-
-class ReBotProbe(RobotProbe[ReBotPayload]):
+class ReBotProbe(RobotProbe[ReBotB601DMPayload]):
     """Probe implementation for ReBot serial devices."""
 
     async def discover(self, manager: PortScanner) -> list[SerialPortInfo]:
@@ -220,14 +157,14 @@ class ReBotProbe(RobotProbe[ReBotPayload]):
 
     async def identify(
         self,
-        payload: ReBotPayload,
+        payload: ReBotB601DMPayload,
         manager: PortScanner | None = None,
         joint: str | None = None,
     ) -> None:
         """Request a visual identify action on a specific joint, if supported."""
         _ = self, payload, manager, joint
 
-    async def is_online(self, payload: ReBotPayload, manager: PortScanner | None = None) -> bool:
+    async def is_online(self, payload: ReBotB601DMPayload, manager: PortScanner | None = None) -> bool:
         """Report whether a ReBot device is currently online.
 
         Returns:
@@ -279,34 +216,6 @@ async def _build_rebot_b601_dm_driver(
     )
 
 
-async def _build_rebot_arm102_driver(
-    robot: PayloadContainer[ReBotArm102Payload],
-    factory: CatalogRobotFactory,
-) -> PhysicalAIRobot:
-    raw = robot.payload
-    if isinstance(raw, BaseModel) and type(raw) is not ReBotArm102Payload:
-        raw = raw.model_dump()
-    validated = raw if isinstance(raw, ReBotArm102Payload) else ReBotArm102Payload.model_validate(raw)
-    connection_string = validated.connection_string or None
-    serial_number = validated.serial_number or None
-    serial = SerialPortInfo(
-        connection_string=connection_string,
-        serial_number=serial_number,
-    )
-    port = await factory.find_port(serial)
-
-    if port is None:
-        msg = f"Robot not found: {serial_number or connection_string}"
-        raise RuntimeError(msg)
-    return ReBotArm102Leader(
-        port=port,
-        baudrate=validated.baudrate,
-        unlock_on_connect=validated.unlock_on_connect,
-        reset_multi_turn_on_connect=validated.reset_multi_turn_on_connect,
-        zero_on_connect=validated.zero_on_connect,
-    )
-
-
 def _definitions() -> list[RobotCatalogDefinition]:
     return [
         RobotCatalogDefinition(
@@ -317,16 +226,6 @@ def _definitions() -> list[RobotCatalogDefinition]:
             robot_payload=ReBotB601DMPayload,
             asset=_REBOT_B601_DM_ASSET,
             adapter_options=RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
-            probe=_REBOT_PROBE,
-        ),
-        RobotCatalogDefinition(
-            type="ReBot_Arm102_Leader",
-            display_name="ReBot Arm102 Leader",
-            role="leader",
-            robot_builder=_build_rebot_arm102_driver,
-            robot_payload=ReBotArm102Payload,
-            asset=_REBOT_ARM102_ASSET,
-            adapter_options=RobotAdapterOptions(include_velocities=False, external_effort_gain=None),
             probe=_REBOT_PROBE,
         ),
     ]
