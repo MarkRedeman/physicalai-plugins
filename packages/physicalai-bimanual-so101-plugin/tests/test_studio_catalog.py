@@ -140,6 +140,30 @@ class TestPayload:
 
         BimanualSO101Payload.model_rebuild(raise_errors=True)
 
+    def test_payload_schema_exposes_two_calibration_upload_controls(self) -> None:
+        from physicalai_studio_plugin import validate_robot_payload_ui
+
+        from physicalai_bimanual_so101_plugin.studio_catalog import BimanualSO101Payload
+
+        validate_robot_payload_ui(BimanualSO101Payload)
+        schema = BimanualSO101Payload.model_json_schema()
+        assert schema["x-physicalai-ui"] == [
+            {
+                "kind": "calibration",
+                "name": "left_calibration",
+                "info": {
+                    "description": "Upload left-arm SO101 calibration JSON (joint-name keyed).",
+                },
+            },
+            {
+                "kind": "calibration",
+                "name": "right_calibration",
+                "info": {
+                    "description": "Upload right-arm SO101 calibration JSON (joint-name keyed).",
+                },
+            },
+        ]
+
 
 class TestURDF:
     def test_urdf_path_exists(self) -> None:
