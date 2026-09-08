@@ -13,19 +13,17 @@ if TYPE_CHECKING:
 def get_urdf_path() -> Path:
     """Return the path to the bundled URDF directory.
 
-    The URDF files are installed alongside the Python package. This function
-    locates them regardless of whether the package is installed in development
-    mode (editable) or from a wheel.
+    The package supports both editable installs (repo layout) and wheel installs
+    (site-packages layout). It probes both expected locations and returns the
+    first existing directory.
 
     Returns:
-        Path to the ``urdf/`` directory containing robot description packages.
-
-    Example:
-        >>> from physicalai_stararm_plugin import get_urdf_path
-        >>> urdf_dir = get_urdf_path()
-        >>> star_urdf = urdf_dir / "stararm102" / "urdf" / "stararm102_description.urdf"
-
+        Path to the ``urdf/`` directory containing robot description assets.
     """
     traversal = ir.files("physicalai_stararm_plugin")
     with ir.as_file(traversal) as p:
-        return p.parent.parent.joinpath("urdf")
+        candidates = (p.parent / "urdf", p.parent.parent / "urdf")
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+        return candidates[1]

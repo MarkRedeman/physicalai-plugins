@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<robot name="stararm102_ld_simulator">
+<robot name="stararm102_hd_simulator">
   <material name="shell">
     <color rgba="0.720 0.760 0.730 1"/>
   </material>

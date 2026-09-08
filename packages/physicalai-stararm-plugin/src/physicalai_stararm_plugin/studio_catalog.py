@@ -19,7 +19,6 @@ from physicalai_studio_plugin import (
 )
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-import physicalai_stararm_plugin
 from physicalai_stararm_plugin import StarArm102FLFollower, StarArm102HDLeader, StarArm102LDLeader, get_urdf_path
 
 if TYPE_CHECKING:
@@ -43,14 +42,7 @@ _STAR_ARM_102_TO_URDF: dict[str, list[str]] = {
 
 
 def _get_stararm_urdf_root() -> Path:
-    configured_root = get_urdf_path()
-    if configured_root.exists():
-        return configured_root
-    plugin_package_root = Path(physicalai_stararm_plugin.__file__).resolve().parent
-    site_packages_urdf_root = plugin_package_root.parent / "urdf"
-    if site_packages_urdf_root.exists():
-        return site_packages_urdf_root
-    return configured_root
+    return get_urdf_path()
 
 
 _STAR_ARM_102_LD_ASSET = RobotAsset(
@@ -80,25 +72,25 @@ class StarArm102LDPayload(BaseModel):
 
     connection_string: str = ""
     serial_number: str = ""
-    baudrate: int = Field(
+    baudrate: int = Field(  # pyrefly: ignore [no-matching-overload]
         default=1_000_000,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
-    unlock_on_connect: bool = Field(
+    unlock_on_connect: bool = Field(  # pyrefly: ignore [no-matching-overload]
         default=True,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
-    reset_multi_turn_on_connect: bool = Field(
+    reset_multi_turn_on_connect: bool = Field(  # pyrefly: ignore [no-matching-overload]
         default=True,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
-    zero_on_connect: bool = Field(
+    zero_on_connect: bool = Field(  # pyrefly: ignore [no-matching-overload]
         default=False,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
 
     model_config = ConfigDict(
-        json_schema_extra=robot_payload_ui(
+        json_schema_extra=robot_payload_ui(  # pyrefly: ignore [bad-argument-type]
             [
                 {
                     "kind": "connection",
@@ -123,29 +115,29 @@ class StarArm102FLPayload(BaseModel):
 
     connection_string: str = ""
     serial_number: str = ""
-    baudrate: int = Field(
+    baudrate: int = Field(  # pyrefly: ignore [no-matching-overload]
         default=1_000_000,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
-    unlock_on_connect: bool = Field(
+    unlock_on_connect: bool = Field(  # pyrefly: ignore [no-matching-overload]
         default=True,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
-    reset_multi_turn_on_connect: bool = Field(
+    reset_multi_turn_on_connect: bool = Field(  # pyrefly: ignore [no-matching-overload]
         default=True,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
-    zero_on_connect: bool = Field(
+    zero_on_connect: bool = Field(  # pyrefly: ignore [no-matching-overload]
         default=False,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
-    command_interval_ms: int = Field(
+    command_interval_ms: int = Field(  # pyrefly: ignore [no-matching-overload]
         default=10,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
 
     model_config = ConfigDict(
-        json_schema_extra=robot_payload_ui(
+        json_schema_extra=robot_payload_ui(  # pyrefly: ignore [bad-argument-type]
             [
                 {
                     "kind": "connection",
@@ -170,34 +162,34 @@ class StarArm102HDPayload(BaseModel):
 
     connection_string: str = ""
     serial_number: str = ""
-    baudrate: int = Field(
+    baudrate: int = Field(  # pyrefly: ignore [no-matching-overload]
         default=1_000_000,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
-    unlock_on_connect: bool = Field(
+    unlock_on_connect: bool = Field(  # pyrefly: ignore [no-matching-overload]
         default=True,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
-    reset_multi_turn_on_connect: bool = Field(
+    reset_multi_turn_on_connect: bool = Field(  # pyrefly: ignore [no-matching-overload]
         default=True,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
-    zero_on_connect: bool = Field(
+    zero_on_connect: bool = Field(  # pyrefly: ignore [no-matching-overload]
         default=False,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
-    control_mode: Literal["passive", "assist"] = Field(
+    control_mode: Literal["passive", "assist"] = Field(  # pyrefly: ignore [no-matching-overload]
         default="passive",
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
         description="HD leader mode: passive (read-only) or assist (accepts actions and hold).",
     )
-    command_interval_ms: int = Field(
+    command_interval_ms: int = Field(  # pyrefly: ignore [no-matching-overload]
         default=10,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
 
     model_config = ConfigDict(
-        json_schema_extra=robot_payload_ui(
+        json_schema_extra=robot_payload_ui(  # pyrefly: ignore [bad-argument-type]
             [
                 {
                     "kind": "connection",

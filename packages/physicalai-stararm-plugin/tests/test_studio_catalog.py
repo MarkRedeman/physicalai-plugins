@@ -77,7 +77,7 @@ def test_ld_leader_structure() -> None:
     assert ld.display_name == "Star Arm 102-LD Leader"
     assert ld.role == "leader"
     assert ld.asset is not None
-    assert ld.asset.urdf_relative_path == Path("stararm102/urdf/stararm102_description.urdf")
+    assert ld.asset.urdf_relative_path == Path("stararm102/urdf/stararm102_ld_description.urdf")
     assert ld.asset.packages == {"stararm102": Path("stararm102")}
     assert ld.asset.root_resolver is not None
     assert (ld.asset.root_resolver() / ld.asset.urdf_relative_path).is_file()
@@ -91,7 +91,7 @@ def test_hd_leader_structure() -> None:
     assert hd.display_name == "Star Arm 102-HD Leader"
     assert hd.role == "leader"
     assert hd.asset is not None
-    assert hd.asset.urdf_relative_path == Path("stararm102/urdf/stararm102_description.urdf")
+    assert hd.asset.urdf_relative_path == Path("stararm102/urdf/stararm102_hd_description.urdf")
     assert hd.asset.packages == {"stararm102": Path("stararm102")}
     assert hd.asset.root_resolver is not None
     assert (hd.asset.root_resolver() / hd.asset.urdf_relative_path).is_file()
@@ -105,7 +105,7 @@ def test_fl_follower_structure() -> None:
     assert fl.display_name == "Star Arm 102-FL Follower"
     assert fl.role == "follower"
     assert fl.asset is not None
-    assert fl.asset.urdf_relative_path == Path("stararm102/urdf/stararm102_description.urdf")
+    assert fl.asset.urdf_relative_path == Path("stararm102/urdf/stararm102_fl_description.urdf")
     assert fl.asset.packages == {"stararm102": Path("stararm102")}
     assert fl.asset.root_resolver is not None
     assert (fl.asset.root_resolver() / fl.asset.urdf_relative_path).is_file()

@@ -9,7 +9,7 @@ Third-party Seeed reBot B601 robot arm plugin for [PhysicalAI](https://github.co
 
 - Concrete implementations of the `Robot` protocol — no inheritance or registration required
 - B601-DM (Damiao) and B601-RS (RobStride) follower drivers
-- Leader → follower teleoperation with `physicalai-stararm-plugin`
+- Optional Star Arm leader → follower teleoperation
 - Bundled URDFs for gravity compensation and kinematics
 
 ## Hardware
@@ -59,11 +59,12 @@ required. Use with `physicalai.robot.connect` and `physicalai.robot.verify_robot
 
 The [PhysicalAI CLI](https://github.com/openvinotoolkit/physicalai) `run`
 subcommand executes a `RobotRuntime` from a YAML config. The bundled teleop configs
-relay a `StarArm102HDLeader` from `physicalai-stararm-plugin` to a B601 follower:
+relay a `StarArm102HDLeader` to a B601 follower. They install
+`physicalai-stararm-plugin` for the command only:
 
 ```bash
-uv run physicalai run --config packages/physicalai-rebot-b601-plugin/examples/runtime/teleop-dm.yaml
-uv run physicalai run --config packages/physicalai-rebot-b601-plugin/examples/runtime/teleop-rs.yaml
+uv run --with physicalai-stararm-plugin physicalai run --config packages/physicalai-rebot-b601-plugin/examples/runtime/teleop-dm.yaml
+uv run --with physicalai-stararm-plugin physicalai run --config packages/physicalai-rebot-b601-plugin/examples/runtime/teleop-rs.yaml
 ```
 
 Press `Ctrl+C` to stop.

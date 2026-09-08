@@ -1,6 +1,6 @@
 # PhysicalAI Star Arm Plugin
 
-Fashion Star Star Arm 102 plugin for [PhysicalAI](https://github.com/openvinotoolkit/physicalai). This package provides Star Arm 102-LD/102-HD leaders and a Star Arm 102-FL follower, and registers all variants with [Physical AI Studio](https://github.com/open-edge-platform/physical-ai-studio).
+Fashion Star Arm 102 plugin for [PhysicalAI](https://github.com/openvinotoolkit/physicalai). This package provides Star Arm 102-LD/102-HD leaders and a Star Arm 102-FL follower, and registers all variants with [Physical AI Studio](https://github.com/open-edge-platform/physical-ai-studio).
 
 [![PyPI version](https://img.shields.io/pypi/v/physicalai-stararm-plugin.svg)](https://pypi.org/project/physicalai-stararm-plugin/)
 [![Python versions](https://img.shields.io/pypi/pyversions/physicalai-stararm-plugin.svg)](https://pypi.org/project/physicalai-stararm-plugin/)
@@ -51,7 +51,7 @@ uv run physicalai run --config packages/physicalai-stararm-plugin/examples/runti
 from physicalai_stararm_plugin import get_urdf_path
 
 urdf_dir = get_urdf_path()
-star_urdf = urdf_dir / "stararm102" / "urdf" / "stararm102_description.urdf"
+hd_urdf = urdf_dir / "stararm102" / "urdf" / "stararm102_hd_description.urdf"
 ```
 
 ## Development
