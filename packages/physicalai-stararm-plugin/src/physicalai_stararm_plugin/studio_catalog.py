@@ -53,8 +53,22 @@ def _get_stararm_urdf_root() -> Path:
     return configured_root
 
 
-_STAR_ARM_102_ASSET = RobotAsset(
-    urdf_relative_path=Path("stararm102/urdf/stararm102_description.urdf"),
+_STAR_ARM_102_LD_ASSET = RobotAsset(
+    urdf_relative_path=Path("stararm102/urdf/stararm102_ld_description.urdf"),
+    packages={"stararm102": Path("stararm102")},
+    joint_map=_STAR_ARM_102_TO_URDF,
+    root_resolver=_get_stararm_urdf_root,
+)
+
+_STAR_ARM_102_HD_ASSET = RobotAsset(
+    urdf_relative_path=Path("stararm102/urdf/stararm102_hd_description.urdf"),
+    packages={"stararm102": Path("stararm102")},
+    joint_map=_STAR_ARM_102_TO_URDF,
+    root_resolver=_get_stararm_urdf_root,
+)
+
+_STAR_ARM_102_FL_ASSET = RobotAsset(
+    urdf_relative_path=Path("stararm102/urdf/stararm102_fl_description.urdf"),
     packages={"stararm102": Path("stararm102")},
     joint_map=_STAR_ARM_102_TO_URDF,
     root_resolver=_get_stararm_urdf_root,
@@ -346,7 +360,7 @@ def _definitions() -> list[RobotCatalogDefinition]:
             role="leader",
             robot_builder=_build_stararm_102_ld_driver,
             robot_payload=StarArm102LDPayload,
-            asset=_STAR_ARM_102_ASSET,
+            asset=_STAR_ARM_102_LD_ASSET,
             adapter_options=RobotAdapterOptions(include_velocities=False, external_effort_gain=None),
             probe=_STAR_ARM_PROBE,
         ),
@@ -356,7 +370,7 @@ def _definitions() -> list[RobotCatalogDefinition]:
             role="leader",
             robot_builder=_build_stararm_102_hd_driver,
             robot_payload=StarArm102HDPayload,
-            asset=_STAR_ARM_102_ASSET,
+            asset=_STAR_ARM_102_HD_ASSET,
             adapter_options=RobotAdapterOptions(include_velocities=False, external_effort_gain=None),
             probe=_STAR_ARM_PROBE,
         ),
@@ -366,7 +380,7 @@ def _definitions() -> list[RobotCatalogDefinition]:
             role="follower",
             robot_builder=_build_stararm_102_fl_driver,
             robot_payload=StarArm102FLPayload,
-            asset=_STAR_ARM_102_ASSET,
+            asset=_STAR_ARM_102_FL_ASSET,
             adapter_options=RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
             probe=_STAR_ARM_PROBE,
         ),
