@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, call, patch
 
 import numpy as np
 import pytest
-from physicalai.config import to_config
+from physicalai.config import Config
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -147,7 +147,7 @@ class TestLeKiwiConstruction:
         )
 
         assert robot.device_ids == ("lekiwi:/dev/ttyACM1",)
-        assert to_config(robot) == {
+        assert Config.from_instance(robot) == {
             "class_path": "physicalai_lekiwi_plugin.lekiwi.LeKiwi",
             "init_args": {
                 "port": "/dev/ttyACM1",
