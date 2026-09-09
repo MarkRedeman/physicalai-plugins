@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
-from physicalai.config import to_config
+from physicalai.config import Config
 
 from physicalai_mujoco_so101_plugin.http_server import ResetCommand, ShutdownCommand, SwitchSceneCommand
 from physicalai_mujoco_so101_plugin.mujoco_robot import BiMuJoCoSO101, MuJoCoSO101, MuJoCoSO101Observation
@@ -121,7 +121,7 @@ class TestMuJoCoSO101Construction:
     def test_exports_owner_construction_recipe(self) -> None:
         robot = MuJoCoSO101(model_path="/fake/model.xml", substeps=3, enable_viewer=True)
 
-        assert to_config(robot) == {
+        assert Config.from_instance(robot) == {
             "class_path": "physicalai_mujoco_so101_plugin.mujoco_robot.MuJoCoSO101",
             "init_args": {
                 "model_path": "/fake/model.xml",
@@ -299,7 +299,7 @@ class TestBiMuJoCoSO101:
     def test_exports_owner_construction_recipe(self) -> None:
         robot = BiMuJoCoSO101(model_path="/fake/model.xml", substeps=2)
 
-        assert to_config(robot) == {
+        assert Config.from_instance(robot) == {
             "class_path": "physicalai_mujoco_so101_plugin.mujoco_robot.BiMuJoCoSO101",
             "init_args": {
                 "model_path": "/fake/model.xml",

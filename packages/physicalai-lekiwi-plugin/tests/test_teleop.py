@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
-from physicalai.config import to_config
+from physicalai.config import Config
 
 from physicalai_lekiwi_plugin.teleop import CompositeTeleop, KeyboardTeleop
 
@@ -181,7 +181,7 @@ class TestKeyboardTeleop:
             KeyboardTeleop(num_base_joints=0)
 
     def test_export_config_roundtrip(self) -> None:
-        cfg = to_config(KeyboardTeleop(vx=0.2, vy=0.1, vtheta=0.5))
+        cfg = Config.from_instance(KeyboardTeleop(vx=0.2, vy=0.1, vtheta=0.5))
         assert cfg["class_path"] == "physicalai_lekiwi_plugin.teleop.KeyboardTeleop"
         assert cfg["init_args"]["vx"] == 0.2
 

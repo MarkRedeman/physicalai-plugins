@@ -12,7 +12,7 @@ _MOCK_CONFIG_TYPE = "mock_robot"
 
 
 def test_adapters_are_config_exportable() -> None:
-    from physicalai.config import to_config
+    from physicalai.config import Config
 
     from physicalai_lerobot_plugin.lerobot_adapter import (
         LeRobotAdapter,
@@ -22,8 +22,8 @@ def test_adapters_are_config_exportable() -> None:
     adapter = LeRobotAdapter(_MOCK_CONFIG_TYPE, {}, _robot=MagicMock())
     teleoperator = LeRobotTeleoperatorAdapter(_MOCK_CONFIG_TYPE, {}, _teleoperator=MagicMock())
 
-    assert to_config(adapter).init_args["config_type"] == _MOCK_CONFIG_TYPE
-    assert to_config(teleoperator).init_args["config_type"] == _MOCK_CONFIG_TYPE
+    assert Config.from_instance(adapter).init_args["config_type"] == _MOCK_CONFIG_TYPE
+    assert Config.from_instance(teleoperator).init_args["config_type"] == _MOCK_CONFIG_TYPE
     assert isinstance(adapter, Robot)
     assert isinstance(teleoperator, Robot)
 

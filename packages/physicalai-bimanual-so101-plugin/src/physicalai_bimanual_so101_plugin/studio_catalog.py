@@ -16,8 +16,9 @@ from physicalai_studio_plugin import (
     RobotProbe,
     SerialPortInfo,
     robot_field_ui,
+    robot_payload_ui,
 )
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from serial.tools import list_ports
 
 import physicalai_bimanual_so101_plugin
@@ -88,6 +89,28 @@ class BimanualSO101Payload(BaseModel):
     disable_torque_on_disconnect: bool = Field(  # pyrefly: ignore [no-matching-overload]
         default=True,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
+    )
+
+    model_config = ConfigDict(
+        # pyrefly: ignore [bad-argument-type]
+        json_schema_extra=robot_payload_ui(
+            [
+                {
+                    "kind": "calibration",
+                    "name": "left_calibration",
+                    "info": {
+                        "description": "Upload left-arm SO101 calibration JSON (joint-name keyed).",
+                    },
+                },
+                {
+                    "kind": "calibration",
+                    "name": "right_calibration",
+                    "info": {
+                        "description": "Upload right-arm SO101 calibration JSON (joint-name keyed).",
+                    },
+                },
+            ],
+        ),
     )
 
 
