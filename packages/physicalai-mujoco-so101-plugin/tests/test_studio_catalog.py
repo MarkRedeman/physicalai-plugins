@@ -3,7 +3,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from physicalai.config import to_config
+from physicalai.config import Config
 from physicalai.robot.transport import RobotOwnerConfig, SharedRobot
 
 from physicalai_mujoco_so101_plugin.constants import BIMANUAL_SO101_JOINT_ORDER, SO101_JOINT_ORDER
@@ -114,7 +114,7 @@ class TestSharedRobotAdapter:
     def test_exports_attach_only_shared_robot_recipe(self) -> None:
         robot = _SharedSO101Robot(SharedRobot.attach("mujoco-so101", connect_timeout=5.0), SO101_JOINT_ORDER)
 
-        assert to_config(robot) == {
+        assert Config.from_instance(robot) == {
             "class_path": "physicalai_mujoco_so101_plugin.studio_catalog._SharedSO101Robot",
             "init_args": {
                 "shared_robot": {
@@ -130,7 +130,7 @@ class TestSharedRobotAdapter:
         }
 
     def test_owner_build_constructs_attach_only_shared_robot(self) -> None:
-        recipe = to_config(
+        recipe = Config.from_instance(
             _SharedSO101Robot(
                 SharedRobot.attach("mujoco-so101", connect_timeout=5.0),
                 SO101_JOINT_ORDER,
