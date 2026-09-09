@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.1](https://github.com/MarkRedeman/physicalai-plugins/compare/physicalai-lekiwi-plugin-v0.3.0...physicalai-lekiwi-plugin-v0.3.1) (2026-09-09)
+
+
+### Bug Fixes
+
+* **lekiwi:** Migrate deprecated API ([df7a4e3](https://github.com/MarkRedeman/physicalai-plugins/commit/df7a4e39626ac162af195b522c39495cac323005))
+* Update deprecated apis ([3f66db8](https://github.com/MarkRedeman/physicalai-plugins/commit/3f66db862c741de0217951e4ff8bfa44eb2b0f09))
+
 ## [0.3.0](https://github.com/MarkRedeman/physicalai-plugins/compare/physicalai-lekiwi-plugin-v0.2.3...physicalai-lekiwi-plugin-v0.3.0) (2026-09-04)
 
 

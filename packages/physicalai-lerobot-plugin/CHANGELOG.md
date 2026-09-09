@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.1](https://github.com/MarkRedeman/physicalai-plugins/compare/physicalai-lerobot-plugin-v0.3.0...physicalai-lerobot-plugin-v0.3.1) (2026-09-09)
+
+
+### Bug Fixes
+
+* **lerobot:** Migrate deprecated API ([b9adee6](https://github.com/MarkRedeman/physicalai-plugins/commit/b9adee6ce8e37c2151136c8ec426c8561661d7ca))
+* Update deprecated apis ([3f66db8](https://github.com/MarkRedeman/physicalai-plugins/commit/3f66db862c741de0217951e4ff8bfa44eb2b0f09))
+
 ## [0.3.0](https://github.com/MarkRedeman/physicalai-plugins/compare/physicalai-lerobot-plugin-v0.2.3...physicalai-lerobot-plugin-v0.3.0) (2026-09-04)
 
 

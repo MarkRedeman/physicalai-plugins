@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.6.0](https://github.com/MarkRedeman/physicalai-plugins/compare/physicalai-rebot-b601-plugin-v0.5.0...physicalai-rebot-b601-plugin-v0.6.0) (2026-09-09)
+
+
+### Features
+
+* Add `physicalai-stararm-plugin` ([0a47a72](https://github.com/MarkRedeman/physicalai-plugins/commit/0a47a72b7f1c8cea4dd7dc9fecc420d1645f7e73))
+* Add physicalai-stararm-plugin ([25937ad](https://github.com/MarkRedeman/physicalai-plugins/commit/25937ad9b1d4c16d5174aed0e9f79ffee7dc7651))
+
+
+### Bug Fixes
+
+* **rebot:** Migrate deprecated API ([9fa8f71](https://github.com/MarkRedeman/physicalai-plugins/commit/9fa8f71951da96273c84e7b29832b6a28a9cf147))
+* Update deprecated apis ([3f66db8](https://github.com/MarkRedeman/physicalai-plugins/commit/3f66db862c741de0217951e4ff8bfa44eb2b0f09))
+
+
+### Code Refactoring
+
+* Rename robot files ([dabe0bc](https://github.com/MarkRedeman/physicalai-plugins/commit/dabe0bcb3f2a044549bc7635cf74d10a7b5abbf5))
+
+
+### Chores
+
+* Appoly code review suggestions and fix tests ([1018958](https://github.com/MarkRedeman/physicalai-plugins/commit/101895840cf5a9a279814faf0dd1c6ff7858c811))
+
 ## [0.5.0](https://github.com/MarkRedeman/physicalai-plugins/compare/physicalai-rebot-b601-plugin-v0.4.3...physicalai-rebot-b601-plugin-v0.5.0) (2026-09-04)
 
 
