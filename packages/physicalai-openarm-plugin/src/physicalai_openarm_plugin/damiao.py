@@ -22,7 +22,9 @@ from physicalai_openarm_plugin.constants import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Callable, Mapping
+
+    from motorbridge import Motor
 
 
 @dataclass(frozen=True)
@@ -74,10 +76,16 @@ class DamiaoSocketCAN:
             raise
 
     def _open_and_handshake(self) -> None:
-        kwargs: dict[str, object] = {"interface": "socketcan", "channel": self.port, "bitrate": self.bitrate}
         if self.use_can_fd:
-            kwargs.update(fd=True, data_bitrate=self.data_bitrate)
-        self._bus = can.Bus(**kwargs)
+            self._bus = can.Bus(
+                interface="socketcan",
+                channel=self.port,
+                bitrate=self.bitrate,
+                fd=True,
+                data_bitrate=self.data_bitrate,
+            )
+        else:
+            self._bus = can.Bus(interface="socketcan", channel=self.port, bitrate=self.bitrate)
         self._drain()
         self.enable_torque()
         self._states = self.read_states(require_all=True)
@@ -207,7 +215,7 @@ class DamiaoSerial:
         motors: Mapping[str, tuple[int, int, str]],
         *,
         baud: int = 921_600,
-        _controller_factory: object | None = None,
+        _controller_factory: Callable[..., Controller] | None = None,
     ) -> None:
         if baud <= 0:
             msg = "baud must be positive"
@@ -216,7 +224,7 @@ class DamiaoSerial:
         self.motors = dict(motors)
         self.baud = baud
         self._controller: Controller | None = None
-        self._motors: dict[str, object] = {}
+        self._motors: dict[str, Motor] = {}
         self._controller_factory = _controller_factory or Controller.from_dm_serial
 
     @property
@@ -229,7 +237,7 @@ class DamiaoSerial:
         if self.is_connected:
             return
         try:
-            self._controller = self._controller_factory(serial_port=self.port, baud=self.baud)  # type: ignore[operator]
+            self._controller = self._controller_factory(serial_port=self.port, baud=self.baud)
             self._motors = {
                 name: self._controller.add_damiao_motor(send_id, recv_id, motor_type)
                 for name, (send_id, recv_id, motor_type) in self.motors.items()

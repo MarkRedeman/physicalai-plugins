@@ -202,13 +202,14 @@ class OpenArmFollower(_OpenArmBase):
             raise ValueError(msg)
         current = self._transport.read_states() if self.max_relative_target is not None else None
         commands: dict[str, tuple[float, float, float]] = {}
+        max_relative_target = self.max_relative_target
         for index, name in enumerate(self.JOINT_ORDER):
             lower, upper = self._limits[name]
             target = float(np.clip(action[index], lower, upper))
-            if current is not None:
+            if current is not None and max_relative_target is not None:
                 position = current[name].position
                 target = float(
-                    np.clip(target, position - self.max_relative_target, position + self.max_relative_target),
+                    np.clip(target, position - max_relative_target, position + max_relative_target),
                 )
             commands[name] = (self.position_kp[index], self.position_kd[index], target)
         self._transport.send_positions(commands)
