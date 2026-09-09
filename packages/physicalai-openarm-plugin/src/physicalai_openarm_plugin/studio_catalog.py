@@ -10,10 +10,12 @@ from typing import TYPE_CHECKING, Literal, Self
 from physicalai_studio_plugin import (
     CatalogRobotFactory,
     PayloadContainer,
+    PortScanner,
     RobotAdapterOptions,
     RobotAsset,
     RobotCatalogDefinition,
     RobotProbe,
+    SerialPortInfo,
     robot_field_ui,
 )
 from pydantic import BaseModel, Field, model_validator
@@ -62,22 +64,31 @@ class OpenArmPayload(BaseModel):
 
     port: str
     side: Literal["left", "right"] | None = None
-    can_adapter: Literal["socketcan", "damiao"] = Field(
+    can_adapter: Literal["socketcan", "damiao"] = Field(  # pyrefly: ignore [no-matching-overload]
         default="socketcan",
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
-    dm_serial_baud: int = Field(
+    dm_serial_baud: int = Field(  # pyrefly: ignore [no-matching-overload]
         default=921_600,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
-    use_can_fd: bool = Field(default=True, json_schema_extra=robot_field_ui({"advanced_configuration": True}))
-    can_bitrate: int = Field(default=1_000_000, json_schema_extra=robot_field_ui({"advanced_configuration": True}))
-    can_data_bitrate: int = Field(default=5_000_000, json_schema_extra=robot_field_ui({"advanced_configuration": True}))
-    disable_torque_on_disconnect: bool = Field(
+    use_can_fd: bool = Field(  # pyrefly: ignore [no-matching-overload]
         default=True,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
-    max_relative_target: float | None = Field(
+    can_bitrate: int = Field(  # pyrefly: ignore [no-matching-overload]
+        default=1_000_000,
+        json_schema_extra=robot_field_ui({"advanced_configuration": True}),
+    )
+    can_data_bitrate: int = Field(  # pyrefly: ignore [no-matching-overload]
+        default=5_000_000,
+        json_schema_extra=robot_field_ui({"advanced_configuration": True}),
+    )
+    disable_torque_on_disconnect: bool = Field(  # pyrefly: ignore [no-matching-overload]
+        default=True,
+        json_schema_extra=robot_field_ui({"advanced_configuration": True}),
+    )
+    max_relative_target: float | None = Field(  # pyrefly: ignore [no-matching-overload]
         default=None,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
@@ -117,7 +128,7 @@ class BimanualOpenArmPayload(BaseModel):
 class OpenArmProbe(RobotProbe[OpenArmPayload | BimanualOpenArmPayload]):
     """SocketCAN cannot be safely auto-discovered through Studio's serial scanner."""
 
-    async def discover(self, manager: object) -> list[object]:
+    async def discover(self, manager: PortScanner) -> list[SerialPortInfo]:
         """Return no serial devices for direct SocketCAN hardware."""
         _ = self, manager
         return []
