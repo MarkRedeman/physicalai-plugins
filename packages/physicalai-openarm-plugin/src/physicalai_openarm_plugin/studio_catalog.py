@@ -34,8 +34,8 @@ if TYPE_CHECKING:
 
 
 _SINGLE_JOINT_MAP = {
-    **{f"joint_{index}.pos": [f"openarm_joint{index}"] for index in range(1, 8)},
-    "gripper.pos": ["openarm_finger_joint1", "openarm_finger_joint2"],
+    **{f"joint_{index}.pos": [f"openarm_right_joint{index}"] for index in range(1, 8)},
+    "gripper.pos": ["openarm_right_finger_joint1", "openarm_right_finger_joint2"],
 }
 _BIMANUAL_JOINT_MAP = {
     f"{side}_joint_{index}.pos": [f"openarm_{side}_joint{index}"] for side in ("left", "right") for index in range(1, 8)
@@ -46,14 +46,14 @@ _BIMANUAL_JOINT_MAP.update({
 })
 
 _SINGLE_ASSET = RobotAsset(
-    urdf_relative_path=Path("openarm/openarm_parallel_gripper.urdf"),
-    packages={"openarm": Path("openarm")},
+    urdf_relative_path=Path("openarm_description/openarm_v20_right_arm_pinch.urdf"),
+    packages={"openarm_description": Path("openarm_description")},
     joint_map=_SINGLE_JOINT_MAP,
     root_resolver=get_urdf_path,
 )
 _BIMANUAL_ASSET = RobotAsset(
-    urdf_relative_path=Path("openarm/openarm_bimanual_parallel_gripper.urdf"),
-    packages={"openarm": Path("openarm")},
+    urdf_relative_path=Path("openarm_description/openarm_v20_bimanual_pinch.urdf"),
+    packages={"openarm_description": Path("openarm_description")},
     joint_map=_BIMANUAL_JOINT_MAP,
     root_resolver=get_urdf_path,
 )
