@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, call, patch
 
 import numpy as np
 import pytest
-from physicalai.config import to_config
+from physicalai.config import Config
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -83,7 +83,7 @@ class TestStarArm102HDLeaderConstruction:
         robot = _create_robot(mock_smart_servo, port="/dev/ttyUSB1", baudrate=115200)
 
         assert robot.device_ids == ("stararm102-hd:/dev/ttyUSB1",)
-        assert to_config(robot)["init_args"] == {"port": "/dev/ttyUSB1", "baudrate": 115200}
+        assert Config.from_instance(robot)["init_args"] == {"port": "/dev/ttyUSB1", "baudrate": 115200}
 
     def test_invalid_baudrate_raises(self, mock_smart_servo: MagicMock) -> None:
         from physicalai_stararm_plugin import StarArm102HDLeader

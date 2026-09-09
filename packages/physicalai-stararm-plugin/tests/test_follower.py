@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, call, patch
 
 import numpy as np
 import pytest
-from physicalai.config import to_config
+from physicalai.config import Config
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -70,7 +70,7 @@ class TestStarArm102FLFollowerConstruction:
         robot = _create_robot(mock_smart_servo, port="/dev/ttyUSB1", baudrate=115200, command_interval_ms=20)
 
         assert robot.device_ids == ("stararm102-fl:/dev/ttyUSB1",)
-        assert to_config(robot)["init_args"] == {
+        assert Config.from_instance(robot)["init_args"] == {
             "port": "/dev/ttyUSB1",
             "baudrate": 115200,
             "command_interval_ms": 20,
