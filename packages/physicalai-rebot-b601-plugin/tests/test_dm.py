@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, call, patch
 
 import numpy as np
 import pytest
-from physicalai.config import to_config
+from physicalai.config import Config
 
 from physicalai_rebot_b601_plugin.constants import (
     REBOT_B601_DM_MIT_KD,
@@ -99,7 +99,7 @@ class TestReBotB601DMConstruction:
         robot = _create_robot(mock_motorbridge, port="/dev/ttyACM1", can_adapter="socketcan")
 
         assert robot.device_ids == ("rebot-dm:socketcan:/dev/ttyACM1",)
-        assert to_config(robot)["init_args"] == {
+        assert Config.from_instance(robot)["init_args"] == {
             "port": "/dev/ttyACM1",
             "can_adapter": "socketcan",
         }
