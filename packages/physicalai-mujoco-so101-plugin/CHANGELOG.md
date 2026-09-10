@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.1](https://github.com/MarkRedeman/physicalai-plugins/compare/physicalai-mujoco-so101-plugin-v0.3.0...physicalai-mujoco-so101-plugin-v0.3.1) (2026-09-09)
+
+
+### Bug Fixes
+
+* **mujoco:** Migrate deprecated API ([8cecff7](https://github.com/MarkRedeman/physicalai-plugins/commit/8cecff7eaceeaaac785eb6325bc9178e6c2f3c2b))
+* Update deprecated apis ([3f66db8](https://github.com/MarkRedeman/physicalai-plugins/commit/3f66db862c741de0217951e4ff8bfa44eb2b0f09))
+
 ## [0.3.0](https://github.com/MarkRedeman/physicalai-plugins/compare/physicalai-mujoco-so101-plugin-v0.2.3...physicalai-mujoco-so101-plugin-v0.3.0) (2026-09-04)
 
 
