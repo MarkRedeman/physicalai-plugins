@@ -6,7 +6,7 @@
 #   uv run physicalai run --config packages/physicalai-lekiwi-plugin/examples/runtime/drive-keyboard.yaml
 #
 # Keys: W/S forward/backward, A/D rotate left/right, Q/E strafe left/right,
-# SPACE stop. Stop the run with Ctrl+C.
+# SPACE stop. Hold a movement key to move; releasing it stops the base. Stop the run with Ctrl+C.
 #
 # `calibration` must point at a LeKiwiCalibration JSON — LeKiwi requires it
 # (raw-ticks bringup is not config-expressible).
@@ -24,6 +24,7 @@ runtime:
     init_args:
       vx: 0.15 # forward/backward speed, m/s
       vy: 0.10 # strafe speed, m/s
-      vtheta: 0.5 # rotational speed, deg/s
+      vtheta: 30.0 # rotational speed, deg/s
+      debug: true # print terminal and received-key diagnostics to stderr
 
   fps: 30.0

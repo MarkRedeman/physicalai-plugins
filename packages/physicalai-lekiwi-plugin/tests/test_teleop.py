@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 from physicalai.config import Config
 
-from physicalai_lekiwi_plugin.teleop import CompositeTeleop, KeyboardTeleop
+from physicalai_lekiwi_plugin.teleop import CompositeTeleop, GamepadTeleop, KeyboardTeleop
 
 
 class _FakeObservation:
@@ -69,37 +69,63 @@ def _obs(*, arm: float = 1.0) -> _FakeObservation:
 
 
 class TestKeyboardTeleop:
-    def test_update_holds_arm_and_applies_base(self) -> None:
+    def test_update_holds_arm_and_applies_pending_base_input(self) -> None:
         teleop = KeyboardTeleop(vx=0.2, vy=0.1, vtheta=0.5)
-        teleop._apply_key("w")
-        teleop._apply_key("a")
-
-        action = teleop.update(_obs(), {}, 0)
+        with patch.object(teleop, "_drain_keys", side_effect=lambda: (teleop._apply_key("w"), teleop._apply_key("a"))):
+            action = teleop.update(_obs(), {}, 0)
 
         np.testing.assert_allclose(action[:6], np.full(6, 1.0))
         np.testing.assert_allclose(action[6:], [0.2, 0.0, 0.5])
 
     def test_stop_key_zeroes_base(self) -> None:
         teleop = KeyboardTeleop()
+        with patch.object(teleop, "_drain_keys", side_effect=lambda: (teleop._apply_key("w"), teleop._apply_key(" "))):
+            action = teleop.update(_obs(), {}, 0)
+        np.testing.assert_allclose(action[6:], [0.0, 0.0, 0.0])
+
+    def test_update_stops_base_without_pending_input(self) -> None:
+        teleop = KeyboardTeleop()
         teleop._apply_key("w")
-        teleop._apply_key(" ")
+
         action = teleop.update(_obs(), {}, 0)
+
         np.testing.assert_allclose(action[6:], [0.0, 0.0, 0.0])
 
     def test_opposing_keys_override_per_axis(self) -> None:
         teleop = KeyboardTeleop(vx=0.2)
-        teleop._apply_key("w")
-        teleop._apply_key("s")
-        teleop._apply_key("d")
-        teleop._apply_key("a")
-        action = teleop.update(_obs(), {}, 0)
+
+        def apply_opposing_keys() -> None:
+            for key in "wsda":
+                teleop._apply_key(key)
+
+        with patch.object(
+            teleop,
+            "_drain_keys",
+            side_effect=apply_opposing_keys,
+        ):
+            action = teleop.update(_obs(), {}, 0)
         np.testing.assert_allclose(action[6:], [-0.2, 0.0, 0.5])
 
     def test_unknown_keys_ignored(self) -> None:
         teleop = KeyboardTeleop()
-        teleop._apply_key("x")
+        assert teleop._apply_key("x") is False
         action = teleop.update(_obs(), {}, 0)
         np.testing.assert_allclose(action[6:], [0.0, 0.0, 0.0])
+
+    def test_debug_reports_received_and_ignored_keys(self, capsys: pytest.CaptureFixture[str]) -> None:
+        teleop = KeyboardTeleop(debug=True)
+
+        assert teleop._apply_key("w") is True
+        teleop._log_debug("received key: 'w'")
+        teleop._log_debug("base command: vx=0.150, vy=0.000, vtheta=0.000")
+        assert teleop._apply_key("x") is False
+        teleop._log_debug("ignored key: 'x'")
+
+        assert capsys.readouterr().err.splitlines() == [
+            "[KeyboardTeleop] received key: 'w'",
+            "[KeyboardTeleop] base command: vx=0.150, vy=0.000, vtheta=0.000",
+            "[KeyboardTeleop] ignored key: 'x'",
+        ]
 
     def test_update_before_connect_returns_held_arm(self) -> None:
         teleop = KeyboardTeleop()
@@ -170,9 +196,8 @@ class TestKeyboardTeleop:
         ):
             teleop.connect(bus=object(), session_id="test")
             teleop._drain_keys()
-            action = teleop.update(_obs(), {}, 0)
 
-        np.testing.assert_allclose(action[6:], [0.2, 0.0, 0.0])
+        np.testing.assert_allclose(teleop._commands, [0.2, 0.0, 0.0])
 
     def test_constructor_rejects_non_positive_speeds(self) -> None:
         with pytest.raises(ValueError, match="positive"):
@@ -184,6 +209,75 @@ class TestKeyboardTeleop:
         cfg = Config.from_instance(KeyboardTeleop(vx=0.2, vy=0.1, vtheta=0.5))
         assert cfg["class_path"] == "physicalai_lekiwi_plugin.teleop.KeyboardTeleop"
         assert cfg["init_args"]["vx"] == 0.2
+
+
+class TestGamepadTeleop:
+    def test_update_holds_arm_and_maps_axes_to_base_command(self) -> None:
+        teleop = GamepadTeleop(vx=0.2, vy=0.1, vtheta=30.0)
+
+        pygame = MagicMock()
+        joystick = MagicMock()
+        joystick.get_axis.side_effect = lambda idx: {0: 0.5, 1: -0.25, 3: -0.1}.get(idx, 0.0)
+        teleop._pygame = pygame
+        teleop._joystick = joystick
+
+        action = teleop.update(_obs(arm=2.0), {}, 0)
+
+        np.testing.assert_allclose(action[:6], np.full(6, 2.0))
+        np.testing.assert_allclose(action[6:], [0.05, -0.05, 3.0])
+        pygame.event.pump.assert_called_once()
+
+    def test_deadzone_zeros_small_axis_values(self) -> None:
+        teleop = GamepadTeleop(deadzone=0.2)
+        joystick = MagicMock()
+        joystick.get_axis.side_effect = lambda idx: {0: 0.1, 1: -0.19, 3: 0.0}.get(idx, 0.0)
+        teleop._pygame = MagicMock()
+        teleop._joystick = joystick
+
+        action = teleop.update(_obs(), {}, 0)
+
+        np.testing.assert_allclose(action[6:], [0.0, 0.0, 0.0])
+
+    def test_connect_requires_pygame_when_missing(self) -> None:
+        teleop = GamepadTeleop()
+        with (
+            patch("physicalai_lekiwi_plugin.teleop.gamepad._import_pygame", side_effect=ModuleNotFoundError("missing")),
+            pytest.raises(RuntimeError, match="requires pygame"),
+        ):
+            teleop.connect(bus=object(), session_id="test")
+
+    def test_connect_requires_connected_controller(self) -> None:
+        teleop = GamepadTeleop(joystick_index=1)
+        pygame = MagicMock()
+        pygame.joystick.get_count.return_value = 1
+        with (
+            patch("physicalai_lekiwi_plugin.teleop.gamepad._import_pygame", return_value=pygame),
+            pytest.raises(RuntimeError, match="No gamepad"),
+        ):
+            teleop.connect(bus=object(), session_id="test")
+
+    def test_connect_and_disconnect_manage_joystick(self) -> None:
+        teleop = GamepadTeleop(joystick_index=0)
+        pygame = MagicMock()
+        joystick = MagicMock()
+        pygame.joystick.get_count.return_value = 1
+        pygame.joystick.Joystick.return_value = joystick
+
+        with patch("physicalai_lekiwi_plugin.teleop.gamepad._import_pygame", return_value=pygame):
+            teleop.connect(bus=object(), session_id="test")
+
+        joystick.init.assert_called_once()
+        teleop.disconnect()
+        joystick.quit.assert_called_once()
+        pygame.joystick.quit.assert_called()
+
+    def test_constructor_rejects_invalid_params(self) -> None:
+        with pytest.raises(ValueError, match="positive"):
+            GamepadTeleop(vx=0.0)
+        with pytest.raises(ValueError, match="deadzone"):
+            GamepadTeleop(deadzone=1.1)
+        with pytest.raises(ValueError, match="joystick_index"):
+            GamepadTeleop(joystick_index=-1)
 
 
 class TestCompositeTeleop:

@@ -10,6 +10,8 @@ Third-party LeKiwi mobile manipulator plugin for [PhysicalAI](https://github.com
 - Concrete implementation of the `Robot` protocol — no inheritance or registration required
 - 6-DOF SO-ARM100 arm + 3-wheel holonomic base, in normalized or raw-ticks units
 - Follower and leader (read-only) roles for teleoperation
+- `LeKiwiLeader`: SO-101 leader arm + keyboard base command channels
+- `LeKiwiLeader`: SO-101 leader arm + keyboard OR Xbox-style gamepad base command channels
 - Bundled URDF for kinematics and gravity compensation
 - `KeyboardTeleop` and `CompositeTeleop` action sources for `physicalai run`
 
@@ -38,6 +40,26 @@ uv add physicalai-lekiwi-plugin
 `scservo_sdk` (Feetech servo serial SDK) is included as a core dependency.
 
 > No calibration JSON is bundled. You must provide your own calibration file (LeRobot format) or use uncalibrated/ticks mode.
+
+### Export calibration from the motor EEPROM
+
+With the LeKiwi connected to `/dev/ttyACM0`, read the persistent STS3215 position-limit and homing-offset registers into a calibration JSON file:
+
+```bash
+uv run physicalai-lekiwi-read-calibration --port /dev/ttyACM0 --output calibration.json
+```
+
+The utility is read-only: it does not enable torque, change modes, or move the robot. STS3215 motors do not store LeRobot's `drive_mode` field, so the generated file uses the standard LeKiwi non-inverted value (`0`) for every joint.
+
+### Diagnose wheel motors
+
+When the base does not move, inspect the three wheel motors without changing their state:
+
+```bash
+uv run physicalai-lekiwi-wheel-diagnostics --port /dev/ttyACM0
+```
+
+For a working base after the driver connects, each wheel should report `mode` `1` (velocity mode) and `torque` `1`. Run this only after the keyboard-drive process has exited; do not open the same serial bus from a second process.
 
 ## Quick start
 
@@ -103,6 +125,25 @@ with connect(robot) as robot:
 
 Leader mode disables torque on all motors so the arm can be moved manually.
 
+### LeKiwiLeader (SO-101 leader + keyboard base)
+
+`LeKiwiLeader` combines an SO-101 leader arm with keyboard base input so one
+leader source exposes LeKiwi-compatible 9D observations:
+`[arm_6, vx, vy, vtheta]`.
+
+```python
+from physicalai_lekiwi_plugin import LeKiwiLeader
+
+leader = LeKiwiLeader(
+    port="/dev/ttyUSB0",
+    # Optional calibration path/dict for normalized arm observations.
+    # Omit to use raw ticks for the arm.
+)
+```
+
+Set `use_gamepad=True` to switch base control from keyboard to an Xbox-style
+controller (via `pygame`).
+
 ## Run with the PhysicalAI CLI
 
 The [PhysicalAI CLI](https://github.com/openvinotoolkit/physicalai) `run`
@@ -115,6 +156,9 @@ uv run physicalai run --config packages/physicalai-lekiwi-plugin/examples/runtim
 
 # Composite teleop: leader arm positions the arm, keyboard drives the base
 uv run physicalai run --config packages/physicalai-lekiwi-plugin/examples/runtime/teleop.yaml
+
+# Teleop: LeKiwiLeader (SO-101 arm + keyboard base) drives LeKiwi follower
+uv run physicalai run --config packages/physicalai-lekiwi-plugin/examples/runtime/teleop-lekiwi-leader.yaml
 ```
 
 Press `Ctrl+C` to stop. Optionally cap the run with `--run.duration_s=60`.
@@ -141,6 +185,14 @@ from physicalai_lekiwi_plugin.teleop import CompositeTeleop, KeyboardTeleop
 | `KeyboardTeleop`  | WASD/QE base velocities; arm held at its observed pose  |
 | `CompositeTeleop` | Combine a leader arm with a base source into one action |
 
+### Teleop config choices
+
+- `teleop.yaml`: legacy composite flow using a second LeKiwi in `role="leader"` + `KeyboardTeleop`.
+- `teleop-lekiwi-leader.yaml`: new single-source flow using `LeKiwiLeader` (SO-101 arm + keyboard base) + `physicalai.runtime.TeleopSource`.
+
+In Studio, toggle `use_gamepad` in advanced settings on the LeKiwi leader
+payload to switch between keyboard and gamepad base control.
+
 ### Sinusoidal motion and joint reading
 
 ```bash
@@ -156,9 +208,10 @@ from physicalai_lekiwi_plugin import get_urdf_path
 urdf_path = get_urdf_path()
 ```
 
-| URDF                      | Model                     | Use                               |
-| ------------------------- | ------------------------- | --------------------------------- |
-| `lekiwi/urdf/LeKiwi.urdf` | LeKiwi mobile manipulator | Kinematics & gravity compensation |
+| URDF                                  | Model                     | Use                               |
+| ------------------------------------- | ------------------------- | --------------------------------- |
+| `lekiwi/urdf/LeKiwi.urdf`             | LeKiwi mobile manipulator | Kinematics & gravity compensation |
+| `so101-leader/urdf/so101_leader.urdf` | SO-101 leader arm         | LeKiwi leader visualization       |
 
 The URDF references original STL mesh files from the [SIGRobotics-UIUC/LeKiwi](https://github.com/SIGRobotics-UIUC/LeKiwi) project.
 

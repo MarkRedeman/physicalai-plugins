@@ -170,17 +170,21 @@ class TestLeKiwiLifecycle:
 
         assert sdk.GroupSyncRead.call_args_list == [
             call(sdk.mock_port_handler, sdk.mock_packet_handler, 56, 2),
-            call(sdk.mock_port_handler, sdk.mock_packet_handler, 62, 2),
+            call(sdk.mock_port_handler, sdk.mock_packet_handler, 58, 2),
         ]
         assert sdk.GroupSyncWrite.call_args_list == [
             call(sdk.mock_port_handler, sdk.mock_packet_handler, 42, 2),
-            call(sdk.mock_port_handler, sdk.mock_packet_handler, 48, 2),
+            call(sdk.mock_port_handler, sdk.mock_packet_handler, 46, 2),
         ]
 
         assert sdk.mock_packet_handler.ping.call_count == 9
 
         torque_call_count = sum(1 for c in sdk.mock_packet_handler.write1ByteTxRx.call_args_list if c[0][2] == 40)
         assert torque_call_count >= 9
+        base_torque_limit_calls = [
+            c for c in sdk.mock_packet_handler.write2ByteTxRx.call_args_list if c.args[2] == 48 and c.args[3] == 1000
+        ]
+        assert len(base_torque_limit_calls) == 3
 
     def test_connect_is_idempotent(self, mock_scservo_sdk: MagicMock) -> None:
         robot = _create_robot(mock_scservo_sdk)
@@ -336,6 +340,22 @@ class TestLeKiwiKinematics:
         raw = LeKiwi._degps_to_raw(degps)
         result = LeKiwi._raw_to_degps(raw)
         assert abs(result - degps) < 1.0
+
+    def test_velocity_sign_magnitude_roundtrip(self, mock_scservo_sdk: MagicMock) -> None:
+        from physicalai_lekiwi_plugin.lekiwi import LeKiwi
+
+        assert LeKiwi._encode_velocity(123) == 123
+        assert LeKiwi._encode_velocity(-123) == 0x807B
+        assert LeKiwi._decode_velocity(0x807B) == -123
+
+    def test_write_base_velocities_uses_sign_magnitude(self, mock_scservo_sdk: MagicMock) -> None:
+        robot = _create_robot(mock_scservo_sdk)
+        robot.connect()
+
+        robot._write_base_velocities(-100, 0, 100)
+
+        calls = mock_scservo_sdk.mock_base_sync_write.addParam.call_args_list[-3:]
+        assert [call.args for call in calls] == [(7, [100, 128]), (8, [0, 0]), (9, [100, 0])]
 
     def test_body_wheel_roundtrip(self, mock_scservo_sdk: MagicMock) -> None:
         from physicalai_lekiwi_plugin.lekiwi import LeKiwi
