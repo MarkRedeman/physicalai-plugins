@@ -1,0 +1,38 @@
+# LeKiwi teleoperation runtime config using LeKiwiLeader.
+#
+# Teleoperates a LeKiwi follower from one LeKiwiLeader source robot.
+# LeKiwiLeader wraps an SO-101 leader arm and appends keyboard base commands
+# (WASD/QE), so one TeleopSource emits the full 9-dim action.
+# Run from the repo root with:
+#
+#   uv run physicalai run --config packages/physicalai-lekiwi-plugin/examples/runtime/teleop-lekiwi-leader.yaml
+#
+# Keys: W/S forward/backward, A/D rotate left/right, Q/E strafe left/right,
+# SPACE stop. Stop the run with Ctrl+C.
+#
+# Point follower `calibration` at a LeKiwiCalibration JSON.
+# Leader `calibration` is optional: when omitted, leader arm values are raw ticks.
+# Set `use_gamepad: true` to drive base commands from an Xbox-style controller.
+
+runtime:
+  robot:
+    class_path: physicalai_lekiwi_plugin.LeKiwi
+    init_args:
+      port: /dev/ttyACM0 # CHANGE_ME: follower serial port
+      baudrate: 1000000
+      calibration: ./calibration.json # CHANGE_ME: path to LeKiwiCalibration JSON
+
+  action_source:
+    class_path: physicalai.runtime.TeleopSource
+    init_args:
+      leader:
+        class_path: physicalai_lekiwi_plugin.LeKiwiLeader
+        init_args:
+          port: /dev/ttyUSB0 # CHANGE_ME: SO-101 leader serial port
+          baudrate: 1000000
+          vx: 0.15
+          vy: 0.10
+          vtheta: 30.0
+          use_gamepad: false
+
+  fps: 30.0

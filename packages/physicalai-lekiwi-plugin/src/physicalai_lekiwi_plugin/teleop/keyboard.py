@@ -39,10 +39,11 @@ class KeyboardTeleop:
         vx: Forward/backward base speed in ``m/s``.
         vy: Strafe base speed in ``m/s``.
         vtheta: Rotational base speed in ``deg/s``.
+        debug: Print terminal setup and received-key diagnostics to stderr.
         num_arm_joints: Number of leading joints echoed from the observation.
         num_base_joints: Number of trailing joints driven from the keyboard.
 
-    Keys (single characters, case-insensitive):
+    Keys (single characters, case-insensitive; hold a key to continue moving):
 
     - ``w`` / ``s`` — forward / backward
     - ``a`` / ``d`` — rotate left / right
@@ -67,6 +68,7 @@ class KeyboardTeleop:
         vx: float = 0.15,
         vy: float = 0.10,
         vtheta: float = 0.5,
+        debug: bool = False,
         num_arm_joints: int = 6,
         num_base_joints: int = 3,
     ) -> None:
@@ -85,6 +87,7 @@ class KeyboardTeleop:
         self._vx = vx
         self._vy = vy
         self._vtheta = vtheta
+        self._debug = debug
         self._num_arm_joints = num_arm_joints
         self._num_base_joints = num_base_joints
         self._num_joints = num_arm_joints + num_base_joints
@@ -113,6 +116,7 @@ class KeyboardTeleop:
         self._fd = sys.stdin.fileno()
         self._old_settings = termios.tcgetattr(self._fd)
         tty.setcbreak(self._fd)
+        self._log_debug(f"stdin is a TTY (fd={self._fd}); cbreak mode enabled. Keys: W/S, A/D, Q/E, space.")
 
     def update(
         self,
@@ -131,6 +135,8 @@ class KeyboardTeleop:
         Returns:
             An action of shape ``(num_arm_joints + num_base_joints,)``.
         """
+        # Commands are deliberately non-latching: releasing all keys stops the base.
+        self._commands[:] = 0.0
         self._drain_keys()
         action = np.zeros(self._num_joints, dtype=np.float32)
         action[: self._num_arm_joints] = np.asarray(
@@ -144,6 +150,7 @@ class KeyboardTeleop:
         """Restore the terminal and release the file descriptor."""
         if self._fd is not None and self._old_settings is not None:
             termios.tcsetattr(self._fd, termios.TCSANOW, self._old_settings)
+            self._log_debug("terminal settings restored.")
         self._fd = None
         self._old_settings = None
 
@@ -161,13 +168,24 @@ class KeyboardTeleop:
                 return
             if not data:
                 return
-            self._apply_key(chr(data[0]).lower())
+            key = chr(data[0]).lower()
+            self._log_debug(f"received key: {key!r}")
+            if self._apply_key(key):
+                self._log_debug(
+                    "base command: "
+                    f"vx={self._commands[0]:.3f}, vy={self._commands[1]:.3f}, vtheta={self._commands[2]:.3f}",
+                )
+            else:
+                self._log_debug(f"ignored key: {key!r}")
 
-    def _apply_key(self, key: str) -> None:
+    def _apply_key(self, key: str) -> bool:
         """Map a single keypress to base velocities.
 
         Args:
             key: The lowercased character read from stdin.
+
+        Returns:
+            ``True`` when the key changed or stopped the base command.
         """
         if key == self._FORWARD:
             self._commands[0] = self._vx
@@ -183,3 +201,11 @@ class KeyboardTeleop:
             self._commands[2] = -self._vtheta
         elif key == self._STOP:
             self._commands[:] = 0.0
+        else:
+            return False
+        return True
+
+    def _log_debug(self, message: str) -> None:
+        """Print a keyboard-input diagnostic when debugging is enabled."""
+        if self._debug:
+            print(f"[KeyboardTeleop] {message}", file=sys.stderr, flush=True)  # noqa: T201

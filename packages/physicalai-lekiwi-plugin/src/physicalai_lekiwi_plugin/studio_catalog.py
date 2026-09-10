@@ -21,7 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from serial.tools import list_ports
 
 import physicalai_lekiwi_plugin
-from physicalai_lekiwi_plugin import LeKiwi, get_urdf_path
+from physicalai_lekiwi_plugin import LeKiwi, LeKiwiLeader, get_urdf_path
 from physicalai_lekiwi_plugin.calibration import LeKiwiCalibration
 
 if TYPE_CHECKING:
@@ -61,15 +61,38 @@ _LEKIWI_ASSET = RobotAsset(
     root_resolver=_get_lekiwi_urdf_root,
 )
 
+_LEKIWI_LEADER_TO_URDF: dict[str, list[str]] = {
+    "arm_shoulder_pan.pos": ["shoulder_pan"],
+    "arm_shoulder_lift.pos": ["shoulder_lift"],
+    "arm_elbow_flex.pos": ["elbow_flex"],
+    "arm_wrist_flex.pos": ["wrist_flex"],
+    "arm_wrist_roll.pos": ["wrist_roll"],
+    "arm_gripper.pos": ["gripper"],
+}
 
-class LeKiwiPayload(BaseModel):
-    """Connection payload for a LeKiwi robot."""
+_LEKIWI_LEADER_ASSET = RobotAsset(
+    urdf_relative_path=Path("so101-leader/urdf/so101_leader.urdf"),
+    packages={"so101-leader": Path("so101-leader")},
+    joint_map=_LEKIWI_LEADER_TO_URDF,
+    root_resolver=_get_lekiwi_urdf_root,
+)
+
+
+class LeKiwiFollowerPayload(BaseModel):
+    """Connection payload for a LeKiwi follower robot."""
 
     connection_string: str = ""
     serial_number: str = ""
     calibration: dict[str, LeKiwiJointCalibrationPayload] | None = Field(
         default=None,
-        json_schema_extra=robot_field_ui({"advanced_configuration": True}),
+        json_schema_extra=robot_field_ui(
+            {
+                "advanced_configuration": True,
+                "info": {
+                    "description": "Upload a LeKiwi calibration JSON exported from the robot.",
+                },
+            },
+        ),
     )
     baudrate: int = Field(
         default=1_000_000,
@@ -79,8 +102,7 @@ class LeKiwiPayload(BaseModel):
         default=True,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
-
-    model_config = ConfigDict(
+    model_config = ConfigDict(  # pyrefly: ignore [bad-argument-type]
         json_schema_extra=robot_payload_ui(
             [
                 {
@@ -88,6 +110,88 @@ class LeKiwiPayload(BaseModel):
                     "label": "Select robot",
                     "device_discovery": True,
                     "bind": {"connection": "connection_string", "serial_number": "serial_number"},
+                },
+                {
+                    "kind": "calibration",
+                    "name": "calibration",
+                    "info": {
+                        "description": (
+                            "Upload calibration JSON in the SO101-style joint-name keyed format. "
+                            "This field also accepts manual JSON editing."
+                        ),
+                    },
+                },
+            ],
+        ),
+    )
+
+
+class LeKiwiLeaderPayload(BaseModel):
+    """Connection payload for a LeKiwi SO101-based leader robot."""
+
+    connection_string: str = ""
+    serial_number: str = ""
+    calibration: dict[str, LeKiwiJointCalibrationPayload] | None = Field(
+        default=None,
+        json_schema_extra=robot_field_ui(
+            {
+                "advanced_configuration": True,
+                "info": {
+                    "description": (
+                        "Optional calibration for the SO101 leader arm joints. "
+                        "When omitted, the leader arm uses raw ticks."
+                    ),
+                },
+            },
+        ),
+    )
+    baudrate: int = Field(
+        default=1_000_000,
+        json_schema_extra=robot_field_ui({"advanced_configuration": True}),
+    )
+    disable_torque_on_disconnect: bool = Field(
+        default=True,
+        json_schema_extra=robot_field_ui({"advanced_configuration": True}),
+    )
+    use_gamepad: bool = Field(
+        default=True,
+        json_schema_extra=robot_field_ui(
+            {
+                "advanced_configuration": True,
+                "info": {
+                    "description": "Enable Xbox-style gamepad control for base commands (pygame).",
+                },
+            },
+        ),
+    )
+
+    model_config = ConfigDict(  # pyrefly: ignore [bad-argument-type]
+        json_schema_extra=robot_payload_ui(
+            [
+                {
+                    "kind": "info",
+                    "title": "Leader input model",
+                    "text": (
+                        "LeKiwi leader uses an SO101 arm for arm joints and either keyboard "
+                        "or Xbox-style gamepad input for base commands."
+                    ),
+                    "variant": "info",
+                },
+                {
+                    "kind": "connection",
+                    "label": "Select robot",
+                    "device_discovery": True,
+                    "bind": {"connection": "connection_string", "serial_number": "serial_number"},
+                },
+                {
+                    "kind": "calibration",
+                    "name": "calibration",
+                    "info": {
+                        "description": (
+                            "Upload calibration JSON in the SO101-style joint-name keyed format. "
+                            "This field also accepts manual JSON editing."
+                        ),
+                    },
                 },
             ],
         ),
@@ -104,7 +208,10 @@ class LeKiwiJointCalibrationPayload(BaseModel):
     range_max: int
 
 
-class LeKiwiProbe(RobotProbe[LeKiwiPayload]):
+type LeKiwiCatalogPayload = LeKiwiFollowerPayload | LeKiwiLeaderPayload
+
+
+class LeKiwiProbe(RobotProbe[LeKiwiCatalogPayload]):
     """Probe implementation for LeKiwi devices."""
 
     async def discover(self, manager: PortScanner) -> list[SerialPortInfo]:
@@ -119,14 +226,14 @@ class LeKiwiProbe(RobotProbe[LeKiwiPayload]):
 
     async def identify(
         self,
-        payload: LeKiwiPayload,
+        payload: LeKiwiCatalogPayload,
         manager: PortScanner | None = None,
         joint: str | None = None,
     ) -> None:
         """Request a visual identify action, if supported."""
         _ = self, payload, manager, joint
 
-    async def is_online(self, payload: LeKiwiPayload, manager: PortScanner | None = None) -> bool:
+    async def is_online(self, payload: LeKiwiCatalogPayload, manager: PortScanner | None = None) -> bool:
         """Check whether the configured LeKiwi is online.
 
         Returns:
@@ -155,7 +262,10 @@ def _payload_calibration_to_lekiwi(
     return LeKiwiCalibration.from_dict({name: value.model_dump() for name, value in calibration.items()})
 
 
-async def _resolve_lekiwi_port(validated: LeKiwiPayload, factory: CatalogRobotFactory) -> str:
+async def _resolve_lekiwi_port(
+    validated: LeKiwiCatalogPayload,
+    factory: CatalogRobotFactory,
+) -> str:
     connection_string = validated.connection_string or None
     serial_number = validated.serial_number or None
     if connection_string is None and serial_number is None:
@@ -170,11 +280,14 @@ async def _resolve_lekiwi_port(validated: LeKiwiPayload, factory: CatalogRobotFa
     return port
 
 
-async def _build_lekiwi_driver(robot: PayloadContainer[LeKiwiPayload], factory: CatalogRobotFactory) -> PhysicalAIRobot:
+async def _build_lekiwi_driver(
+    robot: PayloadContainer[LeKiwiFollowerPayload],
+    factory: CatalogRobotFactory,
+) -> PhysicalAIRobot:
     raw = robot.payload
-    if isinstance(raw, BaseModel) and type(raw) is not LeKiwiPayload:
+    if isinstance(raw, BaseModel) and type(raw) is not LeKiwiFollowerPayload:
         raw = raw.model_dump()
-    validated = raw if isinstance(raw, LeKiwiPayload) else LeKiwiPayload.model_validate(raw)
+    validated = raw if isinstance(raw, LeKiwiFollowerPayload) else LeKiwiFollowerPayload.model_validate(raw)
 
     port = await _resolve_lekiwi_port(validated, factory)
 
@@ -202,18 +315,26 @@ async def _build_lekiwi_driver(robot: PayloadContainer[LeKiwiPayload], factory: 
     return driver
 
 
-async def _build_lekiwi_leader(robot: PayloadContainer[LeKiwiPayload], factory: CatalogRobotFactory) -> PhysicalAIRobot:
+async def _build_lekiwi_leader(
+    robot: PayloadContainer[LeKiwiLeaderPayload],
+    factory: CatalogRobotFactory,
+) -> PhysicalAIRobot:
     raw = robot.payload
-    if isinstance(raw, BaseModel) and type(raw) is not LeKiwiPayload:
+    if isinstance(raw, BaseModel) and type(raw) is not LeKiwiLeaderPayload:
         raw = raw.model_dump()
-    validated = raw if isinstance(raw, LeKiwiPayload) else LeKiwiPayload.model_validate(raw)
+    validated = raw if isinstance(raw, LeKiwiLeaderPayload) else LeKiwiLeaderPayload.model_validate(raw)
 
     port = await _resolve_lekiwi_port(validated, factory)
 
-    return LeKiwi.uncalibrated(
+    calibration_dict: dict[str, dict[str, int]] | None = None
+    if validated.calibration is not None:
+        calibration_dict = {name: calibration.model_dump() for name, calibration in validated.calibration.items()}
+
+    return LeKiwiLeader(
         port=port,
         baudrate=validated.baudrate,
-        role="leader",
+        calibration=calibration_dict,
+        use_gamepad=validated.use_gamepad,
         disable_torque_on_disconnect=validated.disable_torque_on_disconnect,
     )
 
@@ -225,7 +346,7 @@ def _definitions() -> list[RobotCatalogDefinition]:
             display_name="LeKiwi Follower",
             role="follower",
             robot_builder=_build_lekiwi_driver,
-            robot_payload=LeKiwiPayload,
+            robot_payload=LeKiwiFollowerPayload,
             asset=_LEKIWI_ASSET,
             adapter_options=RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
             probe=_LEKIWI_PROBE,
@@ -235,8 +356,8 @@ def _definitions() -> list[RobotCatalogDefinition]:
             display_name="LeKiwi Leader",
             role="leader",
             robot_builder=_build_lekiwi_leader,
-            robot_payload=LeKiwiPayload,
-            asset=_LEKIWI_ASSET,
+            robot_payload=LeKiwiLeaderPayload,
+            asset=_LEKIWI_LEADER_ASSET,
             adapter_options=RobotAdapterOptions(include_velocities=True, external_effort_gain=None),
             probe=_LEKIWI_PROBE,
         ),

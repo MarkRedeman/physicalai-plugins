@@ -25,6 +25,7 @@ from physicalai_lekiwi_plugin.constants import (
     ARM_I_COEFFICIENT,
     ARM_P_COEFFICIENT,
     BASE_RADIUS,
+    BASE_TORQUE_LIMIT,
     LEKIWI_ARM_JOINTS,
     LEKIWI_BASE_JOINTS,
     LEKIWI_JOINT_ORDER,
@@ -108,7 +109,6 @@ class LeKiwi:
         unit: LeKiwiUnit = "normalized",
         *,
         disable_torque_on_disconnect: bool | None = None,
-        _allow_uncalibrated: bool = False,
     ) -> None:
         """Initialize the LeKiwi driver (does not open the connection).
 
@@ -120,7 +120,6 @@ class LeKiwi:
             unit: ``"normalized"`` or ``"ticks"``.
             disable_torque_on_disconnect: Disable torque rather than holding position when disconnecting.
                 Defaults to ``False`` for followers and ``True`` for leaders.
-            _allow_uncalibrated: Skip calibration requirement (for testing).
 
         Raises:
             ValueError: If role is invalid.
@@ -134,7 +133,7 @@ class LeKiwi:
         self._role = role
         self._unit: LeKiwiUnit = unit
 
-        if calibration is None and not _allow_uncalibrated:
+        if calibration is None and unit != "ticks":
             msg = (
                 "calibration is required for LeKiwi. "
                 "Pass a calibration object/path, or use LeKiwi.uncalibrated(...) "
@@ -186,7 +185,6 @@ class LeKiwi:
             role=role,
             unit=unit,
             disable_torque_on_disconnect=disable_torque_on_disconnect,
-            _allow_uncalibrated=True,
         )
 
     @property
@@ -591,6 +589,9 @@ class LeKiwi:
             self._write_register(conn, servo_id, STS3215Addr.RETURN_DELAY_TIME, 0)
             self._write_register(conn, servo_id, STS3215Addr.MAXIMUM_ACCELERATION, 254)
             self._write_register(conn, servo_id, STS3215Addr.OPERATING_MODE, VELOCITY_MODE)
+            # The earlier driver wrote wheel speeds to Torque_Limit (address 48).
+            # Restore the volatile limit before torque is re-enabled.
+            self._write_register(conn, servo_id, STS3215Addr.TORQUE_LIMIT, BASE_TORQUE_LIMIT)
 
     def get_joint_name_for_servo_id(self, servo_id: int) -> str | None:
         """Look up the joint name by servo ID.
@@ -696,11 +697,12 @@ class LeKiwi:
             ):
                 msg = f"Base servo '{name}' (ID {servo_id}) data not available in sync read"
                 raise ConnectionError(msg)
-            velocities[i] = conn.base_group_sync_read.getData(
+            encoded_velocity = conn.base_group_sync_read.getData(
                 servo_id,
                 STS3215Addr.PRESENT_VELOCITY,
                 STS3215Len.PRESENT_VELOCITY,
             )
+            velocities[i] = self._decode_velocity(int(encoded_velocity))
         return velocities
 
     def _write_base_velocities(self, left_raw: int, back_raw: int, right_raw: int) -> None:
@@ -715,7 +717,8 @@ class LeKiwi:
         for name in LEKIWI_BASE_JOINTS:
             servo_id = self.servo_ids[name]
             value = int(np.clip(raw_values[name], -32768, 32767))
-            param = [value & 0xFF, (value >> 8) & 0xFF]
+            encoded_velocity = self._encode_velocity(value)
+            param = [encoded_velocity & 0xFF, (encoded_velocity >> 8) & 0xFF]
             if not conn.base_group_sync_write.addParam(servo_id, param):
                 msg = f"Failed to add base servo '{name}' (ID {servo_id}) to sync write"
                 raise ConnectionError(msg)
@@ -789,6 +792,25 @@ class LeKiwi:
     @staticmethod
     def _raw_to_degps(raw_speed: int) -> float:
         return raw_speed / STEPS_PER_DEG
+
+    @staticmethod
+    def _encode_velocity(value: int) -> int:
+        """Encode a signed wheel velocity using the STS3215 sign-magnitude format.
+
+        Returns:
+            The unsigned 16-bit value expected by the servo register.
+        """
+        return abs(value) | (0x8000 if value < 0 else 0)
+
+    @staticmethod
+    def _decode_velocity(value: int) -> int:
+        """Decode an STS3215 sign-magnitude wheel velocity into a signed integer.
+
+        Returns:
+            The signed wheel velocity in servo steps.
+        """
+        magnitude = value & 0x7FFF
+        return -magnitude if value & 0x8000 else magnitude
 
     @staticmethod
     def _body_to_wheel_raw(

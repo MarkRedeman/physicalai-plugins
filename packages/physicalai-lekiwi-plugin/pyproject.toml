@@ -21,6 +21,7 @@ dependencies = [
 
 [project.optional-dependencies]
 tests = ["pytest"]
+gamepad = ["pygame>=2.6"]
 
 [project.urls]
 Homepage = "https://github.com/MarkRedeman/physicalai-plugins"
@@ -29,6 +30,10 @@ Issues = "https://github.com/MarkRedeman/physicalai-plugins/issues"
 
 [project.entry-points."physicalai.studio.catalog_plugins"]
 lekiwi = "physicalai_lekiwi_plugin.studio_catalog:register_physicalai_studio_plugin"
+
+[project.scripts]
+physicalai-lekiwi-read-calibration = "physicalai_lekiwi_plugin.calibration_reader:main"
+physicalai-lekiwi-wheel-diagnostics = "physicalai_lekiwi_plugin.wheel_diagnostics:main"
 
 [tool.hatch.version]
 source = "vcs"

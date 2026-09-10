@@ -6,6 +6,8 @@ protocol and can be wired into a ``RobotRuntime`` (for example via a
 
 - :class:`KeyboardTeleop` drives the base from WASD/QE keyboard input while
   holding the arm at its current observed position.
+- :class:`GamepadTeleop` drives the base from an Xbox-style controller while
+  holding the arm at its current observed position.
 - :class:`CompositeTeleop` combines a leader arm with any base source
   (typically :class:`KeyboardTeleop`) into a single full action.
 """
@@ -13,6 +15,7 @@ protocol and can be wired into a ``RobotRuntime`` (for example via a
 from __future__ import annotations
 
 from physicalai_lekiwi_plugin.teleop.composite import CompositeTeleop
+from physicalai_lekiwi_plugin.teleop.gamepad import GamepadTeleop
 from physicalai_lekiwi_plugin.teleop.keyboard import KeyboardTeleop
 
-__all__ = ["CompositeTeleop", "KeyboardTeleop"]
+__all__ = ["CompositeTeleop", "GamepadTeleop", "KeyboardTeleop"]
