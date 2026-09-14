@@ -24,7 +24,7 @@
     </inertial>
   </link>
   <joint name="openarm_right_base_link_mount_joint" type="fixed">
-    <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0" />
+    <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.605947" />
     <parent link="world" />
     <child link="openarm_right_base_link" />
   </joint>
