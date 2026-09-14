@@ -11,11 +11,12 @@ OpenArm moves powerful physical hardware. Secure each arm, provide clearance,
 keep an emergency stop accessible, and follow OpenArm's official safety guide.
 Only Linux SocketCAN is supported. Exactly one process may control a CAN
 interface at a time: do not concurrently run this plugin with LeRobot, ROS 2,
+or other CAN clients on the same bus.
 
 This first release assumes hardware setup has already been completed. It does
 not set motor IDs, write persistent parameters, calibrate, or zero encoders.
 Before connecting, configure the documented motor IDs, provision CAN/CAN-FD,
-arm and closed-gripper procedure.
+and complete OpenArm's homing and closed-gripper initialization procedure.
 
 ## Installation
 

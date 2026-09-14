@@ -96,7 +96,7 @@ class OpenArmPayload(BaseModel):
     @model_validator(mode="after")
     def _validate_follower_configuration(self) -> Self:
         if not self.port:
-            msg = "port must be a non-empty SocketCAN interface name"
+            msg = "port must be a non-empty SocketCAN interface name or serial device path"
             raise ValueError(msg)
         return self
 
@@ -117,7 +117,7 @@ class BimanualOpenArmPayload(BaseModel):
     @model_validator(mode="after")
     def _validate_ports(self) -> Self:
         if not self.left_port or not self.right_port:
-            msg = "left_port and right_port must be non-empty SocketCAN interface names"
+            msg = "left_port and right_port must be non-empty interface names or serial device paths"
             raise ValueError(msg)
         if self.left_port == self.right_port:
             msg = "left_port and right_port must be distinct"

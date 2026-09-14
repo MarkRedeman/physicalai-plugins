@@ -3,6 +3,8 @@ from __future__ import annotations
 import math
 from unittest.mock import MagicMock
 
+import pytest
+
 from physicalai_openarm_plugin.damiao import DamiaoSerial
 
 
@@ -29,3 +31,10 @@ def test_damiao_serial_registers_openarm_motors_and_sends_mit_targets() -> None:
     motors["joint_1"].send_mit.assert_called_once_with(math.radians(45.0), 0.0, 240.0, 5.0, 0.0)
     controller.disable_all.assert_called_once()
     controller.close.assert_called_once()
+
+
+def test_damiao_serial_send_positions_requires_connect() -> None:
+    transport = DamiaoSerial("/dev/ttyACM0", {"joint_1": (1, 17, "dm8009")})
+
+    with pytest.raises(ConnectionError, match="not connected"):
+        transport.send_positions({"joint_1": (240.0, 5.0, 45.0)})

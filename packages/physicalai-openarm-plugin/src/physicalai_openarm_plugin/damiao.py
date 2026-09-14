@@ -298,6 +298,7 @@ class DamiaoSerial:
 
     def send_positions(self, commands: Mapping[str, tuple[float, float, float]]) -> None:
         """Send MIT position targets, converting the degree contract to radians."""
+        self._require_controller()
         for name, (kp, kd, position_deg) in commands.items():
             self._motors[name].send_mit(math.radians(position_deg), 0.0, kp, kd, 0.0)
 

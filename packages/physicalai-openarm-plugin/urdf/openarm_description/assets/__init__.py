@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from pathlib import Path
+import warnings
 
 ASSETS_ROOT = Path(__file__).resolve().parent
 
@@ -24,16 +25,15 @@ def get_urdf_path(robot: str, *parts: str) -> Path:
     """
     path = ASSETS_ROOT / "robot" / robot / "urdf" / Path(*parts)
     if not path.exists():
-        print(f"[Warning] URDF not found at: {path}")
+        warnings.warn(f"URDF not found at: {path}", stacklevel=2)
     return path
 
 
 def get_config_path(robot: str, *parts: str) -> Path:
     path = ASSETS_ROOT / "robot" / robot / "config" / Path(*parts)
     if not path.exists():
-        print(f"[Warning] Config not found at: {path}")
+        warnings.warn(f"Config not found at: {path}", stacklevel=2)
     return path
 
 
-ASSETS_ROOT = ASSETS_ROOT
 __all__ = ["get_urdf_path", "get_config_path", "ASSETS_ROOT"]

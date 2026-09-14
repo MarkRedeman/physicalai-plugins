@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import importlib.resources as ir
+from importlib import resources as ir
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
