@@ -99,12 +99,12 @@ source = ["packages/*/src"]
 [tool.pyrefly]
 python-version = "3.12"
 search-path = [
-    "packages/physicalai-bimanual-so101-plugin/src",
-    "packages/physicalai-rebot-b601-plugin/src",
-    "packages/physicalai-stararm-plugin/src",
+    "packages/physicalai-lekiwi-plugin/src",
+    "packages/physicalai-lerobot-plugin/src",
+    "packages/physicalai-mujoco-so101-plugin/src",
 ]
 project-includes = [
-    "packages/physicalai-bimanual-so101-plugin/src",
-    "packages/physicalai-rebot-b601-plugin/src",
-    "packages/physicalai-stararm-plugin/src",
+    "packages/physicalai-lekiwi-plugin/src",
+    "packages/physicalai-lerobot-plugin/src",
+    "packages/physicalai-mujoco-so101-plugin/src",
 ]

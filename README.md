@@ -13,9 +13,6 @@ via an entry point. Packages are built and released independently with
 | Package                                                                                   | Description                                                    | Released          |
 | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ----------------- |
 | [`physicalai-lekiwi-plugin`](packages/physicalai-lekiwi-plugin/README.md)                 | LeKiwi mobile manipulator (6-DOF arm + 3-wheel holonomic base) | yes               |
-| [`physicalai-rebot-b601-plugin`](packages/physicalai-rebot-b601-plugin/README.md)         | Seeed reBot B601 arm (B601-DM / B601-RS) followers             | yes               |
-| [`physicalai-stararm-plugin`](packages/physicalai-stararm-plugin/README.md)               | Fashion Star Arm 102 (LD/HD leaders + FL follower)             | no                |
-| [`physicalai-bimanual-so101-plugin`](packages/physicalai-bimanual-so101-plugin/README.md) | Bimanual SO-101 (twin 6-DOF STS3215 arms)                      | yes               |
 | [`physicalai-lerobot-plugin`](packages/physicalai-lerobot-plugin/README.md)               | LeRobot robot/teleoperator adapter for the Studio catalog      | yes               |
 | [`physicalai-mujoco-so101-plugin`](packages/physicalai-mujoco-so101-plugin/README.md)     | MuJoCo SO-101 simulation plugin for PhysicalAI Studio          | not yet published |
 
@@ -29,12 +26,9 @@ via an entry point. Packages are built and released independently with
 
 ```text
 packages/
-  physicalai-bimanual-so101-plugin/
   physicalai-lekiwi-plugin/
   physicalai-lerobot-plugin/
   physicalai-mujoco-so101-plugin/
-  physicalai-rebot-b601-plugin/
-  physicalai-stararm-plugin/
 docs/                          # guides (e.g. creating a plugin)
 scripts/smoke.py               # import + version smoke test used by CI releases
 .github/                       # CI, release-please config
@@ -85,25 +79,6 @@ base:
 uv run physicalai run --config packages/physicalai-lekiwi-plugin/examples/runtime/teleop.yaml
 ```
 
-### reBot B601 + Star Arm 102
-
-Leader → follower teleoperation (Star Arm 102-LD/HD leader to a B601-DM or B601-RS):
-
-```bash
-uv run --with physicalai-stararm-plugin physicalai run --config packages/physicalai-rebot-b601-plugin/examples/runtime/teleop-dm.yaml
-uv run --with physicalai-stararm-plugin physicalai run --config packages/physicalai-rebot-b601-plugin/examples/runtime/teleop-rs.yaml
-uv run physicalai run --config packages/physicalai-stararm-plugin/examples/runtime/teleop-hd-to-fl.yaml
-uv run physicalai run --config packages/physicalai-stararm-plugin/examples/runtime/teleop-ld-to-fl.yaml
-```
-
-### Bimanual SO-101
-
-Bimanual teleoperation with a leader BimanualSO101 (both arms):
-
-```bash
-uv run physicalai run --config packages/physicalai-bimanual-so101-plugin/examples/runtime/teleop.yaml
-```
-
 ### LeRobot
 
 Follower → leader teleoperation for any bundled LeRobot robot:
@@ -126,10 +101,6 @@ uv run physicalai run --config packages/physicalai-mujoco-so101-plugin/examples/
 ```bash
 uv run physicalai run --config packages/physicalai-lekiwi-plugin/examples/runtime/move-joints.yaml
 uv run physicalai run --config packages/physicalai-lekiwi-plugin/examples/runtime/read-joints.yaml
-uv run physicalai run --config packages/physicalai-rebot-b601-plugin/examples/runtime/move-joints-dm.yaml
-uv run physicalai run --config packages/physicalai-stararm-plugin/examples/runtime/read-joints-hd.yaml
-uv run physicalai run --config packages/physicalai-stararm-plugin/examples/runtime/read-joints-ld.yaml
-uv run physicalai run --config packages/physicalai-stararm-plugin/examples/runtime/read-joints-fl.yaml
 ```
 
 The only remaining script is the MuJoCo **owner** process (`run_mujoco_owner.py`),

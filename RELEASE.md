@@ -2,12 +2,9 @@
 
 This repository uses [release-please](https://github.com/googleapis/release-please) for automated releases of Python packages defined in `.github/release-please-config.json`. Currently:
 
-- `physicalai-bimanual-so101-plugin`
 - `physicalai-lekiwi-plugin`
 - `physicalai-lerobot-plugin`
 - `physicalai-mujoco-so101-plugin`
-- `physicalai-rebot-b601-plugin`
-- `physicalai-stararm-plugin`
 
 ## Pull request title convention
 
@@ -42,13 +39,10 @@ Package versions are **not hardcoded** — they are derived from git tags at bui
 
 | Package                            | Tag pattern                                  |
 | ---------------------------------- | -------------------------------------------- |
-| `physicalai-bimanual-so101-plugin` | `physicalai-bimanual-so101-plugin-v<semver>` |
 | `physicalai-lekiwi-plugin`         | `physicalai-lekiwi-plugin-v<semver>`         |
 | `physicalai-lerobot-plugin`        | `physicalai-lerobot-plugin-v<semver>`        |
 | `physicalai-mujoco-so101-plugin`   | `physicalai-mujoco-so101-plugin-v<semver>`   |
-| `physicalai-rebot-b601-plugin`     | `physicalai-rebot-b601-plugin-v<semver>`     |
-| `physicalai-stararm-plugin`        | `physicalai-stararm-plugin-v<semver>`        |
 
 ## Testing a Release (TestPyPI)
 
-To validate a build before an official release, trigger the `publish-testpypi.yml` workflow manually from the Actions tab. It runs the same build and smoke-test steps, then publishes to [TestPyPI](https://test.pypi.org/p/physicalai-rebot-b601-plugin).
+To validate a build before an official release, trigger the `publish-testpypi.yml` workflow manually from the Actions tab. It runs the same build and smoke-test steps, then publishes package distributions to [TestPyPI](https://test.pypi.org/).
