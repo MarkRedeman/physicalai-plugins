@@ -1,5 +1,7 @@
 """Scene definitions and reset behavior for the MuJoCo SO-101 simulation."""
 
+# pyrefly: ignore
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -60,8 +62,10 @@ def _pick_lift_reset(model: object, data: object, rng: np.random.Generator) -> N
         return (center[0] + r * np.cos(theta), center[1] + r * np.sin(theta))
 
     tx, ty = sample_xy()
+    # pyrefly: ignore [missing-attribute]
     tid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, target_body)
     if tid >= 0:
+        # pyrefly: ignore [missing-attribute]
         model.body_pos[tid] = [tx, ty, 0.001]
 
     positions: list[tuple[float, float]] = []
@@ -79,16 +83,23 @@ def _pick_lift_reset(model: object, data: object, rng: np.random.Generator) -> N
                 positions.append(best)
 
     for joint_name, (x, y) in zip(block_joints, positions, strict=True):
+        # pyrefly: ignore [missing-attribute]
         jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, joint_name)
         if jid < 0:
             continue
+        # pyrefly: ignore [missing-attribute]
         qpos_adr = int(model.jnt_qposadr[jid])
+        # pyrefly: ignore [missing-attribute]
         dof_adr = int(model.jnt_dofadr[jid])
         yaw = float(rng.uniform(0.0, 2.0 * np.pi))
+        # pyrefly: ignore [missing-attribute]
         data.qpos[qpos_adr : qpos_adr + 3] = [x, y, 0.02]
+        # pyrefly: ignore [missing-attribute]
         data.qpos[qpos_adr + 3 : qpos_adr + 7] = [np.cos(yaw / 2.0), 0.0, 0.0, np.sin(yaw / 2.0)]
+        # pyrefly: ignore [missing-attribute]
         data.qvel[dof_adr : dof_adr + 6] = 0.0
 
+    # pyrefly: ignore [missing-attribute]
     mujoco.mj_forward(model, data)
 
 
@@ -108,8 +119,10 @@ def _pick_place_reset(model: object, data: object, rng: np.random.Generator) -> 
         return (center[0] + r * np.cos(theta), center[1] + r * np.sin(theta))
 
     tx, ty = sample_xy()
+    # pyrefly: ignore [missing-attribute]
     tid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, target_body)
     if tid >= 0:
+        # pyrefly: ignore [missing-attribute]
         model.body_pos[tid] = [tx, ty, 0.001]
 
     positions: list[tuple[float, float]] = []
@@ -127,16 +140,23 @@ def _pick_place_reset(model: object, data: object, rng: np.random.Generator) -> 
                 positions.append(best)
 
     for joint_name, (x, y) in zip(block_joints, positions, strict=True):
+        # pyrefly: ignore [missing-attribute]
         jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, joint_name)
         if jid < 0:
             continue
+        # pyrefly: ignore [missing-attribute]
         qpos_adr = int(model.jnt_qposadr[jid])
+        # pyrefly: ignore [missing-attribute]
         dof_adr = int(model.jnt_dofadr[jid])
         yaw = float(rng.uniform(0.0, 2.0 * np.pi))
+        # pyrefly: ignore [missing-attribute]
         data.qpos[qpos_adr : qpos_adr + 3] = [x, y, 0.02]
+        # pyrefly: ignore [missing-attribute]
         data.qpos[qpos_adr + 3 : qpos_adr + 7] = [np.cos(yaw / 2.0), 0.0, 0.0, np.sin(yaw / 2.0)]
+        # pyrefly: ignore [missing-attribute]
         data.qvel[dof_adr : dof_adr + 6] = 0.0
 
+    # pyrefly: ignore [missing-attribute]
     mujoco.mj_forward(model, data)
 
 
@@ -156,8 +176,10 @@ def _single_pick_place_reset(model: object, data: object, rng: np.random.Generat
         return (center[0] + r * np.cos(theta), center[1] + r * np.sin(theta))
 
     tx, ty = sample_xy()
+    # pyrefly: ignore [missing-attribute]
     tid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, target_body)
     if tid >= 0:
+        # pyrefly: ignore [missing-attribute]
         model.body_pos[tid] = [tx, ty, 0.001]
 
     positions: list[tuple[float, float]] = []
@@ -175,16 +197,23 @@ def _single_pick_place_reset(model: object, data: object, rng: np.random.Generat
                 positions.append(best)
 
     for joint_name, (x, y) in zip(block_joints, positions, strict=True):
+        # pyrefly: ignore [missing-attribute]
         jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, joint_name)
         if jid < 0:
             continue
+        # pyrefly: ignore [missing-attribute]
         qpos_adr = int(model.jnt_qposadr[jid])
+        # pyrefly: ignore [missing-attribute]
         dof_adr = int(model.jnt_dofadr[jid])
         yaw = float(rng.uniform(0.0, 2.0 * np.pi))
+        # pyrefly: ignore [missing-attribute]
         data.qpos[qpos_adr : qpos_adr + 3] = [x, y, 0.02]
+        # pyrefly: ignore [missing-attribute]
         data.qpos[qpos_adr + 3 : qpos_adr + 7] = [np.cos(yaw / 2.0), 0.0, 0.0, np.sin(yaw / 2.0)]
+        # pyrefly: ignore [missing-attribute]
         data.qvel[dof_adr : dof_adr + 6] = 0.0
 
+    # pyrefly: ignore [missing-attribute]
     mujoco.mj_forward(model, data)
 
 
@@ -203,28 +232,46 @@ def _garment_fold_reset(model: object, data: object, rng: np.random.Generator) -
     }
 
     for joint_name, val in home.items():
+        # pyrefly: ignore [missing-attribute]
         jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, joint_name)
         if jid < 0:
             continue
+        # pyrefly: ignore [missing-attribute]
         qpos_adr = int(model.jnt_qposadr[jid])
+        # pyrefly: ignore [missing-attribute]
         dof_adr = int(model.jnt_dofadr[jid])
+        # pyrefly: ignore [missing-attribute]
         data.qpos[qpos_adr] = val
+        # pyrefly: ignore [missing-attribute]
         data.qvel[dof_adr] = 0.0
+        # pyrefly: ignore [missing-attribute]
         aid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, joint_name)
         if aid >= 0:
+            # pyrefly: ignore [missing-attribute]
             data.ctrl[aid] = val
 
+    # pyrefly: ignore [missing-attribute]
     if model.nflex > 0:
+        # pyrefly: ignore [missing-attribute]
         first_vertex_body = int(model.flex_vertbodyid[0])
         flex_qpos_adr = min(
-            int(model.jnt_qposadr[j]) for j in range(model.njnt) if int(model.jnt_bodyid[j]) == first_vertex_body
+            # pyrefly: ignore [missing-attribute]
+            int(model.jnt_qposadr[j])
+            for j in range(model.njnt)  # pyrefly: ignore [missing-attribute]
+            if int(model.jnt_bodyid[j]) == first_vertex_body  # pyrefly: ignore [missing-attribute]
         )
         flex_dof_adr = min(
-            int(model.jnt_dofadr[j]) for j in range(model.njnt) if int(model.jnt_bodyid[j]) == first_vertex_body
+            # pyrefly: ignore [missing-attribute]
+            int(model.jnt_dofadr[j])
+            for j in range(model.njnt)  # pyrefly: ignore [missing-attribute]
+            if int(model.jnt_bodyid[j]) == first_vertex_body  # pyrefly: ignore [missing-attribute]
         )
+        # pyrefly: ignore [missing-attribute]
         data.qpos[flex_qpos_adr : flex_qpos_adr + 3 * model.nflexvert] = model.flex_vert.ravel()
+        # pyrefly: ignore [missing-attribute]
         data.qvel[flex_dof_adr : flex_dof_adr + 3 * model.nflexvert] = 0.0
 
+    # pyrefly: ignore [missing-attribute]
     mujoco.mj_forward(model, data)
 
 
@@ -237,10 +284,13 @@ def _yahtzee_reset(model: object, data: object, rng: np.random.Generator) -> Non
     cup_jitter = 0.005
 
     for joint_name in die_joints:
+        # pyrefly: ignore [missing-attribute]
         jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, joint_name)
         if jid < 0:
             continue
+        # pyrefly: ignore [missing-attribute]
         qpos_adr = int(model.jnt_qposadr[jid])
+        # pyrefly: ignore [missing-attribute]
         dof_adr = int(model.jnt_dofadr[jid])
 
         r = float(rng.uniform(0.06, 0.18))
@@ -253,7 +303,9 @@ def _yahtzee_reset(model: object, data: object, rng: np.random.Generator) -> Non
         c = np.cos(yaw / 2.0)
         s = np.sin(yaw / 2.0)
         drop_z = float(rng.uniform(0.12, 0.18))
+        # pyrefly: ignore [missing-attribute]
         data.qpos[qpos_adr : qpos_adr + 3] = [x, y, drop_z]
+        # pyrefly: ignore [missing-attribute]
         data.qpos[qpos_adr + 3 : qpos_adr + 7] = [
             c * np.sin(tilt / 2.0),
             s * np.sin(tilt / 2.0),
@@ -267,8 +319,10 @@ def _yahtzee_reset(model: object, data: object, rng: np.random.Generator) -> Non
         wx = float(rng.uniform(-15.0, 15.0))
         wy = float(rng.uniform(-15.0, 15.0))
         wz = float(rng.uniform(-8.0, 8.0))
+        # pyrefly: ignore [missing-attribute]
         data.qvel[dof_adr : dof_adr + 6] = [vx, vy, vz, wx, wy, wz]
 
+    # pyrefly: ignore [missing-attribute]
     mujoco.mj_forward(model, data)
 
 

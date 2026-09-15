@@ -1,5 +1,7 @@
 """MuJoCo-backed SO-101 robot implementation."""
 
+# pyrefly: ignore
+
 from __future__ import annotations
 
 import contextlib
@@ -172,8 +174,11 @@ class MuJoCoSO101:
         import mujoco  # noqa: PLC0415
 
         logger.info("Loading MuJoCo model from {}", self._model_path)
+        # pyrefly: ignore [missing-attribute]
         self._model = mujoco.MjModel.from_xml_path(self._model_path)
+        # pyrefly: ignore [missing-attribute]
         self._data = mujoco.MjData(self._model)
+        # pyrefly: ignore [missing-attribute]
         mujoco.mj_forward(self._model, self._data)
         self._last_sim_time = float(self._data.time)
         self._init_block_joint_addrs()
@@ -206,6 +211,7 @@ class MuJoCoSO101:
         self._stop_http_server()
         for renderer in self._camera_renderers.values():
             with contextlib.suppress(Exception):
+                # pyrefly: ignore [missing-attribute]
                 renderer.close()
         self._camera_renderers.clear()
         self._camera_devices.clear()
@@ -234,6 +240,7 @@ class MuJoCoSO101:
         self._check_scene_xml_camera()
 
         for _ in range(self._substeps):
+            # pyrefly: ignore [missing-attribute]
             mujoco.mj_step(self._model, self._data)
 
         if self._viewer is not None:
@@ -293,13 +300,17 @@ class MuJoCoSO101:
 
         self._block_joint_addrs.clear()
         for joint_name in self._free_joints:
+            # pyrefly: ignore [missing-attribute]
             jid = mujoco.mj_name2id(self._model, mujoco.mjtObj.mjOBJ_JOINT, joint_name)
             if jid < 0:
                 continue
+            # pyrefly: ignore [missing-attribute]
             qpos_addr = int(self._model.jnt_qposadr[jid])
+            # pyrefly: ignore [missing-attribute]
             dof_addr = int(self._model.jnt_dofadr[jid])
             self._block_joint_addrs.append((qpos_addr, dof_addr))
 
+        # pyrefly: ignore [missing-attribute]
         target_id = mujoco.mj_name2id(self._model, mujoco.mjtObj.mjOBJ_BODY, self._target_body_name)
         self._target_body_id = int(target_id) if target_id >= 0 else None
 
@@ -323,9 +334,11 @@ class MuJoCoSO101:
                 from defusedxml import ElementTree  # noqa: PLC0415
 
                 root = ElementTree.parse(normalized).getroot()
+            # pyrefly: ignore [unbound-name]
             except (ElementTree.ParseError, OSError):
                 return
 
+            # pyrefly: ignore [missing-attribute]
             for include in root.findall(".//include"):
                 include_file = include.get("file")
                 if not include_file:
@@ -369,6 +382,7 @@ class MuJoCoSO101:
 
         def find_first(xpath: str) -> object | None:
             for root in roots:
+                # pyrefly: ignore [missing-attribute]
                 elem = root.find(xpath)
                 if elem is not None:
                     return elem
@@ -387,56 +401,70 @@ class MuJoCoSO101:
             "right_camera_mount",
         ):
             body_elem = find_first(f".//body[@name='{body_name}']")
+            # pyrefly: ignore [missing-attribute]
             body_id = mujoco.mj_name2id(self._model, mujoco.mjtObj.mjOBJ_BODY, body_name)
             if body_elem is None or body_id < 0:
                 continue
 
+            # pyrefly: ignore [missing-attribute]
             pos_str = body_elem.get("pos")
             if pos_str:
+                # pyrefly: ignore [missing-attribute]
                 self._model.body_pos[body_id] = [float(x) for x in pos_str.split()]
 
+            # pyrefly: ignore [missing-attribute]
             euler_str = body_elem.get("euler")
             if euler_str:
                 euler_vals = [float(x) for x in euler_str.split()]
                 if len(euler_vals) == 3:  # noqa: PLR2004
                     quat = np.zeros(4, dtype=np.float64)
+                    # pyrefly: ignore [missing-attribute]
                     mujoco.mju_euler2Quat(quat, euler_vals, "xyz")
+                    # pyrefly: ignore [missing-attribute]
                     self._model.body_quat[body_id] = quat
                     logger.info("Updated {}: {}", body_name, euler_vals)
                 else:
                     logger.warning("Invalid {} euler values: {}", body_name, euler_str)
 
+            # pyrefly: ignore [missing-attribute]
             quat_str = body_elem.get("quat")
             if quat_str:
                 quat_vals = [float(x) for x in quat_str.split()]
                 if len(quat_vals) == 4:  # noqa: PLR2004
-                    self._model.body_quat[body_id] = quat_vals
+                    self._model.body_quat[body_id] = quat_vals  # pyrefly: ignore [missing-attribute]
                     logger.info("Updated {} quat: {}", body_name, quat_vals)
                 else:
                     logger.warning("Invalid {} quat values: {}", body_name, quat_str)
 
         def update_camera_pose(camera_name: str, camera_elem: object) -> None:  # noqa: PLR0912
-            camera_id = mujoco.mj_name2id(self._model, mujoco.mjtObj.mjOBJ_CAMERA, camera_name)
+            camera_id = mujoco.mj_name2id(self._model, mujoco.mjtObj.mjOBJ_CAMERA, camera_name)  # pyrefly: ignore [missing-attribute]
             if camera_id < 0:
                 return
 
+            # pyrefly: ignore [missing-attribute]
             pos_str = camera_elem.get("pos")
             if pos_str:
                 pos = [float(x) for x in pos_str.split()]
+                # pyrefly: ignore [missing-attribute]
                 self._model.cam_pos[camera_id] = pos
 
+            # pyrefly: ignore [missing-attribute]
             fovy_str = camera_elem.get("fovy")
             if fovy_str:
+                # pyrefly: ignore [missing-attribute]
                 self._model.cam_fovy[camera_id] = float(fovy_str)
 
+            # pyrefly: ignore [missing-attribute]
             xyaxes_str = camera_elem.get("xyaxes")
+            # pyrefly: ignore [missing-attribute]
             euler_str = camera_elem.get("euler")
+            # pyrefly: ignore [missing-attribute]
             quat_str = camera_elem.get("quat")
 
             if quat_str:
                 quat_vals = [float(x) for x in quat_str.split()]
                 if len(quat_vals) == 4:  # noqa: PLR2004
-                    self._model.cam_quat[camera_id] = quat_vals
+                    self._model.cam_quat[camera_id] = quat_vals  # pyrefly: ignore [missing-attribute]
                     logger.info("Updated camera {} quat: {}", camera_name, quat_vals)
                 else:
                     logger.warning("Invalid {} camera quat values: {}", camera_name, quat_str)
@@ -448,7 +476,9 @@ class MuJoCoSO101:
                     mat[3:6] = vals[3:]
                     mat[6:] = np.cross(vals[:3], vals[3:])
                     quat = np.zeros(4, dtype=np.float64)
+                    # pyrefly: ignore [missing-attribute]
                     mujoco.mju_mat2Quat(quat, mat)
+                    # pyrefly: ignore [missing-attribute]
                     self._model.cam_quat[camera_id] = quat
                     logger.info("Updated camera {} xyaxes: {}", camera_name, vals)
                 else:
@@ -457,7 +487,9 @@ class MuJoCoSO101:
                 euler_vals = [float(x) for x in euler_str.split()]
                 if len(euler_vals) == 3:  # noqa: PLR2004
                     quat = np.zeros(4, dtype=np.float64)
+                    # pyrefly: ignore [missing-attribute]
                     mujoco.mju_euler2Quat(quat, euler_vals, "xyz")
+                    # pyrefly: ignore [missing-attribute]
                     self._model.cam_quat[camera_id] = quat
                     logger.info("Updated camera {} euler: {} -> quat={}", camera_name, euler_vals, quat.tolist())
                 else:
@@ -471,6 +503,7 @@ class MuJoCoSO101:
             if wrist_cam is not None:
                 update_camera_pose(camera_name, wrist_cam)
 
+        # pyrefly: ignore [missing-attribute]
         mujoco.mj_forward(self._model, self._data)
 
     def _switch_to_scene(self, scene_id: str) -> None:
@@ -484,12 +517,16 @@ class MuJoCoSO101:
             logger.error("Scene XML not found: {}", xml_path)
             return
 
+        # pyrefly: ignore [missing-attribute]
         new_model = mujoco.MjModel.from_xml_path(str(xml_path))
+        # pyrefly: ignore [missing-attribute]
         new_data = mujoco.MjData(new_model)
+        # pyrefly: ignore [missing-attribute]
         mujoco.mj_forward(new_model, new_data)
 
         for renderer in self._camera_renderers.values():
             with contextlib.suppress(Exception):
+                # pyrefly: ignore [missing-attribute]
                 renderer.close()
         self._camera_renderers.clear()
         self._camera_devices.clear()
@@ -559,6 +596,7 @@ class MuJoCoSO101:
             logger.warning("Failed to switch scene: {}", exc)
 
     def _handle_viewer_reset(self) -> None:
+        # pyrefly: ignore [missing-attribute]
         current = float(self._data.time)
         if self._last_sim_time is None:
             self._last_sim_time = current
@@ -566,11 +604,13 @@ class MuJoCoSO101:
         if current + 1e-9 < self._last_sim_time:
             logger.info("Viewer reset detected; randomizing")
             if self._scene_on_reset is not None:
+                # pyrefly: ignore [not-callable]
                 self._scene_on_reset(self._model, self._data, self._rng)
             else:
                 self._randomize_blocks()
             if self._viewer is not None and self._viewer.is_running():
                 self._viewer.sync()
+            # pyrefly: ignore [missing-attribute]
             current = float(self._data.time)
         self._last_sim_time = current
 
@@ -612,13 +652,18 @@ class MuJoCoSO101:
 
         target_xy, positions = self._sample_target_and_blocks(len(self._block_joint_addrs))
         if self._target_body_id is not None:
+            # pyrefly: ignore [missing-attribute]
             self._model.body_pos[self._target_body_id] = [target_xy[0], target_xy[1], 0.001]
 
         for (qpos_addr, dof_addr), (x, y) in zip(self._block_joint_addrs, positions, strict=True):
             yaw = float(self._rng.uniform(0.0, 2.0 * np.pi))
+            # pyrefly: ignore [missing-attribute]
             self._data.qpos[qpos_addr : qpos_addr + 3] = [x, y, 0.02]
+            # pyrefly: ignore [missing-attribute]
             self._data.qpos[qpos_addr + 3 : qpos_addr + 7] = [np.cos(yaw / 2.0), 0.0, 0.0, np.sin(yaw / 2.0)]
+            # pyrefly: ignore [missing-attribute]
             self._data.qvel[dof_addr : dof_addr + 6] = 0.0
+        # pyrefly: ignore [missing-attribute]
         mujoco.mj_forward(self._model, self._data)
 
     def _render_cameras(self) -> None:
@@ -633,7 +678,9 @@ class MuJoCoSO101:
                 continue
 
             try:
+                # pyrefly: ignore [missing-attribute]
                 renderer.update_scene(self._data, camera=config.name)
+                # pyrefly: ignore [missing-attribute]
                 frame = renderer.render()[:, :, :3][::-1, :, :]
             except (RuntimeError, ValueError) as exc:
                 logger.debug("Camera render error for '{}': {}", config.name, exc)
@@ -650,6 +697,7 @@ class MuJoCoSO101:
             cam = self._camera_devices.get(config.name)
             if cam is not None:
                 try:
+                    # pyrefly: ignore [missing-attribute]
                     cam.schedule_frame(frame)
                 except RuntimeError as exc:
                     logger.debug("Camera publish error for '{}': {}", config.name, exc)
@@ -723,6 +771,7 @@ class MuJoCoSO101:
         if isinstance(command, ResetCommand):
             logger.info("Scene reset requested via HTTP")
             if self._scene_on_reset is not None:
+                # pyrefly: ignore [not-callable]
                 self._scene_on_reset(self._model, self._data, self._rng)
             else:
                 self._randomize_blocks()
@@ -779,6 +828,7 @@ class MuJoCoSO101:
             raise ValueError(msg)
 
         for i in range(self.NUM_JOINTS):
+            # pyrefly: ignore [missing-attribute]
             self._data.ctrl[i] = float(np.radians(action[i]))
 
     def render_camera(self, camera_name: str, width: int, height: int) -> np.ndarray:
@@ -805,12 +855,16 @@ class MuJoCoSO101:
     def _read_joint_state(self, name: str) -> tuple[float, float]:
         import mujoco  # noqa: PLC0415
 
+        # pyrefly: ignore [missing-attribute]
         jnt_id = mujoco.mj_name2id(self._model, mujoco.mjtObj.mjOBJ_JOINT, name)
         if jnt_id < 0:
             msg = f"Joint {name!r} not found in MuJoCo model"
             raise ValueError(msg)
+        # pyrefly: ignore [missing-attribute]
         qpos_adr = self._model.jnt_qposadr[jnt_id]
+        # pyrefly: ignore [missing-attribute]
         dof_adr = self._model.jnt_dofadr[jnt_id]
+        # pyrefly: ignore [missing-attribute]
         return float(self._data.qpos[qpos_adr]), float(self._data.qvel[dof_adr])
 
     def __getstate__(self) -> dict:
