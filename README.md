@@ -13,7 +13,6 @@ via an entry point. Packages are built and released independently with
 | Package                                                                               | Description                                                    | Released          |
 | ------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ----------------- |
 | [`physicalai-lekiwi-plugin`](packages/physicalai-lekiwi-plugin/README.md)             | LeKiwi mobile manipulator (6-DOF arm + 3-wheel holonomic base) | yes               |
-| [`physicalai-lerobot-plugin`](packages/physicalai-lerobot-plugin/README.md)           | LeRobot robot/teleoperator adapter for the Studio catalog      | yes               |
 | [`physicalai-mujoco-so101-plugin`](packages/physicalai-mujoco-so101-plugin/README.md) | MuJoCo SO-101 simulation plugin for PhysicalAI Studio          | not yet published |
 
 ## Requirements
@@ -27,7 +26,6 @@ via an entry point. Packages are built and released independently with
 ```text
 packages/
   physicalai-lekiwi-plugin/
-  physicalai-lerobot-plugin/
   physicalai-mujoco-so101-plugin/
 docs/                          # guides (e.g. creating a plugin)
 scripts/smoke.py               # import + version smoke test used by CI releases
@@ -77,14 +75,6 @@ base:
 
 ```bash
 uv run physicalai run --config packages/physicalai-lekiwi-plugin/examples/runtime/teleop.yaml
-```
-
-### LeRobot
-
-Follower → leader teleoperation for any bundled LeRobot robot:
-
-```bash
-uv run physicalai run --config packages/physicalai-lerobot-plugin/examples/runtime/teleop.yaml
 ```
 
 ### MuJoCo SO-101

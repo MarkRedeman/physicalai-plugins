@@ -1,6 +1,6 @@
 # physicalai-plugins Agent Guide
 
-Third-party robot plugins monorepo for the [PhysicalAI](https://github.com/openvinotoolkit/physicalai) workflow: concrete `Robot` implementations and PhysicalAI Studio catalog plugins for the LeKiwi, reBot B601, bimanual SO-101, LeRobot and MuJoCo SO-101, all driven through the `physicalai` runtime.
+Third-party robot plugins monorepo for the [PhysicalAI](https://github.com/openvinotoolkit/physicalai) workflow: concrete `Robot` implementations and PhysicalAI Studio catalog plugins for LeKiwi and MuJoCo SO-101, all driven through the `physicalai` runtime.
 
 ## Repository Layout
 
@@ -13,14 +13,14 @@ Third-party robot plugins monorepo for the [PhysicalAI](https://github.com/openv
 
 ## Setup
 
-- Run `uv sync` from the repo root (installs all 5 packages + dev tooling).
+- Run `uv sync` from the repo root (installs all workspace packages + dev tooling).
 - `physicalai` and `physicalai-studio-plugin` are git-pinned via `[tool.uv.sources]` in the root `pyproject.toml`.
 
 ## Build, Test, Lint
 
 - Run tests: `uv run pytest packages/*/tests/`
 - Run repo hooks: `uv run prek` (or `uv run prek run --all-files`)
-  - `ruff` (select `ALL`, line-length 120, google-style docstrings), `pyrefly` (covers only bimanual + rebot `src`), `markdownlint`, `zizmor`, `gitleaks`, `prettier`.
+  - `ruff` (select `ALL`, line-length 120, google-style docstrings), `pyrefly`, `markdownlint`, `zizmor`, `gitleaks`, `prettier`.
 - Validate a runtime config without hardware: `uv run physicalai run --config <pkg>/examples/runtime/<name>.yaml --print_config`
 
 ## Code Conventions
