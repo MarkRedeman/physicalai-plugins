@@ -143,7 +143,7 @@ class KeyboardTeleop:
     def disconnect(self) -> None:
         """Restore the terminal and release the file descriptor."""
         if self._fd is not None and self._old_settings is not None:
-            termios.tcsetattr(self._fd, termios.TCSANOW, self._old_settings)
+            termios.tcsetattr(self._fd, termios.TCSANOW, self._old_settings)  # type: ignore[arg-type]
         self._fd = None
         self._old_settings = None
 

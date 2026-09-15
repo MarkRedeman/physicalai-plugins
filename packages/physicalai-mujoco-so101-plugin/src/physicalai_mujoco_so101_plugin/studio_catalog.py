@@ -100,12 +100,12 @@ class MuJoCoSO101Payload(BaseModel):
         default="mujoco-so101",
         description="Zenoh logical robot name of the running MuJoCo simulation",
     )
-    allow_remote: bool = Field(
+    allow_remote: bool = Field(  # type: ignore[call-overload]
         default=False,
         description="Allow connecting to a zenoh owner beyond localhost",
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
-    connect_timeout: float = Field(
+    connect_timeout: float = Field(  # type: ignore[call-overload]
         default=10.0,
         description="Timeout in seconds for connecting to the zenoh owner",
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),

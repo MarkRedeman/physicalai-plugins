@@ -16,16 +16,6 @@
   ],
   "plugins": ["sentence-case"],
   "packages": {
-    "packages/physicalai-bimanual-so101-plugin": {
-      "release-type": "python",
-      "package-name": "physicalai-bimanual-so101-plugin",
-      "changelog-path": "CHANGELOG.md"
-    },
-    "packages/physicalai-rebot-b601-plugin": {
-      "release-type": "python",
-      "package-name": "physicalai-rebot-b601-plugin",
-      "changelog-path": "CHANGELOG.md"
-    },
     "packages/physicalai-lekiwi-plugin": {
       "release-type": "python",
       "package-name": "physicalai-lekiwi-plugin",
@@ -39,11 +29,6 @@
     "packages/physicalai-mujoco-so101-plugin": {
       "release-type": "python",
       "package-name": "physicalai-mujoco-so101-plugin",
-      "changelog-path": "CHANGELOG.md"
-    },
-    "packages/physicalai-stararm-plugin": {
-      "release-type": "python",
-      "package-name": "physicalai-stararm-plugin",
       "changelog-path": "CHANGELOG.md"
     }
   }

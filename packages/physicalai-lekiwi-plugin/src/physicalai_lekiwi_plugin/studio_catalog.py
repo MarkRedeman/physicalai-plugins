@@ -67,21 +67,21 @@ class LeKiwiPayload(BaseModel):
 
     connection_string: str = ""
     serial_number: str = ""
-    calibration: dict[str, LeKiwiJointCalibrationPayload] | None = Field(
+    calibration: dict[str, LeKiwiJointCalibrationPayload] | None = Field(  # type: ignore[call-overload]
         default=None,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
-    baudrate: int = Field(
+    baudrate: int = Field(  # type: ignore[call-overload]
         default=1_000_000,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
-    disable_torque_on_disconnect: bool = Field(
+    disable_torque_on_disconnect: bool = Field(  # type: ignore[call-overload]
         default=True,
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
 
     model_config = ConfigDict(
-        json_schema_extra=robot_payload_ui(
+        json_schema_extra=robot_payload_ui(  # type: ignore[arg-type]
             [
                 {
                     "kind": "connection",
