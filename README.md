@@ -10,11 +10,11 @@ via an entry point. Packages are built and released independently with
 
 ## Packages
 
-| Package                                                                                   | Description                                                    | Released          |
-| ----------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ----------------- |
-| [`physicalai-lekiwi-plugin`](packages/physicalai-lekiwi-plugin/README.md)                 | LeKiwi mobile manipulator (6-DOF arm + 3-wheel holonomic base) | yes               |
-| [`physicalai-lerobot-plugin`](packages/physicalai-lerobot-plugin/README.md)               | LeRobot robot/teleoperator adapter for the Studio catalog      | yes               |
-| [`physicalai-mujoco-so101-plugin`](packages/physicalai-mujoco-so101-plugin/README.md)     | MuJoCo SO-101 simulation plugin for PhysicalAI Studio          | not yet published |
+| Package                                                                               | Description                                                    | Released          |
+| ------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ----------------- |
+| [`physicalai-lekiwi-plugin`](packages/physicalai-lekiwi-plugin/README.md)             | LeKiwi mobile manipulator (6-DOF arm + 3-wheel holonomic base) | yes               |
+| [`physicalai-lerobot-plugin`](packages/physicalai-lerobot-plugin/README.md)           | LeRobot robot/teleoperator adapter for the Studio catalog      | yes               |
+| [`physicalai-mujoco-so101-plugin`](packages/physicalai-mujoco-so101-plugin/README.md) | MuJoCo SO-101 simulation plugin for PhysicalAI Studio          | not yet published |
 
 ## Requirements
 
