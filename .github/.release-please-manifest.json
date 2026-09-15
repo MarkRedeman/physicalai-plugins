@@ -1,4 +1,4 @@
 {
-  "packages/physicalai-lekiwi-plugin": "0.3.1",
-  "packages/physicalai-mujoco-so101-plugin": "0.3.1"
+  "packages/physicalai-lekiwi-plugin": "0.4.0",
+  "packages/physicalai-mujoco-so101-plugin": "0.4.0"
 }
