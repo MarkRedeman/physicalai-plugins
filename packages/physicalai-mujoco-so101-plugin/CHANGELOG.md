@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.0](https://github.com/MarkRedeman/physicalai-plugins/compare/physicalai-mujoco-so101-plugin-v0.3.1...physicalai-mujoco-so101-plugin-v0.4.0) (2026-09-15)
+
+
+### Features
+
+* Remove stararm rebot and bimanual so101 ([6a079a0](https://github.com/MarkRedeman/physicalai-plugins/commit/6a079a0b7d1db2b00a148fe3245e6af0416e16e1))
+
+
+### Bug Fixes
+
+* Ignore mujoco related type issues ([b7e6057](https://github.com/MarkRedeman/physicalai-plugins/commit/b7e60577efd12e482cff17b55e46e28b2579144b))
+* Ignore typing problems ([8a7ccb1](https://github.com/MarkRedeman/physicalai-plugins/commit/8a7ccb11e9b1bc9d5a79dd145c904ad802da5485))
+* Require physicalai-studio-plugin 0.2.0 ([dadcef9](https://github.com/MarkRedeman/physicalai-plugins/commit/dadcef9bbe94a93a8d574eabb6b57da6b7f16a0d))
+
 ## [0.3.1](https://github.com/MarkRedeman/physicalai-plugins/compare/physicalai-mujoco-so101-plugin-v0.3.0...physicalai-mujoco-so101-plugin-v0.3.1) (2026-09-09)
 
 
