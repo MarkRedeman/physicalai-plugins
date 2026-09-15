@@ -101,8 +101,10 @@ python-version = "3.12"
 search-path = [
     "packages/physicalai-lekiwi-plugin/src",
     "packages/physicalai-mujoco-so101-plugin/src",
+    "packages/physicalai-openarm-plugin/src",
 ]
 project-includes = [
     "packages/physicalai-lekiwi-plugin/src",
     "packages/physicalai-mujoco-so101-plugin/src",
+    "packages/physicalai-openarm-plugin/src",
 ]
