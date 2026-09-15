@@ -18,7 +18,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from loguru import logger
-from physicalai.config import to_config
+from physicalai.config import Config
 from physicalai.robot.transport import SharedRobot
 
 from physicalai_mujoco_so101_plugin.mujoco_robot import BiMuJoCoSO101, MuJoCoSO101
@@ -225,7 +225,7 @@ def _start(args: argparse.Namespace) -> None:
         "http_port": args.http_port if http_enabled else 0,
     }
     if scene_config is not None:
-        robot_kwargs["scene_config"] = asdict(scene_config)
+        robot_kwargs["scene_config"] = asdict(scene_config)  # type: ignore[arg-type]
 
     idle_timeout = args.idle_timeout
     if idle_timeout is None and not http_enabled:
@@ -233,7 +233,7 @@ def _start(args: argparse.Namespace) -> None:
 
     robot_cls = BiMuJoCoSO101 if args.bimanual else MuJoCoSO101
     robot = SharedRobot.from_config(
-        to_config(robot_cls(**robot_kwargs)),
+        Config.from_instance(robot_cls(**robot_kwargs)),  # type: ignore[arg-type]
         name=args.name,
         allow_remote=args.allow_remote,
         rate_hz=args.rate_hz,

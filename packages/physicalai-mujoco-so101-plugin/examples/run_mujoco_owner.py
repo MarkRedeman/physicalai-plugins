@@ -16,7 +16,7 @@ import time
 from pathlib import Path
 
 from loguru import logger
-from physicalai.config import to_config
+from physicalai.config import Config
 from physicalai.robot.transport import SharedRobot
 
 from physicalai_mujoco_so101_plugin.mujoco_robot import MuJoCoSO101
@@ -43,7 +43,7 @@ def main() -> None:
 
     robot_kwargs = {"model_path": model_path, "substeps": args.substeps}
     robot = SharedRobot.from_config(
-        to_config(MuJoCoSO101(**robot_kwargs)),
+        Config.from_instance(MuJoCoSO101(**robot_kwargs)),
         name=args.name,
         allow_remote=args.allow_remote,
         rate_hz=args.rate_hz,
