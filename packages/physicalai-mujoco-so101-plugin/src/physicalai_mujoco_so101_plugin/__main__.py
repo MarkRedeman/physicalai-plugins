@@ -292,7 +292,7 @@ def _start(args: argparse.Namespace) -> None:  # noqa: C901, PLR0912, PLR0915
 
     robot_cls = BiMuJoCoSO101 if args.bimanual else MuJoCoSO101
     robot = SharedRobot.from_config(
-        to_config(robot_cls(**robot_kwargs)),
+        Config.from_instance(robot_cls(**robot_kwargs)),  # type: ignore[arg-type]
         name=owner_name,
         allow_remote=args.allow_remote,
         rate_hz=args.rate_hz,

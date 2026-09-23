@@ -133,8 +133,6 @@ class MuJoCoSO101BimanualPayload(MuJoCoSO101Payload):
 
 
 def _check_zenoh_robot_online(name: str) -> bool:
-    from physicalai.robot.transport import SharedRobot  # noqa: PLC0415
-
     try:
         robot = SharedRobot.attach(name=name, connect_timeout=2.0)
         robot.connect()
@@ -178,18 +176,8 @@ _MUJOCO_PROBE = MuJoCoSO101Probe()
 
 @export_config(class_path="physicalai_mujoco_so101_plugin.studio_catalog._SharedSO101Robot")
 class _SharedSO101Robot:
-    def __init__(
-        self,
-        owner_name: str,
-        *,
-        allow_remote: bool,
-        connect_timeout: float,
-        joint_names: list[str] | tuple[str, ...],
-    ) -> None:
-        self._owner_name = owner_name
-        self._allow_remote = allow_remote
-        self._connect_timeout = connect_timeout
-        self._shared_robot: object | None = None
+    def __init__(self, shared_robot: SharedRobot, joint_names: list[str] | tuple[str, ...]) -> None:
+        self._shared_robot = shared_robot
         self.joint_names = list(joint_names)
 
     @property
@@ -198,42 +186,18 @@ class _SharedSO101Robot:
         return ()
 
     def connect(self) -> None:
-        from physicalai.robot.transport import SharedRobot  # noqa: PLC0415
-
-        if self._shared_robot is not None:
-            return
-        shared = SharedRobot.attach(
-            name=self._owner_name,
-            allow_remote=self._allow_remote,
-            connect_timeout=self._connect_timeout,
-        )
-        shared.connect()
-        self._shared_robot = shared
+        self._shared_robot.connect()
 
     def disconnect(self) -> None:
-        shared = self._shared_robot
-        if shared is None:
-            return
-        # Drop the handle even if teardown fails, so a reconnect attaches a new
-        # session instead of leaking this one and probing a dead transport.
-        self._shared_robot = None
-        shared.disconnect()
+        self._shared_robot.disconnect()
 
     def get_observation(self) -> RobotObservation:
-        if self._shared_robot is None:
-            msg = "MuJoCo shared robot is not connected."
-            raise RuntimeError(msg)
         return self._shared_robot.get_observation()
 
     def send_action(self, action: np.ndarray, *, goal_time: float = 0.1) -> None:
-        if self._shared_robot is None:
-            msg = "MuJoCo shared robot is not connected."
-            raise RuntimeError(msg)
         self._shared_robot.send_action(action, goal_time=goal_time)
 
     def is_connected(self) -> bool:
-        if self._shared_robot is None:
-            return False
         return self._shared_robot.is_connected()
 
 
@@ -256,12 +220,12 @@ def _mujoco_robot_builder(
         raw = robot.payload
         validated = raw if isinstance(raw, payload_model) else payload_model.model_validate(raw)
 
-        return _SharedSO101Robot(
-            validated.name,
+        shared = SharedRobot.attach(
+            name=validated.name,
             allow_remote=validated.allow_remote,
             connect_timeout=validated.connect_timeout,
-            joint_names=joint_order,
         )
+        return _SharedSO101Robot(shared, joint_order)
 
     return build
 

@@ -6,6 +6,9 @@ object, and write the result into the object's freejoint. Keeping one
 implementation here stops the per-scene copies from drifting apart.
 """
 
+# MuJoCo model/data attributes are supplied by the C extension at runtime.
+# pyrefly: ignore-errors [missing-attribute]
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

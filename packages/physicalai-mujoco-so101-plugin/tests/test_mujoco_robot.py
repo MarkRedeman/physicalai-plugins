@@ -545,6 +545,25 @@ class TestRecreateViserScene:
 
 
 class TestLaunchViserViewer:
+    def test_viser_console_does_not_use_owner_stdout(self, mock_mujoco: MagicMock) -> None:
+        """Viser's teardown message must survive the owner closing stdout after READY."""
+        _ = mock_mujoco
+        import rich
+
+        robot = MuJoCoSO101(model_path="/fake/model.xml")
+        robot.connect()
+        console = rich.get_console()
+        original_file = console.file
+        try:
+            with (
+                patch("viser.ViserServer", return_value=MagicMock()),
+                patch("mjviser.ViserMujocoScene", return_value=MagicMock()),
+            ):
+                assert robot._launch_viser_viewer() is True  # noqa: SLF001
+            assert console.file is sys.stderr
+        finally:
+            console.file = original_file
+
     def test_stops_partially_created_server_on_scene_failure(self, mock_mujoco: MagicMock) -> None:
         """A server created before the scene build fails must not leak the port/thread."""
         _ = mock_mujoco

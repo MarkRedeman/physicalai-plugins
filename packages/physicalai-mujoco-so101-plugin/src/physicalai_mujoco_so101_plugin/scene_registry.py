@@ -1,6 +1,7 @@
 """Scene definitions and reset behavior for the MuJoCo SO-101 simulation."""
 
-# pyrefly: ignore
+# MuJoCo model/data attributes are supplied by the C extension at runtime.
+# pyrefly: ignore-errors [missing-attribute]
 
 from __future__ import annotations
 

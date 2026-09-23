@@ -1,5 +1,8 @@
 """Auto-reset a pick-place episode when the cube stays on the green plate."""
 
+# MuJoCo model/data attributes are supplied by the C extension at runtime.
+# pyrefly: ignore-errors [missing-attribute]
+
 from __future__ import annotations
 
 from dataclasses import dataclass

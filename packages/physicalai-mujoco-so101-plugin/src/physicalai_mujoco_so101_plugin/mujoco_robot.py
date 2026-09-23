@@ -1,6 +1,7 @@
 """MuJoCo-backed SO-101 robot implementation."""
 
-# pyrefly: ignore
+# MuJoCo and viser expose runtime-bound attributes exercised by the simulation tests.
+# pyrefly: ignore-errors [missing-attribute, not-callable, bad-context-manager]
 
 from __future__ import annotations
 
@@ -693,11 +694,17 @@ class MuJoCoSO101:
         if self._viser_port <= 0:
             return False
         try:
+            import rich  # noqa: PLC0415
             import viser  # noqa: PLC0415
             from mjviser import ViserMujocoScene  # noqa: PLC0415
         except ImportError as exc:
             logger.warning("mjviser/viser unavailable, web viewer disabled: {}", exc)
             return False
+
+        # SharedRobot's owner worker closes stdout after its READY handshake.
+        # Viser prints from its background thread during stop(), so give Rich a
+        # stream that remains open throughout owner teardown.
+        rich.get_console().file = sys.stderr
 
         server = None
         try:

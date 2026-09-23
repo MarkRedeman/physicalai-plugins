@@ -3,7 +3,8 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from physicalai.config import to_config
+from physicalai.config import Config
+from physicalai.robot.transport import RobotOwnerConfig, SharedRobot
 
 from physicalai_mujoco_so101_plugin.constants import (
     BIMANUAL_SO101_JOINT_ORDER,
@@ -53,6 +54,11 @@ class TestMuJoCoSO101BimanualPayload:
         assert payload.allow_remote is True
         assert payload.connect_timeout == 3.0
 
+    def test_connection_settings_are_advanced(self) -> None:
+        schema = MuJoCoSO101BimanualPayload.model_json_schema()
+        for field in ("allow_remote", "connect_timeout"):
+            assert schema["properties"][field]["x-physicalai-ui"]["advanced_configuration"] is True
+
     def test_payload_model_rebuild(self) -> None:
         MuJoCoSO101BimanualPayload.model_rebuild(raise_errors=True)
 
@@ -94,6 +100,34 @@ class TestDefinitions:
         definition = defs[0]
         assert callable(definition.robot_builder)
 
+    @pytest.mark.anyio
+    @pytest.mark.parametrize(
+        ("index", "name", "joint_order"),
+        [
+            (0, DEFAULT_MUJOCO_OWNER_NAME, SO101_JOINT_ORDER),
+            (1, DEFAULT_BIMANUAL_MUJOCO_OWNER_NAME, BIMANUAL_SO101_JOINT_ORDER),
+        ],
+    )
+    async def test_builder_exports_owner_recipe(
+        self,
+        index: int,
+        name: str,
+        joint_order: tuple[str, ...],
+    ) -> None:
+        definition = _definitions()[index]
+        container = MagicMock(payload={"allow_remote": True, "connect_timeout": 3.0})
+
+        robot = await definition.robot_builder(container, MagicMock())
+        recipe = Config.from_instance(robot)
+        built = RobotOwnerConfig(name="studio-owner", robot=recipe).build()
+
+        assert isinstance(built, _SharedSO101Robot)
+        assert built._shared_robot._name == name  # noqa: SLF001
+        assert built._shared_robot._allow_remote is True  # noqa: SLF001
+        assert built._shared_robot._connect_timeout == 3.0  # noqa: SLF001
+        assert built._shared_robot._robot is None  # noqa: SLF001
+        assert built.joint_names == list(joint_order)
+
     def test_payload_model_class(self) -> None:
         defs = _definitions()
         definition = defs[0]
@@ -123,38 +157,28 @@ class TestDefinitions:
 
 class TestSharedRobotAdapter:
     def test_has_no_owned_devices(self) -> None:
-        robot = _SharedSO101Robot(
-            DEFAULT_MUJOCO_OWNER_NAME,
-            allow_remote=False,
-            connect_timeout=10.0,
-            joint_names=SO101_JOINT_ORDER,
-        )
+        robot = _SharedSO101Robot(SharedRobot.attach(DEFAULT_MUJOCO_OWNER_NAME), SO101_JOINT_ORDER)
         assert robot.device_ids == ()
         assert robot.joint_names == list(SO101_JOINT_ORDER)
 
     def test_bimanual_joint_names(self) -> None:
-        robot = _SharedSO101Robot(
-            DEFAULT_MUJOCO_OWNER_NAME,
-            allow_remote=False,
-            connect_timeout=10.0,
-            joint_names=BIMANUAL_SO101_JOINT_ORDER,
-        )
+        robot = _SharedSO101Robot(SharedRobot.attach(DEFAULT_BIMANUAL_MUJOCO_OWNER_NAME), BIMANUAL_SO101_JOINT_ORDER)
         assert robot.joint_names == list(BIMANUAL_SO101_JOINT_ORDER)
 
-    def test_exports_owner_name_recipe(self) -> None:
-        robot = _SharedSO101Robot(
-            DEFAULT_MUJOCO_OWNER_NAME,
-            allow_remote=False,
-            connect_timeout=5.0,
-            joint_names=SO101_JOINT_ORDER,
-        )
+    def test_exports_attach_only_shared_robot_recipe(self) -> None:
+        robot = _SharedSO101Robot(SharedRobot.attach(DEFAULT_MUJOCO_OWNER_NAME, connect_timeout=5.0), SO101_JOINT_ORDER)
 
         assert Config.from_instance(robot) == {
             "class_path": "physicalai_mujoco_so101_plugin.studio_catalog._SharedSO101Robot",
             "init_args": {
-                "owner_name": DEFAULT_MUJOCO_OWNER_NAME,
-                "allow_remote": False,
-                "connect_timeout": 5.0,
+                "shared_robot": {
+                    "class_path": "physicalai.robot.SharedRobot",
+                    "init_args": {
+                        "name": DEFAULT_MUJOCO_OWNER_NAME,
+                        "allow_remote": False,
+                        "connect_timeout": 5.0,
+                    },
+                },
                 "joint_names": list(SO101_JOINT_ORDER),
             },
         }
@@ -177,54 +201,18 @@ class TestSharedRobotAdapter:
 
 
 class TestSharedRobotLifecycle:
-    @staticmethod
-    def _robot() -> _SharedSO101Robot:
-        return _SharedSO101Robot(
-            owner_name=DEFAULT_MUJOCO_OWNER_NAME,
-            allow_remote=False,
-            connect_timeout=10.0,
-            joint_names=SO101_JOINT_ORDER,
-        )
+    def test_delegates_connection_to_shared_robot(self) -> None:
+        shared = MagicMock(spec=SharedRobot)
+        shared.is_connected.return_value = True
+        robot = _SharedSO101Robot(shared, SO101_JOINT_ORDER)
 
-    def test_disconnect_releases_the_handle(self) -> None:
-        robot = self._robot()
-        shared = MagicMock()
-        with patch("physicalai.robot.transport.SharedRobot.attach", return_value=shared):
-            robot.connect()
+        robot.connect()
+        assert robot.is_connected() is True
         robot.disconnect()
 
+        shared.connect.assert_called_once()
+        shared.is_connected.assert_called_once()
         shared.disconnect.assert_called_once()
-        assert robot.is_connected() is False
-
-    def test_disconnect_releases_the_handle_when_teardown_fails(self) -> None:
-        robot = self._robot()
-        shared = MagicMock()
-        shared.disconnect.side_effect = RuntimeError("zenoh gone")
-        with patch("physicalai.robot.transport.SharedRobot.attach", return_value=shared):
-            robot.connect()
-
-        with pytest.raises(RuntimeError, match="zenoh gone"):
-            robot.disconnect()
-        assert robot.is_connected() is False
-
-    def test_reconnect_attaches_a_new_owner(self) -> None:
-        robot = self._robot()
-        first, second = MagicMock(), MagicMock()
-        with patch("physicalai.robot.transport.SharedRobot.attach", side_effect=[first, second]) as attach:
-            robot.connect()
-            robot.disconnect()
-            robot.connect()
-
-        assert attach.call_count == 2
-        assert robot._shared_robot is second  # noqa: SLF001
-
-    def test_connect_is_idempotent(self) -> None:
-        robot = self._robot()
-        with patch("physicalai.robot.transport.SharedRobot.attach", return_value=MagicMock()) as attach:
-            robot.connect()
-            robot.connect()
-
-        attach.assert_called_once()
 
 
 class TestProbe:
