@@ -24,9 +24,15 @@ from pydantic import BaseModel, Field
 
 import physicalai_mujoco_so101_plugin
 from physicalai_mujoco_so101_plugin._urdf import get_urdf_path
-from physicalai_mujoco_so101_plugin.constants import BIMANUAL_SO101_JOINT_ORDER, SO101_JOINT_ORDER
+from physicalai_mujoco_so101_plugin.constants import (
+    BIMANUAL_SO101_JOINT_ORDER,
+    DEFAULT_BIMANUAL_MUJOCO_OWNER_NAME,
+    DEFAULT_MUJOCO_OWNER_NAME,
+    SO101_JOINT_ORDER,
+)
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
     from typing import Protocol
 
     import numpy as np
@@ -97,7 +103,7 @@ class MuJoCoSO101Payload(BaseModel):
     """Connection settings for a MuJoCo SO-101 simulation owner."""
 
     name: str = Field(
-        default="mujoco-so101",
+        default=DEFAULT_MUJOCO_OWNER_NAME,
         description="Zenoh logical robot name of the running MuJoCo simulation",
     )
     allow_remote: bool = Field(  # type: ignore[call-overload]
@@ -110,6 +116,31 @@ class MuJoCoSO101Payload(BaseModel):
         description="Timeout in seconds for connecting to the zenoh owner",
         json_schema_extra=robot_field_ui({"advanced_configuration": True}),
     )
+
+
+class MuJoCoSO101BimanualPayload(MuJoCoSO101Payload):
+    """Connection settings for a bimanual MuJoCo SO-101 simulation owner.
+
+    Identical to the single-arm payload apart from the default owner name, which
+    matches ``physicalai-mujoco-so101 start --bimanual``. Sharing one default
+    would make both catalog entries probe the same owner.
+    """
+
+    name: str = Field(
+        default=DEFAULT_BIMANUAL_MUJOCO_OWNER_NAME,
+        description="Zenoh logical robot name of the running bimanual MuJoCo simulation",
+    )
+
+
+def _check_zenoh_robot_online(name: str) -> bool:
+    try:
+        robot = SharedRobot.attach(name=name, connect_timeout=2.0)
+        robot.connect()
+        robot.disconnect()
+    except (ConnectionError, TimeoutError, RuntimeError):
+        return False
+    else:
+        return True
 
 
 class MuJoCoSO101Probe(RobotProbe[MuJoCoSO101Payload]):
@@ -138,17 +169,6 @@ class MuJoCoSO101Probe(RobotProbe[MuJoCoSO101Payload]):
         """Return whether the configured simulation owner is reachable."""
         _ = self, manager
         return await asyncio.to_thread(_check_zenoh_robot_online, payload.name)
-
-
-def _check_zenoh_robot_online(name: str) -> bool:
-    try:
-        robot = SharedRobot.attach(name=name, connect_timeout=2.0)
-        robot.connect()
-        robot.disconnect()
-    except (ConnectionError, TimeoutError, RuntimeError):
-        return False
-    else:
-        return True
 
 
 _MUJOCO_PROBE = MuJoCoSO101Probe()
@@ -181,38 +201,37 @@ class _SharedSO101Robot:
         return self._shared_robot.is_connected()
 
 
-async def _build_mujoco_robot(
-    robot: PayloadContainer[MuJoCoSO101Payload],
-    factory: CatalogRobotFactory,
-) -> PhysicalAIRobot:
-    _ = factory
-    await asyncio.sleep(0)
-    raw = robot.payload
-    validated = raw if isinstance(raw, MuJoCoSO101Payload) else MuJoCoSO101Payload.model_validate(raw)
+def _mujoco_robot_builder(
+    payload_model: type[MuJoCoSO101Payload],
+    joint_order: tuple[str, ...],
+) -> Callable[[PayloadContainer[MuJoCoSO101Payload], CatalogRobotFactory], Awaitable[PhysicalAIRobot]]:
+    """Build the catalog builder for one arm count.
 
-    shared = SharedRobot.attach(
-        name=validated.name,
-        allow_remote=validated.allow_remote,
-        connect_timeout=validated.connect_timeout,
-    )
-    return _SharedSO101Robot(shared, SO101_JOINT_ORDER)
+    Returns:
+        An async robot builder that attaches to the payload's zenoh owner.
+    """
+
+    async def build(
+        robot: PayloadContainer[MuJoCoSO101Payload],
+        factory: CatalogRobotFactory,
+    ) -> PhysicalAIRobot:
+        _ = factory
+        await asyncio.sleep(0)
+        raw = robot.payload
+        validated = raw if isinstance(raw, payload_model) else payload_model.model_validate(raw)
+
+        shared = SharedRobot.attach(
+            name=validated.name,
+            allow_remote=validated.allow_remote,
+            connect_timeout=validated.connect_timeout,
+        )
+        return _SharedSO101Robot(shared, joint_order)
+
+    return build
 
 
-async def _build_bimanual_mujoco_robot(
-    robot: PayloadContainer[MuJoCoSO101Payload],
-    factory: CatalogRobotFactory,
-) -> PhysicalAIRobot:
-    _ = factory
-    await asyncio.sleep(0)
-    raw = robot.payload
-    validated = raw if isinstance(raw, MuJoCoSO101Payload) else MuJoCoSO101Payload.model_validate(raw)
-
-    shared = SharedRobot.attach(
-        name=validated.name,
-        allow_remote=validated.allow_remote,
-        connect_timeout=validated.connect_timeout,
-    )
-    return _SharedSO101Robot(shared, BIMANUAL_SO101_JOINT_ORDER)
+_build_mujoco_robot = _mujoco_robot_builder(MuJoCoSO101Payload, SO101_JOINT_ORDER)
+_build_bimanual_mujoco_robot = _mujoco_robot_builder(MuJoCoSO101BimanualPayload, BIMANUAL_SO101_JOINT_ORDER)
 
 
 def _definitions() -> list[RobotCatalogDefinition]:
@@ -235,7 +254,7 @@ def _definitions() -> list[RobotCatalogDefinition]:
             display_name="MuJoCo SO-101 Bimanual Follower",
             role="follower",
             robot_builder=_build_bimanual_mujoco_robot,
-            robot_payload=MuJoCoSO101Payload,
+            robot_payload=MuJoCoSO101BimanualPayload,
             asset=_MUJOCO_SO101_BIMANUAL_ASSET,
             adapter_options=RobotAdapterOptions(
                 include_velocities=False,
