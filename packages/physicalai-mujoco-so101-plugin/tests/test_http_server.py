@@ -8,6 +8,7 @@ import socket
 import time
 import urllib.error
 import urllib.request
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -208,6 +209,75 @@ class TestMjpegGenerator:
         chunk, _ = await asyncio.gather(iterator, publish_later())
         await stream.aclose()
         assert b"\xff\xd8" in chunk
+
+    @pytest.mark.anyio
+    async def test_streams_do_not_borrow_the_default_executor(self, frame: np.ndarray) -> None:
+        buffer = FrameBuffer("overview")
+        buffer.put(frame)
+        stream = _mjpeg_stream(buffer, quality=85)
+
+        with patch("asyncio.to_thread", side_effect=AssertionError("stream used a pool thread")):
+            chunk = await anext(stream)
+            await stream.aclose()
+
+        assert b"\xff\xd8" in chunk
+
+    @pytest.mark.anyio
+    async def test_waiter_is_never_held_across_a_yield(self, frame: np.ndarray) -> None:
+        buffer = FrameBuffer("overview")
+        buffer.put(frame)
+        stream = _mjpeg_stream(buffer, quality=85)
+        await anext(stream)
+
+        # Nothing stays registered while the client consumes a chunk, so an
+        # abandoned generator cannot leak a waiter into the buffer.
+        assert buffer._async_waiters == set()  # noqa: SLF001
+
+        await stream.aclose()
+
+        assert buffer._async_waiters == set()  # noqa: SLF001
+
+    @pytest.mark.anyio
+    async def test_publish_from_another_thread_wakes_the_stream(self, frame: np.ndarray) -> None:
+        buffer = FrameBuffer("overview")
+        stream = _mjpeg_stream(buffer, quality=85)
+        iterator = anext(stream)
+
+        def publish_from_sim_thread() -> None:
+            time.sleep(0.05)
+            buffer.put(frame)
+
+        chunk, _ = await asyncio.gather(
+            iterator,
+            asyncio.get_running_loop().run_in_executor(None, publish_from_sim_thread),
+        )
+        await stream.aclose()
+        assert b"\xff\xd8" in chunk
+
+
+class TestFrameBufferAsyncWaiter:
+    @pytest.mark.anyio
+    async def test_waiter_is_registered_and_removed(self) -> None:
+        buffer = FrameBuffer("cam")
+        with buffer.async_waiter() as event:
+            assert not event.is_set()
+            assert len(buffer._async_waiters) == 1  # noqa: SLF001
+        assert buffer._async_waiters == set()  # noqa: SLF001
+
+    @pytest.mark.anyio
+    async def test_put_sets_every_waiter(self, frame: np.ndarray) -> None:
+        buffer = FrameBuffer("cam")
+        with buffer.async_waiter() as first, buffer.async_waiter() as second:
+            buffer.put(frame)
+            await asyncio.sleep(0)
+            assert first.is_set()
+            assert second.is_set()
+
+    @pytest.mark.anyio
+    async def test_put_without_waiters_is_fine(self, frame: np.ndarray) -> None:
+        buffer = FrameBuffer("cam")
+        buffer.put(frame)
+        assert buffer.snapshot() is not None
 
 
 def _free_port() -> int:
